@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>D-Day 생일 카운터</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/korean-lunar-calendar@0.3.6/dist/korean-lunar-calendar.min.js"></script>
+  <style>
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 20px rgba(236, 72, 153, 0.3); }
+      50% { box-shadow: 0 0 40px rgba(236, 72, 153, 0.6); }
+    }
+    .birthday-glow { animation: pulse-glow 2s ease-in-out infinite; }
+    @keyframes confetti-fall {
+      0% { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+      100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+    }
+    .confetti {
+      position: fixed;
+      top: -10px;
+      animation: confetti-fall linear forwards;
+      pointer-events: none;
+      z-index: 50;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useMemo } = React;
+
+    // ========================================
+    // 🎨 Design System Components
+    // ========================================
+
+    function Card({ children, className = '' }) {
+      return (
+        <div className={`bg-white rounded-2xl shadow-lg p-6 sm:p-8 ${className}`}>
+          {children}
+        </div>
+      );
+    }
+
+    function Input({ label, type = 'text', value, onChange, max, className = '' }) {
+      return (
+        <div className={`flex flex-col gap-1 ${className}`}>
+          <label className="text-sm font-medium text-gray-600">{label}</label>
+          <input
+            type={type}
+            value={value}
+            onChange={onChange}
+            max={max}
+            className="border border-gray-300 rounded-lg px-4 py-2.5 text-center text-lg
+                       focus:outline-none focus:ring-2 focus:ring-pink-400 focus:border-transparent
+                       transition-all"
+          />
+        </div>
+      );
+    }
+
+    function Toggle({ checked, onChange, labelOn, labelOff }) {
+      return (
+        <button
+          onClick={() => onChange(!checked)}
+          className="flex items-center gap-3 mx-auto"
+        >
+          <span className={`text-sm font-medium transition-colors ${!checked ? 'text-pink-600' : 'text-gray-400'}`}>
+            {labelOff}
+          </span>
+          <div className={`w-14 h-7 rounded-full p-1 transition-colors ${checked ? 'bg-violet-500' : 'bg-pink-400'}`}>
+            <div className={`w-5 h-5 bg-white rounded-full shadow-md transition-transform ${checked ? 'translate-x-7' : 'translate-x-0'}`} />
+          </div>
+          <span className={`text-sm font-medium transition-colors ${checked ? 'text-violet-600' : 'text-gray-400'}`}>
+            {labelOn}
+          </span>
+        </button>
+      );
+    }
+
+    function Button({ children, onClick, className = '' }) {
+      return (
+        <button
+          onClick={onClick}
+          className={`px-6 py-3 rounded-lg font-semibold transition-all text-lg
+                     bg-gradient-to-r from-pink-500 to-violet-500 text-white
+                     hover:from-pink-600 hover:to-violet-600
+                     active:from-pink-700 active:to-violet-700 ${className}`}
+        >
+          {children}
+        </button>
+      );
+    }
+
+    // ========================================
+    // 🌙 음력 변환 유틸리티
+    // ========================================
+
+    function lunarToSolar(year, month, day) {
+      try {
+        const calendar = new KoreanLunarCalendar();
+        calendar.setLunarDate(year, month, day, false);
+        return {
+          year: calendar.getSolarCalendar().year,
+          month: calendar.getSolarCalendar().month,
+          day: calendar.getSolarCalendar().day,
+        };
+      } catch {
+        return null;
+      }
+    }
+
+    function getNextBirthdaySolar(birthMonth, birthDay) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const thisYear = today.getFullYear();
+
+      let next = new Date(thisYear, birthMonth - 1, birthDay);
+      next.setHours(0, 0, 0, 0);
+      if (next < today) {
+        next = new Date(thisYear + 1, birthMonth - 1, birthDay);
+        next.setHours(0, 0, 0, 0);
+      }
+      return next;
+    }
+
+    function getNextBirthdayLunar(lunarMonth, lunarDay) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const thisYear = today.getFullYear();
+
+      // 올해 음력 생일의 양력 날짜
+      let converted = lunarToSolar(thisYear, lunarMonth, lunarDay);
+      if (converted) {
+        const date = new Date(converted.year, converted.month - 1, converted.day);
+        date.setHours(0, 0, 0, 0);
+        if (date >= today) {
+          return { date, solarDate: converted };
+        }
+      }
+
+      // 내년 음력 생일의 양력 날짜
+      converted = lunarToSolar(thisYear + 1, lunarMonth, lunarDay);
+      if (converted) {
+        const date = new Date(converted.year, converted.month - 1, converted.day);
+        date.setHours(0, 0, 0, 0);
+        return { date, solarDate: converted };
+      }
+
+      return null;
+    }
+
+    function formatDate(year, month, day) {
+      return `${year}년 ${month}월 ${day}일`;
+    }
+
+    // ========================================
+    // 🎊 Confetti Component
+    // ========================================
+
+    function Confetti() {
+      const pieces = useMemo(() => {
+        const colors = ['#ec4899', '#8b5cf6', '#f59e0b', '#10b981', '#3b82f6', '#ef4444'];
+        return Array.from({ length: 30 }, (_, i) => ({
+          id: i,
+          left: Math.random() * 100,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          size: Math.random() * 8 + 6,
+          duration: Math.random() * 2 + 2,
+          delay: Math.random() * 2,
+        }));
+      }, []);
+
+      return pieces.map(p => (
+        <div
+          key={p.id}
+          className="confetti"
+          style={{
+            left: `${p.left}%`,
+            width: `${p.size}px`,
+            height: `${p.size}px`,
+            backgroundColor: p.color,
+            borderRadius: Math.random() > 0.5 ? '50%' : '2px',
+            animationDuration: `${p.duration}s`,
+            animationDelay: `${p.delay}s`,
+          }}
+        />
+      ));
+    }
+
+    // ========================================
+    // 🚀 App Component
+    // ========================================
+
+    function App() {
+      const [birthDate, setBirthDate] = useState('');
+      const [isLunar, setIsLunar] = useState(false);
+      const [result, setResult] = useState(null);
+
+      function calculate() {
+        if (!birthDate) return;
+
+        const [y, m, d] = birthDate.split('-').map(Number);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        if (isLunar) {
+          // 음력 생일
+          const nextInfo = getNextBirthdayLunar(m, d);
+          if (!nextInfo) {
+            setResult({ error: '음력 날짜를 변환할 수 없습니다. 날짜를 확인해주세요.' });
+            return;
+          }
+
+          const diff = Math.ceil((nextInfo.date - today) / (1000 * 60 * 60 * 24));
+          const isBirthday = diff === 0;
+
+          setResult({
+            dDay: diff,
+            isBirthday,
+            nextBirthdayDate: nextInfo.date,
+            solarConverted: formatDate(nextInfo.solarDate.year, nextInfo.solarDate.month, nextInfo.solarDate.day),
+            lunarOriginal: `음력 ${m}월 ${d}일`,
+            calendarType: '음력',
+          });
+        } else {
+          // 양력 생일
+          const nextBirthday = getNextBirthdaySolar(m, d);
+          const diff = Math.ceil((nextBirthday - today) / (1000 * 60 * 60 * 24));
+          const isBirthday = diff === 0;
+
+          setResult({
+            dDay: diff,
+            isBirthday,
+            nextBirthdayDate: nextBirthday,
+            solarConverted: null,
+            lunarOriginal: null,
+            calendarType: '양력',
+          });
+        }
+      }
+
+      const nextDateStr = result && result.nextBirthdayDate
+        ? `${result.nextBirthdayDate.getFullYear()}년 ${result.nextBirthdayDate.getMonth() + 1}월 ${result.nextBirthdayDate.getDate()}일`
+        : '';
+
+      const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
+      const nextDayOfWeek = result && result.nextBirthdayDate
+        ? weekdays[result.nextBirthdayDate.getDay()]
+        : '';
+
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-pink-100 via-violet-50 to-indigo-100 flex items-center justify-center p-4">
+          {result && result.isBirthday && <Confetti />}
+
+          <div className="w-full max-w-md">
+            <h1 className="text-3xl sm:text-4xl font-bold text-center text-gray-800 mb-2">
+              🎂 D-Day 생일 카운터
+            </h1>
+            <p className="text-center text-gray-400 text-sm mb-8">음력 / 양력 생일 모두 지원</p>
+
+            <Card>
+              <div className="flex flex-col gap-5">
+                <Toggle
+                  checked={isLunar}
+                  onChange={(v) => { setIsLunar(v); setResult(null); }}
+                  labelOff="☀️ 양력"
+                  labelOn="🌙 음력"
+                />
+
+                <Input
+                  label={isLunar ? '음력 생년월일' : '양력 생년월일'}
+                  type="date"
+                  value={birthDate}
+                  onChange={(e) => { setBirthDate(e.target.value); setResult(null); }}
+                />
+
+                {isLunar && (
+                  <p className="text-xs text-violet-500 -mt-3 text-center">
+                    음력 날짜를 양력 날짜 형식으로 입력해주세요 (예: 음력 1월 15일 → 01-15)
+                  </p>
+                )}
+
+                <Button onClick={calculate} className="w-full">
+                  계산하기
+                </Button>
+
+                {result && result.error && (
+                  <p className="text-red-500 text-center font-medium text-sm">{result.error}</p>
+                )}
+
+                {result && !result.error && (
+                  <div className="mt-2 space-y-4">
+                    {/* D-Day 메인 */}
+                    {result.isBirthday ? (
+                      <div className="bg-gradient-to-r from-pink-500 to-violet-500 rounded-xl p-6 text-center birthday-glow">
+                        <p className="text-white text-lg mb-1">🎉🎂🎉</p>
+                        <p className="text-3xl font-bold text-white">오늘이 생일입니다!</p>
+                        <p className="text-white/80 text-sm mt-2">생일 축하합니다! 🥳</p>
+                      </div>
+                    ) : (
+                      <div className="bg-gradient-to-r from-pink-50 to-violet-50 rounded-xl p-6 text-center">
+                        <p className="text-sm text-gray-500 mb-1">다음 생일까지</p>
+                        <p className="text-6xl font-bold bg-gradient-to-r from-pink-600 to-violet-600 bg-clip-text text-transparent">
+                          D-{result.dDay}
+                        </p>
+                        <p className="text-gray-400 text-sm mt-2">
+                          {nextDateStr} ({nextDayOfWeek}요일)
+                        </p>
+                      </div>
+                    )}
+
+                    {/* 음력 변환 정보 */}
+                    {result.solarConverted && (
+                      <div className="bg-violet-50 rounded-xl p-4 text-center space-y-1">
+                        <p className="text-xs text-violet-500 font-medium">음력 → 양력 변환</p>
+                        <p className="text-sm text-gray-600">
+                          {result.lunarOriginal} → <span className="font-semibold text-violet-700">{result.solarConverted}</span>
+                        </p>
+                      </div>
+                    )}
+
+                    {/* 상세 정보 */}
+                    {!result.isBirthday && (
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="bg-gray-50 rounded-xl p-3 text-center">
+                          <p className="text-[10px] text-gray-400 mb-1">남은 개월</p>
+                          <p className="text-lg font-bold text-gray-700">
+                            {Math.floor(result.dDay / 30)}<span className="text-xs ml-0.5">개월</span>
+                          </p>
+                        </div>
+                        <div className="bg-gray-50 rounded-xl p-3 text-center">
+                          <p className="text-[10px] text-gray-400 mb-1">남은 주</p>
+                          <p className="text-lg font-bold text-gray-700">
+                            {Math.floor(result.dDay / 7)}<span className="text-xs ml-0.5">주</span>
+                          </p>
+                        </div>
+                        <div className="bg-gray-50 rounded-xl p-3 text-center">
+                          <p className="text-[10px] text-gray-400 mb-1">남은 시간</p>
+                          <p className="text-lg font-bold text-gray-700">
+                            {(result.dDay * 24).toLocaleString()}<span className="text-xs ml-0.5">h</span>
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 달력 타입 뱃지 */}
+                    <div className="text-center">
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                        result.calendarType === '음력'
+                          ? 'bg-violet-100 text-violet-600'
+                          : 'bg-pink-100 text-pink-600'
+                      }`}>
+                        {result.calendarType === '음력' ? '🌙' : '☀️'} {result.calendarType} 기준 계산
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Card>
+
+            <p className="text-center text-gray-400 text-xs mt-6">
+              오늘 날짜 기준으로 계산됩니다
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🔧 Rendering
+    // ========================================
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
