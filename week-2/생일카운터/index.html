@@ -248,6 +248,8 @@
         : '';
 
       const weekdays = ['일', '월', '화', '수', '목', '금', '토'];
+      const todayObj = new Date();
+      const todayStr = `${todayObj.getFullYear()}년 ${todayObj.getMonth() + 1}월 ${todayObj.getDate()}일 (${weekdays[todayObj.getDay()]}요일)`;
       const nextDayOfWeek = result && result.nextBirthdayDate
         ? weekdays[result.nextBirthdayDate.getDay()]
         : '';
@@ -260,7 +262,10 @@
             <h1 className="text-3xl sm:text-4xl font-bold text-center text-gray-800 mb-2">
               🎂 D-Day 생일 카운터
             </h1>
-            <p className="text-center text-gray-400 text-sm mb-8">음력 / 양력 생일 모두 지원</p>
+            <p className="text-center text-gray-400 text-sm mb-1">음력 / 양력 생일 모두 지원</p>
+            <p className="text-center text-gray-500 text-sm font-medium mb-8">
+              📅 오늘: {todayStr}
+            </p>
 
             <Card>
               <div className="flex flex-col gap-5">
