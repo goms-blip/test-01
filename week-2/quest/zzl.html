@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>짤 생성기 - 밈 메이커</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;700;900&display=swap');
+    canvas { image-rendering: -webkit-optimize-contrast; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useRef, useEffect, useCallback, useMemo } = React;
+
+    // ========================================
+    // 🎨 Design System Components
+    // ========================================
+
+    function Button({ children, onClick, variant = 'primary', size = 'md', disabled = false, className = '' }) {
+      const base = 'font-bold rounded-lg transition-all duration-200 inline-flex items-center justify-center gap-2 cursor-pointer';
+      const variants = {
+        primary: 'bg-purple-600 hover:bg-purple-700 text-white shadow-lg hover:shadow-xl',
+        secondary: 'bg-gray-200 hover:bg-gray-300 text-gray-800',
+        danger: 'bg-red-500 hover:bg-red-600 text-white',
+        ghost: 'bg-transparent hover:bg-gray-100 text-gray-600',
+        success: 'bg-emerald-500 hover:bg-emerald-600 text-white shadow-lg',
+      };
+      const sizes = {
+        sm: 'px-3 py-1.5 text-sm',
+        md: 'px-4 py-2 text-base',
+        lg: 'px-6 py-3 text-lg',
+      };
+      return (
+        <button
+          onClick={onClick}
+          disabled={disabled}
+          className={`${base} ${variants[variant]} ${sizes[size]} ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
+        >
+          {children}
+        </button>
+      );
+    }
+
+    function Slider({ label, value, onChange, min = 0, max = 100, step = 1, unit = '' }) {
+      return (
+        <div className="space-y-1">
+          <div className="flex justify-between items-center">
+            <label className="text-sm font-medium text-gray-700">{label}</label>
+            <span className="text-sm text-purple-600 font-bold">{value}{unit}</span>
+          </div>
+          <input
+            type="range"
+            min={min}
+            max={max}
+            step={step}
+            value={value}
+            onChange={e => onChange(Number(e.target.value))}
+            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+          />
+        </div>
+      );
+    }
+
+    function ColorPicker({ label, value, onChange }) {
+      return (
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-gray-700 min-w-[60px]">{label}</label>
+          <div className="relative">
+            <input
+              type="color"
+              value={value}
+              onChange={e => onChange(e.target.value)}
+              className="w-8 h-8 rounded cursor-pointer border border-gray-300"
+            />
+          </div>
+          <span className="text-xs text-gray-500 font-mono">{value}</span>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🎨 배경 설정 컴포넌트
+    // ========================================
+
+    const BG_PRESETS = [
+      { name: '없음', type: 'none' },
+      { name: '검정', type: 'solid', color1: '#000000' },
+      { name: '흰색', type: 'solid', color1: '#ffffff' },
+      { name: '노을', type: 'gradient', color1: '#ff6b35', color2: '#f7c59f', direction: 'to bottom' },
+      { name: '바다', type: 'gradient', color1: '#0077b6', color2: '#90e0ef', direction: 'to bottom' },
+      { name: '보라', type: 'gradient', color1: '#7b2ff7', color2: '#f107a3', direction: 'to right' },
+      { name: '네온', type: 'gradient', color1: '#00f260', color2: '#0575e6', direction: 'to right' },
+      { name: '석양', type: 'gradient', color1: '#f12711', color2: '#f5af19', direction: 'to bottom right' },
+      { name: '밤하늘', type: 'gradient', color1: '#0f0c29', color2: '#302b63', direction: 'to bottom' },
+      { name: '민트', type: 'gradient', color1: '#11998e', color2: '#38ef7d', direction: 'to right' },
+      { name: '핑크', type: 'gradient', color1: '#ee9ca7', color2: '#ffdde1', direction: 'to bottom' },
+    ];
+
+    const GRADIENT_DIRECTIONS = [
+      { label: '↓ 위→아래', value: 'to bottom' },
+      { label: '→ 왼→오른', value: 'to right' },
+      { label: '↘ 대각선', value: 'to bottom right' },
+      { label: '↗ 대각선', value: 'to top right' },
+      { label: '◎ 원형', value: 'radial' },
+    ];
+
+    function BackgroundEditor({ bg, onChange }) {
+      const update = (key, val) => onChange({ ...bg, [key]: val });
+
+      return (
+        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm space-y-3">
+          <h3 className="text-sm font-bold text-gray-700">🎨 배경 설정</h3>
+
+          {/* 배경 타입 선택 */}
+          <div className="flex gap-2">
+            {['none', 'solid', 'gradient'].map(t => (
+              <button
+                key={t}
+                onClick={() => update('type', t)}
+                className={`px-3 py-1.5 text-sm rounded-lg font-medium transition-all cursor-pointer ${
+                  bg.type === t
+                    ? 'bg-purple-600 text-white shadow'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                {t === 'none' ? '없음 (이미지만)' : t === 'solid' ? '단색' : '그라데이션'}
+              </button>
+            ))}
+          </div>
+
+          {/* 프리셋 */}
+          {bg.type !== 'none' && (
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">프리셋</label>
+              <div className="flex flex-wrap gap-1.5">
+                {BG_PRESETS.filter(p => p.type === bg.type || (bg.type === 'gradient' && p.type === 'gradient') || (bg.type === 'solid' && p.type === 'solid')).map((preset, i) => {
+                  const style = preset.type === 'solid'
+                    ? { background: preset.color1 }
+                    : { background: `linear-gradient(${preset.direction === 'radial' ? 'to right' : preset.direction}, ${preset.color1}, ${preset.color2})` };
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => onChange({ ...bg, ...preset })}
+                      className="w-8 h-8 rounded-lg border-2 border-gray-200 hover:border-purple-400 transition-all cursor-pointer hover:scale-110"
+                      style={style}
+                      title={preset.name}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* 단색 설정 */}
+          {bg.type === 'solid' && (
+            <ColorPicker label="배경색" value={bg.color1} onChange={v => update('color1', v)} />
+          )}
+
+          {/* 그라데이션 설정 */}
+          {bg.type === 'gradient' && (
+            <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <ColorPicker label="색상 1" value={bg.color1} onChange={v => update('color1', v)} />
+                <ColorPicker label="색상 2" value={bg.color2} onChange={v => update('color2', v)} />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">방향</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {GRADIENT_DIRECTIONS.map(d => (
+                    <button
+                      key={d.value}
+                      onClick={() => update('direction', d.value)}
+                      className={`px-2.5 py-1 text-xs rounded-md font-medium transition-all cursor-pointer ${
+                        bg.direction === d.value
+                          ? 'bg-purple-600 text-white'
+                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      }`}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* 캔버스 크기 (이미지 없을 때) */}
+          {bg.type !== 'none' && (
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-gray-500">너비 (px)</label>
+                <input
+                  type="number"
+                  value={bg.width}
+                  onChange={e => update('width', Math.max(100, Number(e.target.value)))}
+                  className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500">높이 (px)</label>
+                <input
+                  type="number"
+                  value={bg.height}
+                  onChange={e => update('height', Math.max(100, Number(e.target.value)))}
+                  className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🧩 텍스트 레이어 컴포넌트
+    // ========================================
+
+    function TextLayerEditor({ layer, index, onUpdate, onRemove }) {
+      const update = (key, val) => onUpdate(index, { ...layer, [key]: val });
+
+      return (
+        <div className="bg-white rounded-xl border border-gray-200 p-4 space-y-3 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-bold text-purple-600">텍스트 #{index + 1}</span>
+            <button onClick={() => onRemove(index)} className="text-red-400 hover:text-red-600 text-lg cursor-pointer">✕</button>
+          </div>
+          <textarea
+            value={layer.text}
+            onChange={e => update('text', e.target.value)}
+            placeholder="텍스트를 입력하세요..."
+            rows={2}
+            className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-400 focus:border-transparent resize-none"
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs text-gray-500">폰트</label>
+              <select
+                value={layer.fontFamily}
+                onChange={e => update('fontFamily', e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
+              >
+                <option value="'Black Han Sans', sans-serif">블랙한산스</option>
+                <option value="'Noto Sans KR', sans-serif">노토산스</option>
+                <option value="Impact, sans-serif">Impact</option>
+                <option value="Arial Black, sans-serif">Arial Black</option>
+                <option value="Comic Sans MS, cursive">Comic Sans</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500">정렬</label>
+              <select
+                value={layer.align}
+                onChange={e => update('align', e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
+              >
+                <option value="center">가운데</option>
+                <option value="left">왼쪽</option>
+                <option value="right">오른쪽</option>
+              </select>
+            </div>
+          </div>
+          <Slider label="글자 크기" value={layer.fontSize} onChange={v => update('fontSize', v)} min={12} max={120} unit="px" />
+          <Slider label="X 위치" value={layer.x} onChange={v => update('x', v)} min={0} max={100} unit="%" />
+          <Slider label="Y 위치" value={layer.y} onChange={v => update('y', v)} min={0} max={100} unit="%" />
+          <Slider label="회전" value={layer.rotation} onChange={v => update('rotation', v)} min={-180} max={180} unit="°" />
+          <div className="grid grid-cols-2 gap-2">
+            <ColorPicker label="글자색" value={layer.color} onChange={v => update('color', v)} />
+            <ColorPicker label="외곽선" value={layer.strokeColor} onChange={v => update('strokeColor', v)} />
+          </div>
+          <Slider label="외곽선 두께" value={layer.strokeWidth} onChange={v => update('strokeWidth', v)} min={0} max={20} unit="px" />
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={layer.bold} onChange={e => update('bold', e.target.checked)} className="accent-purple-600" />
+              <span className="text-sm">굵게</span>
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={layer.shadow} onChange={e => update('shadow', e.target.checked)} className="accent-purple-600" />
+              <span className="text-sm">그림자</span>
+            </label>
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🖼️ Canvas 프리뷰 컴포넌트
+    // ========================================
+
+    function CanvasPreview({ image, textLayers, canvasRef, bg }) {
+      const displayCanvasRef = useRef(null);
+
+      const draw = useCallback(() => {
+        const canvas = canvasRef.current;
+        const displayCanvas = displayCanvasRef.current;
+        if (!canvas || !displayCanvas) return;
+
+        const ctx = canvas.getContext('2d');
+
+        if (image) {
+          canvas.width = image.naturalWidth;
+          canvas.height = image.naturalHeight;
+        } else {
+          canvas.width = bg.width || 800;
+          canvas.height = bg.height || 600;
+        }
+
+        // 배경
+        const hasBg = bg.type !== 'none';
+        if (hasBg) {
+          if (bg.type === 'solid') {
+            ctx.fillStyle = bg.color1;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+          } else if (bg.type === 'gradient') {
+            let grad;
+            if (bg.direction === 'radial') {
+              const cx = canvas.width / 2;
+              const cy = canvas.height / 2;
+              const r = Math.max(canvas.width, canvas.height) / 2;
+              grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, r);
+            } else {
+              const coords = {
+                'to bottom': [0, 0, 0, canvas.height],
+                'to right': [0, 0, canvas.width, 0],
+                'to bottom right': [0, 0, canvas.width, canvas.height],
+                'to top right': [0, canvas.height, canvas.width, 0],
+              };
+              const c = coords[bg.direction] || coords['to bottom'];
+              grad = ctx.createLinearGradient(...c);
+            }
+            grad.addColorStop(0, bg.color1);
+            grad.addColorStop(1, bg.color2);
+            ctx.fillStyle = grad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+          }
+        }
+
+        if (image) {
+          ctx.drawImage(image, 0, 0);
+        } else if (!hasBg) {
+          ctx.fillStyle = '#1a1a2e';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = '#ffffff33';
+          ctx.font = '24px "Noto Sans KR", sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText('이미지를 업로드하거나 배경색을 선택하세요', canvas.width / 2, canvas.height / 2);
+        }
+
+        // 텍스트 레이어
+        textLayers.forEach(layer => {
+          if (!layer.text.trim()) return;
+
+          const x = (layer.x / 100) * canvas.width;
+          const y = (layer.y / 100) * canvas.height;
+          const scaledFontSize = layer.fontSize * (canvas.width / 800);
+
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate((layer.rotation * Math.PI) / 180);
+
+          const weight = layer.bold ? '900' : '700';
+          ctx.font = `${weight} ${scaledFontSize}px ${layer.fontFamily}`;
+          ctx.textAlign = layer.align;
+          ctx.textBaseline = 'middle';
+
+          const lines = layer.text.split('\n');
+          const lineHeight = scaledFontSize * 1.2;
+
+          lines.forEach((line, i) => {
+            const ly = (i - (lines.length - 1) / 2) * lineHeight;
+
+            if (layer.shadow) {
+              ctx.shadowColor = 'rgba(0,0,0,0.7)';
+              ctx.shadowBlur = scaledFontSize * 0.15;
+              ctx.shadowOffsetX = scaledFontSize * 0.05;
+              ctx.shadowOffsetY = scaledFontSize * 0.05;
+            }
+
+            if (layer.strokeWidth > 0) {
+              const scaledStroke = layer.strokeWidth * (canvas.width / 800);
+              ctx.strokeStyle = layer.strokeColor;
+              ctx.lineWidth = scaledStroke;
+              ctx.lineJoin = 'round';
+              ctx.miterLimit = 2;
+              ctx.strokeText(line, 0, ly);
+            }
+
+            ctx.shadowColor = 'transparent';
+            ctx.fillStyle = layer.color;
+            ctx.fillText(line, 0, ly);
+          });
+
+          ctx.restore();
+        });
+
+        // 디스플레이 캔버스에 축소 렌더링
+        const maxDisplayW = displayCanvas.parentElement.clientWidth;
+        const ratio = canvas.height / canvas.width;
+        displayCanvas.width = maxDisplayW;
+        displayCanvas.height = maxDisplayW * ratio;
+        const dCtx = displayCanvas.getContext('2d');
+        dCtx.clearRect(0, 0, displayCanvas.width, displayCanvas.height);
+        dCtx.drawImage(canvas, 0, 0, displayCanvas.width, displayCanvas.height);
+      }, [image, textLayers, canvasRef, bg]);
+
+      useEffect(() => {
+        draw();
+        const handleResize = () => draw();
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+      }, [draw]);
+
+      return (
+        <div className="w-full">
+          <canvas ref={displayCanvasRef} className="w-full rounded-xl shadow-2xl border border-gray-200" />
+          <canvas ref={canvasRef} className="hidden" />
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🖼️ 샘플 템플릿
+    // ========================================
+
+    const TEMPLATES = [
+      { name: '상단+하단', layers: [
+        { text: '상단 텍스트', x: 50, y: 12, fontSize: 48, color: '#ffffff', strokeColor: '#000000', strokeWidth: 6, fontFamily: "Impact, sans-serif", align: 'center', rotation: 0, bold: true, shadow: true },
+        { text: '하단 텍스트', x: 50, y: 88, fontSize: 48, color: '#ffffff', strokeColor: '#000000', strokeWidth: 6, fontFamily: "Impact, sans-serif", align: 'center', rotation: 0, bold: true, shadow: true },
+      ]},
+      { name: '가운데 한줄', layers: [
+        { text: '여기에 텍스트', x: 50, y: 50, fontSize: 56, color: '#ffffff', strokeColor: '#000000', strokeWidth: 8, fontFamily: "'Black Han Sans', sans-serif", align: 'center', rotation: 0, bold: false, shadow: true },
+      ]},
+      { name: '대각선', layers: [
+        { text: '대각선 텍스트', x: 50, y: 50, fontSize: 52, color: '#ff0000', strokeColor: '#ffffff', strokeWidth: 5, fontFamily: "'Black Han Sans', sans-serif", align: 'center', rotation: -15, bold: true, shadow: true },
+      ]},
+      { name: '3줄 구성', layers: [
+        { text: '첫째 줄', x: 50, y: 10, fontSize: 36, color: '#ffff00', strokeColor: '#000000', strokeWidth: 4, fontFamily: "Impact, sans-serif", align: 'center', rotation: 0, bold: true, shadow: true },
+        { text: '둘째 줄', x: 50, y: 50, fontSize: 48, color: '#ffffff', strokeColor: '#ff0000', strokeWidth: 6, fontFamily: "'Black Han Sans', sans-serif", align: 'center', rotation: 0, bold: true, shadow: true },
+        { text: '셋째 줄', x: 50, y: 90, fontSize: 36, color: '#00ffff', strokeColor: '#000000', strokeWidth: 4, fontFamily: "Impact, sans-serif", align: 'center', rotation: 0, bold: true, shadow: true },
+      ]},
+    ];
+
+    // ========================================
+    // 🚀 App Component
+    // ========================================
+
+    function App() {
+      const [image, setImage] = useState(null);
+      const [imageName, setImageName] = useState('');
+      const [bg, setBg] = useState({
+        type: 'none',
+        color1: '#6366f1',
+        color2: '#ec4899',
+        direction: 'to bottom right',
+        width: 800,
+        height: 600,
+      });
+      const [textLayers, setTextLayers] = useState([
+        { text: '상단 텍스트', x: 50, y: 12, fontSize: 48, color: '#ffffff', strokeColor: '#000000', strokeWidth: 6, fontFamily: "Impact, sans-serif", align: 'center', rotation: 0, bold: true, shadow: true },
+        { text: '하단 텍스트', x: 50, y: 88, fontSize: 48, color: '#ffffff', strokeColor: '#000000', strokeWidth: 6, fontFamily: "Impact, sans-serif", align: 'center', rotation: 0, bold: true, shadow: true },
+      ]);
+      const canvasRef = useRef(null);
+      const fileInputRef = useRef(null);
+
+      const handleImageUpload = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setImageName(file.name);
+        const img = new Image();
+        img.onload = () => setImage(img);
+        img.src = URL.createObjectURL(file);
+      };
+
+      const handleDrop = (e) => {
+        e.preventDefault();
+        const file = e.dataTransfer.files[0];
+        if (!file || !file.type.startsWith('image/')) return;
+        setImageName(file.name);
+        const img = new Image();
+        img.onload = () => setImage(img);
+        img.src = URL.createObjectURL(file);
+      };
+
+      const addTextLayer = () => {
+        setTextLayers(prev => [...prev, {
+          text: '새 텍스트',
+          x: 50, y: 50,
+          fontSize: 40,
+          color: '#ffffff',
+          strokeColor: '#000000',
+          strokeWidth: 4,
+          fontFamily: "'Black Han Sans', sans-serif",
+          align: 'center',
+          rotation: 0,
+          bold: true,
+          shadow: true,
+        }]);
+      };
+
+      const updateLayer = (index, updated) => {
+        setTextLayers(prev => prev.map((l, i) => i === index ? updated : l));
+      };
+
+      const removeLayer = (index) => {
+        setTextLayers(prev => prev.filter((_, i) => i !== index));
+      };
+
+      const applyTemplate = (template) => {
+        setTextLayers(template.layers.map(l => ({ ...l })));
+      };
+
+      const download = (format) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const mime = format === 'jpg' ? 'image/jpeg' : 'image/png';
+        const quality = format === 'jpg' ? 0.95 : undefined;
+        const link = document.createElement('a');
+        link.download = `meme.${format}`;
+        link.href = canvas.toDataURL(mime, quality);
+        link.click();
+      };
+
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50">
+          {/* 헤더 */}
+          <header className="bg-white/80 backdrop-blur-sm border-b border-purple-100 sticky top-0 z-50">
+            <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+              <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600">
+                🖼️ 짤 생성기
+              </h1>
+              <div className="flex gap-2">
+                <Button variant="success" size="md" onClick={() => download('png')}>
+                  📥 PNG 저장
+                </Button>
+                <Button variant="primary" size="md" onClick={() => download('jpg')}>
+                  📥 JPG 저장
+                </Button>
+              </div>
+            </div>
+          </header>
+
+          <main className="max-w-7xl mx-auto px-4 py-6">
+            <div className="flex flex-col lg:flex-row gap-6">
+              {/* 왼쪽: 캔버스 프리뷰 */}
+              <div className="lg:w-3/5 space-y-4">
+                {/* 이미지 업로드 영역 */}
+                <div
+                  onDragOver={e => e.preventDefault()}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-2 border-dashed border-purple-300 rounded-xl p-4 text-center cursor-pointer hover:border-purple-500 hover:bg-purple-50/50 transition-all"
+                >
+                  <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                  {imageName ? (
+                    <p className="text-sm text-purple-600">📎 {imageName} <span className="text-gray-400">| 클릭하거나 드래그하여 변경</span></p>
+                  ) : (
+                    <div className="space-y-1">
+                      <p className="text-3xl">🖼️</p>
+                      <p className="text-gray-600 font-medium">이미지를 드래그하거나 클릭하여 업로드</p>
+                      <p className="text-xs text-gray-400">PNG, JPG, GIF, WebP 지원</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* 캔버스 */}
+                <CanvasPreview image={image} textLayers={textLayers} canvasRef={canvasRef} bg={bg} />
+              </div>
+
+              {/* 오른쪽: 편집 패널 */}
+              <div className="lg:w-2/5 space-y-4">
+                {/* 배경 설정 */}
+                <BackgroundEditor bg={bg} onChange={setBg} />
+
+                {/* 템플릿 */}
+                <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                  <h3 className="text-sm font-bold text-gray-700 mb-2">⚡ 빠른 템플릿</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {TEMPLATES.map((t, i) => (
+                      <Button key={i} variant="secondary" size="sm" onClick={() => applyTemplate(t)}>
+                        {t.name}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 텍스트 레이어 목록 */}
+                <div className="space-y-3 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
+                  {textLayers.map((layer, i) => (
+                    <TextLayerEditor
+                      key={i}
+                      layer={layer}
+                      index={i}
+                      onUpdate={updateLayer}
+                      onRemove={removeLayer}
+                    />
+                  ))}
+                </div>
+
+                <Button variant="ghost" size="md" onClick={addTextLayer} className="w-full border-2 border-dashed border-gray-300 hover:border-purple-400">
+                  ➕ 텍스트 추가
+                </Button>
+              </div>
+            </div>
+          </main>
+        </div>
+      );
+    }
+
+    // ========================================
+    // Rendering
+    // ========================================
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
