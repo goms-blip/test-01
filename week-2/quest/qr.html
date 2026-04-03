@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR코드 & 바코드 생성/스캔</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+  <style>
+    #qr-reader video { border-radius: 0.75rem; }
+    #qr-reader { border: none !important; }
+    #qr-reader__scan_region { min-height: 200px; }
+    #qr-reader__dashboard { padding: 0 !important; }
+    #qr-reader__dashboard button {
+      background: #6366f1 !important; color: white !important;
+      border-radius: 0.5rem !important; padding: 0.5rem 1rem !important;
+      border: none !important; cursor: pointer !important; margin: 0.25rem !important;
+    }
+    #qr-reader__dashboard select {
+      border-radius: 0.5rem !important; padding: 0.5rem !important;
+      border: 1px solid #d1d5db !important; margin: 0.25rem !important;
+    }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fadeIn 0.3s ease-out; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+  <div id="root"></div>
+  <script type="text/babel">
+    // ========================================
+    // 🪝 React Hooks Destructuring
+    // ========================================
+    const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+    // ========================================
+    // 🎨 Design System Components
+    // ========================================
+    function Button({ variant = 'primary', size = 'md', disabled = false, onClick, children, className = '' }) {
+      const base = 'font-semibold rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 inline-flex items-center justify-center gap-2 cursor-pointer';
+      const variants = {
+        primary: 'bg-indigo-500 hover:bg-indigo-600 text-white focus:ring-indigo-400 shadow-md hover:shadow-lg',
+        secondary: 'bg-white hover:bg-gray-50 text-gray-700 border border-gray-300 focus:ring-gray-300',
+        danger: 'bg-red-500 hover:bg-red-600 text-white focus:ring-red-400',
+        ghost: 'bg-transparent hover:bg-gray-100 text-gray-600 focus:ring-gray-300',
+        success: 'bg-emerald-500 hover:bg-emerald-600 text-white focus:ring-emerald-400 shadow-md',
+      };
+      const sizes = { sm: 'px-3 py-1.5 text-sm', md: 'px-5 py-2.5 text-base', lg: 'px-7 py-3 text-lg' };
+      return (
+        <button
+          onClick={onClick}
+          disabled={disabled}
+          className={`${base} ${variants[variant]} ${sizes[size]} ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
+        >
+          {children}
+        </button>
+      );
+    }
+
+    function Input({ label, value, onChange, placeholder, type = 'text', className = '', error }) {
+      return (
+        <div className={className}>
+          {label && <label className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>}
+          <input
+            type={type}
+            value={value}
+            onChange={onChange}
+            placeholder={placeholder}
+            className={`w-full px-4 py-2.5 rounded-xl border ${error ? 'border-red-400 focus:ring-red-300' : 'border-gray-300 focus:ring-indigo-300'} focus:outline-none focus:ring-2 transition-all`}
+          />
+          {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
+        </div>
+      );
+    }
+
+    function Card({ children, className = '' }) {
+      return (
+        <div className={`bg-white rounded-2xl shadow-sm border border-gray-100 p-6 ${className}`}>
+          {children}
+        </div>
+      );
+    }
+
+    function Tabs({ tabs, activeTab, onChange }) {
+      return (
+        <div className="flex bg-gray-100 rounded-xl p-1 gap-1">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => onChange(tab.id)}
+              className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer
+                ${activeTab === tab.id ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              <span>{tab.icon}</span>
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    function Badge({ children, color = 'indigo' }) {
+      const colors = {
+        indigo: 'bg-indigo-100 text-indigo-700',
+        emerald: 'bg-emerald-100 text-emerald-700',
+        amber: 'bg-amber-100 text-amber-700',
+        red: 'bg-red-100 text-red-700',
+        gray: 'bg-gray-100 text-gray-700',
+      };
+      return (
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${colors[color]}`}>
+          {children}
+        </span>
+      );
+    }
+
+    // ========================================
+    // 🧩 Common Components
+    // ========================================
+    function Header() {
+      return (
+        <header className="bg-white border-b border-gray-100 sticky top-0 z-50">
+          <div className="max-w-2xl mx-auto px-4 py-4 flex items-center gap-3">
+            <div className="w-10 h-10 bg-indigo-500 rounded-xl flex items-center justify-center text-white text-lg">
+              ⣿
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-gray-900">QR & 바코드</h1>
+              <p className="text-xs text-gray-400">생성하고 스캔하세요</p>
+            </div>
+          </div>
+        </header>
+      );
+    }
+
+    function ScanResult({ result, onCopy, onClear }) {
+      const isUrl = /^https?:\/\//i.test(result.text);
+      return (
+        <div className="fade-in bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-emerald-600 text-lg">✓</span>
+              <span className="font-semibold text-emerald-800">스캔 성공</span>
+            </div>
+            <Badge color="emerald">{result.format || 'QR코드'}</Badge>
+          </div>
+          <div className="bg-white rounded-lg p-3 border border-emerald-100">
+            <p className="text-gray-800 break-all text-sm font-mono">{result.text}</p>
+          </div>
+          <div className="flex gap-2">
+            <Button size="sm" variant="success" onClick={onCopy}>복사</Button>
+            {isUrl && (
+              <Button size="sm" variant="primary" onClick={() => window.open(result.text, '_blank')}>
+                열기 ↗
+              </Button>
+            )}
+            <Button size="sm" variant="ghost" onClick={onClear}>닫기</Button>
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 📄 Generate Page
+    // ========================================
+    function GeneratePage({ addToHistory }) {
+      const [text, setText] = useState('');
+      const [genType, setGenType] = useState('qr');
+      const [barcodeFormat, setBarcodeFormat] = useState('CODE128');
+      const [generatedImage, setGeneratedImage] = useState(null);
+      const [error, setError] = useState('');
+
+      const barcodeFormats = [
+        { id: 'CODE128', label: 'Code 128', desc: '영문, 숫자, 특수문자' },
+        { id: 'EAN13', label: 'EAN-13', desc: '숫자 13자리 (상품)' },
+        { id: 'EAN8', label: 'EAN-8', desc: '숫자 8자리' },
+        { id: 'UPC', label: 'UPC-A', desc: '숫자 12자리 (미국 상품)' },
+        { id: 'CODE39', label: 'Code 39', desc: '영문 대문자, 숫자' },
+        { id: 'ITF14', label: 'ITF-14', desc: '숫자 14자리 (물류)' },
+      ];
+
+      const generateQR = useCallback(() => {
+        if (!text.trim()) return;
+        setError('');
+        setGeneratedImage(null);
+
+        if (genType === 'qr') {
+          try {
+            const qr = qrcode(0, 'H');
+            qr.addData(text);
+            qr.make();
+            const dataUrl = qr.createDataURL(8, 4);
+            setGeneratedImage(dataUrl);
+            addToHistory({ text, type: 'generate', format: 'QR코드' });
+          } catch (err) {
+            setError('QR코드 생성 실패: ' + err.message);
+          }
+        } else {
+          try {
+            const canvas = document.createElement('canvas');
+            JsBarcode(canvas, text, {
+              format: barcodeFormat,
+              width: 2,
+              height: 80,
+              displayValue: true,
+              fontSize: 14,
+              margin: 10,
+              lineColor: '#1e1b4b',
+              background: '#ffffff',
+            });
+            setGeneratedImage(canvas.toDataURL('image/png'));
+            addToHistory({ text, type: 'generate', format: barcodeFormat });
+          } catch (e) {
+            setError(`바코드 생성 실패: ${e.message}`);
+          }
+        }
+      }, [text, genType, barcodeFormat]);
+
+      const handleDownload = useCallback(() => {
+        if (!generatedImage) return;
+        const link = document.createElement('a');
+        link.download = genType === 'qr' ? 'qrcode.png' : 'barcode.png';
+        link.href = generatedImage;
+        link.click();
+      }, [genType, generatedImage]);
+
+      return (
+        <div className="space-y-4 fade-in">
+          <Card>
+            <div className="space-y-4">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => { setGenType('qr'); setGenerated(false); setError(''); }}
+                  className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer
+                    ${genType === 'qr' ? 'bg-indigo-500 text-white shadow' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                >
+                  QR코드
+                </button>
+                <button
+                  onClick={() => { setGenType('barcode'); setGenerated(false); setError(''); }}
+                  className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer
+                    ${genType === 'barcode' ? 'bg-indigo-500 text-white shadow' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+                >
+                  바코드
+                </button>
+              </div>
+
+              {genType === 'barcode' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1.5">바코드 형식</label>
+                  <select
+                    value={barcodeFormat}
+                    onChange={e => { setBarcodeFormat(e.target.value); setGenerated(false); }}
+                    className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white"
+                  >
+                    {barcodeFormats.map(f => (
+                      <option key={f.id} value={f.id}>{f.label} — {f.desc}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                  {genType === 'qr' ? '텍스트 또는 URL 입력' : '바코드 데이터 입력'}
+                </label>
+                <textarea
+                  value={text}
+                  onChange={e => setText(e.target.value)}
+                  placeholder={genType === 'qr' ? 'https://example.com 또는 텍스트...' : '데이터를 입력하세요...'}
+                  rows={3}
+                  className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-300 resize-none"
+                />
+              </div>
+
+              <Button onClick={generateQR} className="w-full" disabled={!text.trim()}>
+                {genType === 'qr' ? 'QR코드 생성' : '바코드 생성'}
+              </Button>
+
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-600">
+                  {error}
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {generatedImage ? (
+            <Card className="flex flex-col items-center space-y-4 fade-in">
+              <p className="text-sm font-medium text-gray-500">
+                {genType === 'qr' ? '생성된 QR코드' : '생성된 바코드'}
+              </p>
+              <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-inner">
+                <img src={generatedImage} alt={genType === 'qr' ? 'QR코드' : '바코드'} className="max-w-full" />
+              </div>
+              <div className="flex gap-2 w-full">
+                <Button variant="secondary" onClick={handleDownload} className="flex-1">
+                  💾 이미지 저장
+                </Button>
+                <Button variant="ghost" onClick={async () => {
+                  try {
+                    const res = await fetch(generatedImage);
+                    const blob = await res.blob();
+                    await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                  } catch {}
+                }} className="flex-1">
+                  📋 복사
+                </Button>
+              </div>
+            </Card>
+          ) : (
+            <div className="text-center py-8 text-gray-300">
+              <div className="text-5xl mb-3">{genType === 'qr' ? '⣿' : '▮▯▮▮▯▮'}</div>
+              <p className="text-sm">{genType === 'qr' ? 'QR코드를 생성해보세요' : '바코드를 생성해보세요'}</p>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ========================================
+    // 📄 Scan Page
+    // ========================================
+    function ScanPage({ addToHistory }) {
+      const [scanResult, setScanResult] = useState(null);
+      const [scanning, setScanning] = useState(false);
+      const [scanError, setScanError] = useState('');
+      const scannerRef = useRef(null);
+      const readerDivRef = useRef(null);
+      const [copied, setCopied] = useState(false);
+
+      const formatMap = {
+        0: 'QR코드', 1: 'AZTEC', 2: 'CODABAR', 3: 'Code 39', 4: 'Code 93',
+        5: 'Code 128', 6: 'Data Matrix', 7: 'EAN-8', 8: 'EAN-13',
+        9: 'ITF', 10: 'MaxiCode', 11: 'PDF417', 12: 'RSS-14', 13: 'RSS Expanded',
+        14: 'UPC-A', 15: 'UPC-E', 16: 'UPC/EAN',
+      };
+
+      const startScan = useCallback(() => {
+        setScanError('');
+        setScanResult(null);
+        setScanning(true);
+
+        setTimeout(() => {
+          if (!document.getElementById('qr-reader')) return;
+
+          const scanner = new Html5Qrcode('qr-reader');
+          scannerRef.current = scanner;
+
+          scanner.start(
+            { facingMode: 'environment' },
+            { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1.0 },
+            (decodedText, decodedResult) => {
+              const fmt = decodedResult?.result?.format?.format;
+              const format = formatMap[fmt] || '알 수 없음';
+              setScanResult({ text: decodedText, format });
+              addToHistory({ text: decodedText, type: 'scan', format });
+              scanner.stop().catch(() => {});
+              setScanning(false);
+            },
+            () => {}
+          ).catch(err => {
+            setScanError('카메라 접근 실패: ' + err);
+            setScanning(false);
+          });
+        }, 100);
+      }, []);
+
+      const stopScan = useCallback(() => {
+        if (scannerRef.current) {
+          scannerRef.current.stop().catch(() => {});
+          scannerRef.current = null;
+        }
+        setScanning(false);
+      }, []);
+
+      const handleFileUpload = useCallback((e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        setScanError('');
+        setScanResult(null);
+
+        const scanner = new Html5Qrcode('qr-reader-file');
+        scanner.scanFile(file, true)
+          .then(decodedText => {
+            setScanResult({ text: decodedText, format: '이미지 스캔' });
+            addToHistory({ text: decodedText, type: 'scan', format: '이미지 스캔' });
+          })
+          .catch(() => {
+            setScanError('이미지에서 코드를 인식할 수 없습니다.');
+          });
+      }, []);
+
+      const handleCopy = useCallback(() => {
+        navigator.clipboard.writeText(scanResult.text);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }, [scanResult]);
+
+      useEffect(() => {
+        return () => {
+          if (scannerRef.current) {
+            scannerRef.current.stop().catch(() => {});
+          }
+        };
+      }, []);
+
+      return (
+        <div className="space-y-4 fade-in">
+          <Card>
+            <div className="space-y-4">
+              <p className="text-sm text-gray-500 text-center">
+                카메라 또는 이미지로 QR코드와 바코드를 스캔하세요
+              </p>
+
+              {!scanning ? (
+                <div className="space-y-3">
+                  <Button onClick={startScan} className="w-full" size="lg">
+                    📸 카메라로 스캔
+                  </Button>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileUpload}
+                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                    />
+                    <Button variant="secondary" className="w-full pointer-events-none">
+                      🖼️ 이미지에서 스캔
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div id="qr-reader" className="rounded-xl overflow-hidden" />
+                  <Button variant="danger" onClick={stopScan} className="w-full">
+                    스캔 중지
+                  </Button>
+                </div>
+              )}
+
+              <div id="qr-reader-file" className="hidden" />
+            </div>
+          </Card>
+
+          {scanError && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-600 fade-in">
+              {scanError}
+            </div>
+          )}
+
+          {scanResult && (
+            <ScanResult
+              result={scanResult}
+              onCopy={handleCopy}
+              onClear={() => setScanResult(null)}
+            />
+          )}
+
+          {!scanning && !scanResult && !scanError && (
+            <div className="text-center py-8 text-gray-300">
+              <div className="text-5xl mb-3">📷</div>
+              <p className="text-sm">QR코드 또는 바코드를 스캔해보세요</p>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ========================================
+    // 📄 History Page
+    // ========================================
+    function HistoryPage({ history, clearHistory }) {
+
+      return (
+        <div className="space-y-4 fade-in">
+          <Card>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-bold text-gray-800">최근 기록</h2>
+              {history.length > 0 && (
+                <Button variant="ghost" size="sm" onClick={clearHistory}>전체 삭제</Button>
+              )}
+            </div>
+
+            {history.length === 0 ? (
+              <div className="text-center py-8 text-gray-300">
+                <div className="text-4xl mb-2">📝</div>
+                <p className="text-sm">기록이 없습니다</p>
+                <p className="text-xs mt-1">QR코드를 생성하거나 스캔하면 기록됩니다</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {history.map((item, i) => (
+                  <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors">
+                    <div className="flex-1 min-w-0 mr-3">
+                      <p className="text-sm font-medium text-gray-800 truncate">{item.text}</p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge color={item.type === 'generate' ? 'indigo' : 'emerald'}>
+                          {item.type === 'generate' ? '생성' : '스캔'}
+                        </Badge>
+                        <span className="text-xs text-gray-400">{item.date}</span>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => navigator.clipboard.writeText(item.text)}
+                      className="text-gray-400 hover:text-indigo-500 transition-colors p-1 cursor-pointer"
+                      title="복사"
+                    >
+                      📋
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🚀 App Component
+    // ========================================
+    function App() {
+      const [activeTab, setActiveTab] = useState('generate');
+      const [history, setHistory] = useState(() => {
+        try {
+          return JSON.parse(localStorage.getItem('qr_history') || '[]');
+        } catch { return []; }
+      });
+
+      const addToHistory = useCallback((item) => {
+        setHistory(prev => {
+          const next = [{ ...item, date: new Date().toLocaleString('ko-KR') }, ...prev].slice(0, 50);
+          localStorage.setItem('qr_history', JSON.stringify(next));
+          return next;
+        });
+      }, []);
+
+      const clearHistory = useCallback(() => {
+        setHistory([]);
+        localStorage.removeItem('qr_history');
+      }, []);
+
+      const tabs = [
+        { id: 'generate', label: '생성', icon: '⣿' },
+        { id: 'scan', label: '스캔', icon: '📸' },
+        { id: 'history', label: '기록', icon: '📝' },
+      ];
+
+      return (
+        <div className="min-h-screen bg-gray-50">
+          <Header />
+          <main className="max-w-2xl mx-auto px-4 py-4 pb-24 space-y-4">
+            <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
+            {activeTab === 'generate' && <GeneratePage addToHistory={addToHistory} />}
+            {activeTab === 'scan' && <ScanPage addToHistory={addToHistory} />}
+            {activeTab === 'history' && <HistoryPage history={history} clearHistory={clearHistory} />}
+          </main>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🎬 Rendering
+    // ========================================
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
