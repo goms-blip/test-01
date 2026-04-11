@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cosmos Daily — 오늘의 우주</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Noto+Serif+KR:wght@400;700;900&family=Inter:wght@300;400;500;600&family=Noto+Sans+KR:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            serif: ['Playfair Display', 'Noto Serif KR', 'serif'],
+            sans: ['Inter', 'Noto Sans KR', 'sans-serif'],
+          },
+          colors: {
+            cosmos: {
+              50: '#f0f1ff',
+              100: '#e0e1ff',
+              900: '#0a0a1a',
+              950: '#050510',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #050510;
+      color: #e8e8f0;
+    }
+
+    .magazine-dropcap::first-letter {
+      float: left;
+      font-family: 'Playfair Display', serif;
+      font-size: 4.5rem;
+      line-height: 0.8;
+      padding-right: 0.6rem;
+      padding-top: 0.25rem;
+      color: #a5b4fc;
+      font-weight: 900;
+    }
+
+    .hero-image {
+      mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
+      -webkit-mask-image: linear-gradient(to bottom, black 70%, transparent 100%);
+    }
+
+    .divider-star::before,
+    .divider-star::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, #4f46e5, transparent);
+    }
+
+    .shimmer {
+      background: linear-gradient(90deg, #1a1a2e 25%, #2a2a4e 50%, #1a1a2e 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.8s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(30px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .fade-in-up {
+      animation: fadeInUp 0.8s ease-out forwards;
+    }
+
+    .fade-in-up-delay-1 { animation-delay: 0.2s; opacity: 0; }
+    .fade-in-up-delay-2 { animation-delay: 0.4s; opacity: 0; }
+    .fade-in-up-delay-3 { animation-delay: 0.6s; opacity: 0; }
+    .fade-in-up-delay-4 { animation-delay: 0.8s; opacity: 0; }
+
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.2; }
+      50% { opacity: 1; }
+    }
+
+    .star {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: white;
+      border-radius: 50%;
+      animation: twinkle var(--duration) ease-in-out infinite;
+      animation-delay: var(--delay);
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0a0a1a; }
+    ::-webkit-scrollbar-thumb { background: #4f46e5; border-radius: 3px; }
+  </style>
+</head>
+<body class="min-h-screen font-sans antialiased">
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useRef, useCallback } = React;
+
+    // ========================================
+    // 🔑 API Configuration
+    // ========================================
+
+    const NASA_API_KEY = 'xFDpHJ5FuxBjJN9dVZw5oWBRDRbLKe8UbDsv5nUW';
+    const APOD_URL = `https://api.nasa.gov/planetary/apod?api_key=${NASA_API_KEY}`;
+
+    // ========================================
+    // 🌟 Starfield Background Component
+    // ========================================
+
+    function Starfield() {
+      const stars = useMemo(() => {
+        return Array.from({ length: 80 }, (_, i) => ({
+          id: i,
+          top: Math.random() * 100,
+          left: Math.random() * 100,
+          size: Math.random() * 2 + 1,
+          duration: Math.random() * 4 + 2,
+          delay: Math.random() * 4,
+        }));
+      }, []);
+
+      return (
+        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+          {stars.map(s => (
+            <div
+              key={s.id}
+              className="star"
+              style={{
+                top: `${s.top}%`,
+                left: `${s.left}%`,
+                width: `${s.size}px`,
+                height: `${s.size}px`,
+                '--duration': `${s.duration}s`,
+                '--delay': `${s.delay}s`,
+              }}
+            />
+          ))}
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🎨 Design System Components
+    // ========================================
+
+    function Badge({ children, className = '' }) {
+      return (
+        <span className={`inline-block px-3 py-1 text-xs font-semibold tracking-[0.2em] uppercase rounded-full border border-indigo-500/30 bg-indigo-500/10 text-indigo-300 ${className}`}>
+          {children}
+        </span>
+      );
+    }
+
+    function Divider({ symbol = '✦' }) {
+      return (
+        <div className="divider-star flex items-center gap-4 my-10 md:my-14">
+          <span className="text-indigo-400 text-sm">{symbol}</span>
+        </div>
+      );
+    }
+
+    function Skeleton({ className = '' }) {
+      return <div className={`shimmer rounded ${className}`} />;
+    }
+
+    // ========================================
+    // 📰 Magazine Header
+    // ========================================
+
+    function MagazineHeader({ date }) {
+      const formattedDate = useMemo(() => {
+        if (!date) return '';
+        const d = new Date(date + 'T00:00:00');
+        const year = d.getFullYear();
+        const month = d.toLocaleDateString('ko-KR', { month: 'long' });
+        const day = d.getDate();
+        const weekday = d.toLocaleDateString('ko-KR', { weekday: 'long' });
+        return `${year}년 ${month} ${day}일 ${weekday}`;
+      }, [date]);
+
+      return (
+        <header className="relative z-10 pt-10 pb-8 md:pt-16 md:pb-12">
+          <div className="max-w-5xl mx-auto px-6 text-center">
+            <div className="fade-in-up">
+              <p className="text-indigo-400/60 text-xs tracking-[0.4em] uppercase mb-6 md:mb-8 font-sans">
+                NASA Astronomy Picture of the Day
+              </p>
+              <h1 className="font-serif text-4xl md:text-6xl lg:text-7xl font-black tracking-tight text-white mb-6 md:mb-8"
+                  style={{ letterSpacing: '-0.02em' }}>
+                COSMOS <span className="italic text-indigo-400">Daily</span>
+              </h1>
+              <div className="flex items-center justify-center gap-3 text-sm text-gray-500 font-sans">
+                <span className="w-8 h-px bg-gray-700" />
+                <span className="tracking-[0.15em] uppercase text-xs">{formattedDate}</span>
+                <span className="w-8 h-px bg-gray-700" />
+              </div>
+            </div>
+          </div>
+        </header>
+      );
+    }
+
+    // ========================================
+    // 🖼️ Hero Image Section
+    // ========================================
+
+    function HeroImage({ data, loaded, onLoad }) {
+      if (!data) return null;
+
+      const isVideo = data.media_type === 'video';
+
+      return (
+        <section className="relative z-10 max-w-6xl mx-auto px-4 md:px-6 mb-2 fade-in-up fade-in-up-delay-1">
+          <div className="relative rounded-2xl overflow-hidden shadow-2xl shadow-indigo-950/50 border border-white/5">
+            {/* 이미지 상단 잡지 라벨 */}
+            <div className="absolute top-0 left-0 right-0 z-20 flex justify-between items-start p-4 md:p-6">
+              <Badge>오늘의 천문 사진</Badge>
+              <span className="text-white/50 text-xs font-sans tracking-wider">
+                Vol. {new Date().getFullYear()}.{String(new Date().getMonth() + 1).padStart(2, '0')}.{String(new Date().getDate()).padStart(2, '0')}
+              </span>
+            </div>
+
+            {isVideo ? (
+              <div className="aspect-video w-full">
+                <iframe
+                  src={data.url}
+                  className="w-full h-full"
+                  frameBorder="0"
+                  allow="autoplay; encrypted-media"
+                  allowFullScreen
+                  title={data.title}
+                />
+              </div>
+            ) : (
+              <>
+                {!loaded && (
+                  <div className="aspect-[16/10] w-full shimmer" />
+                )}
+                <img
+                  src={data.hdurl || data.url}
+                  alt={data.title}
+                  className={`w-full hero-image transition-opacity duration-700 ${loaded ? 'opacity-100' : 'opacity-0 absolute inset-0'}`}
+                  style={{ maxHeight: '75vh', objectFit: 'cover', width: '100%' }}
+                  onLoad={onLoad}
+                />
+              </>
+            )}
+
+            {/* 하단 그라데이션 오버레이 */}
+            <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-cosmos-950 to-transparent" />
+          </div>
+
+          {/* 사진 크레딧 */}
+          {data.copyright && (
+            <p className="text-center text-gray-600 text-xs mt-3 font-sans tracking-wide">
+              Photo © {data.copyright.trim()}
+            </p>
+          )}
+        </section>
+      );
+    }
+
+    // ========================================
+    // 📝 Article Section
+    // ========================================
+
+    function ArticleSection({ data }) {
+      if (!data) return null;
+
+      // 설명을 단락으로 나누기
+      const paragraphs = data.explanation
+        .split(/\.\s+/)
+        .reduce((acc, sentence, i, arr) => {
+          const chunkSize = Math.ceil(arr.length / Math.max(2, Math.ceil(arr.length / 4)));
+          const chunkIndex = Math.floor(i / chunkSize);
+          if (!acc[chunkIndex]) acc[chunkIndex] = [];
+          acc[chunkIndex].push(sentence);
+          return acc;
+        }, [])
+        .map(group => group.join('. ').replace(/\.\.$/, '.') + (group[group.length - 1].endsWith('.') ? '' : '.'));
+
+      return (
+        <article className="relative z-10 max-w-3xl mx-auto px-6 md:px-8 fade-in-up fade-in-up-delay-2">
+          {/* 제목 */}
+          <div className="text-center mb-10 md:mb-14">
+            <h2 className="font-serif text-3xl md:text-5xl font-bold text-white leading-tight mb-4"
+                style={{ letterSpacing: '-0.01em' }}>
+              {data.title}
+            </h2>
+            <div className="flex items-center justify-center gap-2 text-gray-500 text-sm font-sans">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              <span>{data.date}</span>
+              {data.copyright && (
+                <>
+                  <span className="text-gray-700">·</span>
+                  <span>{data.copyright.trim()}</span>
+                </>
+              )}
+            </div>
+          </div>
+
+          <Divider />
+
+          {/* 본문 */}
+          <div className="space-y-6 text-gray-300 leading-[1.9] font-sans text-base md:text-lg font-light">
+            {paragraphs.map((para, i) => (
+              <p key={i} className={i === 0 ? 'magazine-dropcap' : ''}>
+                {para}
+              </p>
+            ))}
+          </div>
+
+          <Divider symbol="◆" />
+
+          {/* 부가 정보 패널 */}
+          <aside className="bg-white/[0.02] border border-white/5 rounded-xl p-6 md:p-8 backdrop-blur-sm fade-in-up fade-in-up-delay-3">
+            <h3 className="font-serif text-lg font-bold text-indigo-300 mb-4 tracking-wide">
+              관측 정보
+            </h3>
+            <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm font-sans">
+              <div>
+                <dt className="text-gray-600 text-xs uppercase tracking-[0.15em] mb-1">미디어 유형</dt>
+                <dd className="text-gray-300">{data.media_type === 'image' ? '천체 사진' : '영상'}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-600 text-xs uppercase tracking-[0.15em] mb-1">촬영/제작</dt>
+                <dd className="text-gray-300">{data.copyright ? data.copyright.trim() : 'NASA / Public Domain'}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-600 text-xs uppercase tracking-[0.15em] mb-1">게시일</dt>
+                <dd className="text-gray-300">{data.date}</dd>
+              </div>
+              <div>
+                <dt className="text-gray-600 text-xs uppercase tracking-[0.15em] mb-1">서비스 버전</dt>
+                <dd className="text-gray-300">{data.service_version || 'v1'}</dd>
+              </div>
+            </dl>
+            {data.hdurl && data.media_type === 'image' && (
+              <a
+                href={data.hdurl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 mt-6 px-5 py-2.5 rounded-lg bg-indigo-600/20 border border-indigo-500/30 text-indigo-300 text-sm font-medium hover:bg-indigo-600/30 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                HD 원본 이미지 보기
+              </a>
+            )}
+          </aside>
+        </article>
+      );
+    }
+
+    // ========================================
+    // 📅 Archive Gallery (최근 사진들)
+    // ========================================
+
+    function ArchiveGallery({ archives, onSelect }) {
+      if (!archives || archives.length === 0) return null;
+
+      return (
+        <section className="relative z-10 max-w-6xl mx-auto px-6 mt-16 md:mt-20 fade-in-up fade-in-up-delay-4">
+          <div className="text-center mb-8">
+            <p className="text-xs tracking-[0.3em] uppercase text-indigo-400/50 font-sans mb-2">Archive</p>
+            <h3 className="font-serif text-2xl md:text-3xl font-bold text-white">지난 우주 이야기</h3>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+            {archives.map((item, i) => (
+              <button
+                key={item.date}
+                onClick={() => onSelect(item)}
+                className="group relative aspect-square rounded-xl overflow-hidden border border-white/5 hover:border-indigo-500/30 transition-all duration-300"
+              >
+                {item.media_type === 'image' ? (
+                  <img
+                    src={item.url}
+                    alt={item.title}
+                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-indigo-950/50 flex items-center justify-center">
+                    <svg className="w-10 h-10 text-indigo-400/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                            d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
+                            d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-80 group-hover:opacity-100 transition-opacity" />
+                <div className="absolute bottom-0 left-0 right-0 p-3">
+                  <p className="text-white text-xs font-serif font-bold leading-tight line-clamp-2">{item.title}</p>
+                  <p className="text-gray-400 text-[10px] mt-1 font-sans">{item.date}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </section>
+      );
+    }
+
+    // ========================================
+    // 🔄 Loading State
+    // ========================================
+
+    function LoadingState() {
+      return (
+        <div className="relative z-10 max-w-5xl mx-auto px-6">
+          <div className="text-center pt-12 pb-8">
+            <Skeleton className="h-4 w-48 mx-auto mb-4" />
+            <Skeleton className="h-14 w-96 mx-auto mb-3" />
+            <Skeleton className="h-3 w-32 mx-auto" />
+          </div>
+          <Skeleton className="aspect-[16/10] w-full rounded-2xl mb-12" />
+          <div className="max-w-3xl mx-auto space-y-4">
+            <Skeleton className="h-10 w-3/4 mx-auto mb-8" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-5/6" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-4/5" />
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // ❌ Error State
+    // ========================================
+
+    function ErrorState({ error, onRetry }) {
+      return (
+        <div className="relative z-10 max-w-lg mx-auto px-6 py-32 text-center">
+          <div className="text-6xl mb-6">🌑</div>
+          <h2 className="font-serif text-2xl text-white mb-3">신호를 수신하지 못했습니다</h2>
+          <p className="text-gray-500 text-sm mb-6 font-sans leading-relaxed">
+            NASA 서버와의 통신에 문제가 발생했습니다.<br />
+            잠시 후 다시 시도해 주세요.
+          </p>
+          <p className="text-red-400/60 text-xs font-mono mb-6 bg-red-950/20 rounded-lg p-3 border border-red-900/30">
+            {error}
+          </p>
+          <button
+            onClick={onRetry}
+            className="px-6 py-2.5 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-500 transition-colors"
+          >
+            재시도
+          </button>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🦶 Footer
+    // ========================================
+
+    function Footer() {
+      return (
+        <footer className="relative z-10 mt-16 md:mt-24 py-10 border-t border-white/5">
+          <div className="max-w-5xl mx-auto px-6 text-center">
+            <p className="font-serif text-lg text-white/20 mb-2">COSMOS Daily</p>
+            <p className="text-gray-600 text-xs font-sans leading-relaxed">
+              Powered by NASA Astronomy Picture of the Day API<br />
+              이 페이지의 모든 천체 사진과 설명은 NASA에서 제공합니다.
+            </p>
+          </div>
+        </footer>
+      );
+    }
+
+    // ========================================
+    // 🚀 App Component
+    // ========================================
+
+    function App() {
+      const [apodData, setApodData] = useState(null);
+      const [archives, setArchives] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+      const [imageLoaded, setImageLoaded] = useState(false);
+      const topRef = useRef(null);
+
+      const fetchAPOD = useCallback(async (date) => {
+        setLoading(true);
+        setError(null);
+        setImageLoaded(false);
+        try {
+          const dateParam = date ? `&date=${date}` : '';
+          const res = await fetch(`${APOD_URL}${dateParam}`);
+          if (!res.ok) throw new Error(`HTTP ${res.status}: 데이터를 가져올 수 없습니다`);
+          const data = await res.json();
+          setApodData(data);
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setLoading(false);
+        }
+      }, []);
+
+      const fetchArchives = useCallback(async () => {
+        try {
+          const dates = [];
+          const today = new Date();
+          for (let i = 1; i <= 8; i++) {
+            const d = new Date(today);
+            d.setDate(d.getDate() - i);
+            dates.push(d.toISOString().split('T')[0]);
+          }
+          const startDate = dates[dates.length - 1];
+          const endDate = dates[0];
+          const res = await fetch(`${APOD_URL}&start_date=${startDate}&end_date=${endDate}`);
+          if (res.ok) {
+            const data = await res.json();
+            setArchives(data.reverse());
+          }
+        } catch {
+          // 아카이브 로드 실패는 무시
+        }
+      }, []);
+
+      useEffect(() => {
+        fetchAPOD();
+        fetchArchives();
+      }, [fetchAPOD, fetchArchives]);
+
+      const handleSelectArchive = useCallback((item) => {
+        setApodData(item);
+        setImageLoaded(false);
+        if (item.media_type !== 'image') setImageLoaded(true);
+        topRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, []);
+
+      return (
+        <div className="relative min-h-screen" ref={topRef}>
+          <Starfield />
+
+          {loading ? (
+            <>
+              <MagazineHeader date={null} />
+              <LoadingState />
+            </>
+          ) : error ? (
+            <>
+              <MagazineHeader date={null} />
+              <ErrorState error={error} onRetry={() => fetchAPOD()} />
+            </>
+          ) : (
+            <>
+              <MagazineHeader date={apodData.date} />
+              <HeroImage
+                data={apodData}
+                loaded={imageLoaded}
+                onLoad={() => setImageLoaded(true)}
+              />
+              <ArticleSection data={apodData} />
+              <ArchiveGallery archives={archives} onSelect={handleSelectArchive} />
+            </>
+          )}
+
+          <Footer />
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🎬 Rendering
+    // ========================================
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
