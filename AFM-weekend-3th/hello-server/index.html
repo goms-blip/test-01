@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>API Tester</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* custom scrollbar for the response area */
+    #response::-webkit-scrollbar { width: 6px; }
+    #response::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen text-gray-800">
+
+  <div class="max-w-3xl mx-auto px-4 py-10">
+    <!-- Header -->
+    <header class="mb-8">
+      <h1 class="text-2xl font-bold tracking-tight">API Tester</h1>
+      <p class="text-gray-500 text-sm mt-1">Send requests to the server and inspect responses.</p>
+    </header>
+
+    <!-- Presets -->
+    <section class="mb-6">
+      <h2 class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-3">Quick Presets</h2>
+      <div id="presets" class="flex flex-wrap gap-2"></div>
+    </section>
+
+    <!-- Request Builder -->
+    <section class="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-6">
+      <h2 class="text-xs font-semibold uppercase tracking-wider text-gray-400 mb-4">Request</h2>
+
+      <!-- Method + URL row -->
+      <div class="flex gap-2 mb-4">
+        <select id="method"
+          class="w-28 shrink-0 px-3 py-2.5 rounded-lg border border-gray-300 bg-gray-50 font-mono font-bold text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+          <option value="GET">GET</option>
+          <option value="POST">POST</option>
+          <option value="PUT">PUT</option>
+          <option value="DELETE">DELETE</option>
+        </select>
+        <input id="url" type="text" value="/api/hello" placeholder="/api/..."
+          class="flex-1 px-3 py-2.5 rounded-lg border border-gray-300 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+        <button id="send"
+          class="px-5 py-2.5 rounded-lg bg-blue-600 text-white font-semibold text-sm hover:bg-blue-700 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+          Send
+        </button>
+      </div>
+
+      <!-- Body -->
+      <div id="body-section">
+        <label class="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-2">Body (JSON)</label>
+        <textarea id="body" rows="4" placeholder='{ "key": "value" }'
+          class="w-full px-3 py-2.5 rounded-lg border border-gray-300 font-mono text-sm resize-y focus:outline-none focus:ring-2 focus:ring-blue-400"></textarea>
+      </div>
+
+      <p class="text-xs text-gray-400 mt-3">Tip: Ctrl+Enter (Cmd+Enter) to send</p>
+    </section>
+
+    <!-- Response -->
+    <section class="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xs font-semibold uppercase tracking-wider text-gray-400">Response</h2>
+        <span id="status" class="px-3 py-1 rounded-full text-sm font-mono font-bold bg-gray-100 text-gray-400">--</span>
+      </div>
+      <pre id="response"
+        class="bg-gray-900 text-emerald-400 rounded-lg p-4 text-sm font-mono overflow-auto max-h-96 whitespace-pre-wrap">Click &quot;Send&quot; or a preset to get started.</pre>
+    </section>
+  </div>
+
+  <script src="client.js"></script>
+</body>
+</html>
