@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>날씨 앱</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- Leaflet Map -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in { animation: fadeIn 0.5s ease-out; }
+    @keyframes spin-slow {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .spin-slow { animation: spin-slow 1s linear infinite; }
+    #weather-map { height: 280px; border-radius: 16px; z-index: 0; }
+    .leaflet-popup-content-wrapper { border-radius: 12px; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useCallback, useEffect, useRef } = React;
+
+    // ========================================
+    // 🔑 API Configuration
+    // ========================================
+    const API_KEY = '1d5926b624ef458b103acdefc47d5cbc';
+    const API_BASE = 'https://api.openweathermap.org/data/2.5/weather';
+    const GEO_BASE = 'https://api.openweathermap.org/geo/1.0/direct';
+    const REV_GEO_BASE = 'https://api.openweathermap.org/geo/1.0/reverse';
+
+    // ========================================
+    // 🗺️ Korean ↔ English City Name Mapping
+    // ========================================
+    const KOREAN_TO_EN = {
+      '서울': 'Seoul', '부산': 'Busan', '인천': 'Incheon', '대구': 'Daegu',
+      '대전': 'Daejeon', '광주': 'Gwangju', '울산': 'Ulsan', '세종': 'Sejong',
+      '수원': 'Suwon', '창원': 'Changwon', '고양': 'Goyang', '용인': 'Yongin',
+      '성남': 'Seongnam', '청주': 'Cheongju', '전주': 'Jeonju', '천안': 'Cheonan',
+      '안산': 'Ansan', '안양': 'Anyang', '제주': 'Jeju', '포항': 'Pohang',
+      '김해': 'Gimhae', '평택': 'Pyeongtaek', '춘천': 'Chuncheon', '강릉': 'Gangneung',
+      '원주': 'Wonju', '목포': 'Mokpo', '여수': 'Yeosu', '순천': 'Suncheon',
+      '경주': 'Gyeongju', '거제': 'Geoje', '양산': 'Yangsan', '구미': 'Gumi',
+      '익산': 'Iksan', '군산': 'Gunsan', '속초': 'Sokcho', '통영': 'Tongyeong',
+      '안동': 'Andong', '충주': 'Chungju', '남원': 'Namwon', '서귀포': 'Seogwipo',
+      '파주': 'Paju', '김포': 'Gimpo', '광명': 'Gwangmyeong', '화성': 'Hwaseong',
+      '남양주': 'Namyangju', '의정부': 'Uijeongbu', '시흥': 'Siheung', '하남': 'Hanam',
+      '이천': 'Icheon', '양주': 'Yangju', '구리': 'Guri', '오산': 'Osan',
+      '도쿄': 'Tokyo', '오사카': 'Osaka', '교토': 'Kyoto', '나고야': 'Nagoya',
+      '삿포로': 'Sapporo', '후쿠오카': 'Fukuoka', '요코하마': 'Yokohama',
+      '뉴욕': 'New York', '런던': 'London', '파리': 'Paris', '시드니': 'Sydney',
+      '베이징': 'Beijing', '상하이': 'Shanghai', '방콕': 'Bangkok',
+      '싱가포르': 'Singapore', '홍콩': 'Hong Kong', '로마': 'Rome',
+      '베를린': 'Berlin', '모스크바': 'Moscow', '두바이': 'Dubai',
+      '하노이': 'Hanoi', '호치민': 'Ho Chi Minh City', '타이베이': 'Taipei',
+      '자카르타': 'Jakarta', '쿠알라룸푸르': 'Kuala Lumpur', '마닐라': 'Manila',
+      '뭄바이': 'Mumbai', '델리': 'Delhi', '카이로': 'Cairo',
+      '토론토': 'Toronto', '밴쿠버': 'Vancouver', '시카고': 'Chicago',
+      '로스앤젤레스': 'Los Angeles', '샌프란시스코': 'San Francisco',
+      '라스베가스': 'Las Vegas', '하와이': 'Honolulu', '시애틀': 'Seattle',
+      '워싱턴': 'Washington', '보스턴': 'Boston', '마이애미': 'Miami',
+      '바르셀로나': 'Barcelona', '마드리드': 'Madrid', '리스본': 'Lisbon',
+      '암스테르담': 'Amsterdam', '브뤼셀': 'Brussels', '비엔나': 'Vienna',
+      '프라하': 'Prague', '부다페스트': 'Budapest', '취리히': 'Zurich',
+      '뮌헨': 'Munich', '밀라노': 'Milan', '아테네': 'Athens',
+      '이스탄불': 'Istanbul', '멜버른': 'Melbourne', '오클랜드': 'Auckland',
+    };
+
+    // 영문 → 한글 역매핑 (자동 생성)
+    const EN_TO_KOREAN = {};
+    Object.entries(KOREAN_TO_EN).forEach(([ko, en]) => {
+      EN_TO_KOREAN[en.toLowerCase()] = ko;
+    });
+
+    // 국가 코드 → 한글 국가명
+    const COUNTRY_KO = {
+      KR: '대한민국', JP: '일본', CN: '중국', US: '미국', GB: '영국',
+      FR: '프랑스', DE: '독일', IT: '이탈리아', ES: '스페인', PT: '포르투갈',
+      NL: '네덜란드', BE: '벨기에', AT: '오스트리아', CH: '스위스',
+      CZ: '체코', HU: '헝가리', GR: '그리스', TR: '터키',
+      RU: '러시아', UA: '우크라이나', PL: '폴란드', SE: '스웨덴',
+      NO: '노르웨이', DK: '덴마크', FI: '핀란드',
+      CA: '캐나다', MX: '멕시코', BR: '브라질', AR: '아르헨티나',
+      AU: '호주', NZ: '뉴질랜드',
+      TH: '태국', VN: '베트남', SG: '싱가포르', MY: '말레이시아',
+      ID: '인도네시아', PH: '필리핀', TW: '대만', HK: '홍콩',
+      IN: '인도', AE: '아랍에미리트', EG: '이집트', SA: '사우디아라비아',
+      IL: '이스라엘', ZA: '남아프리카공화국', NG: '나이지리아',
+      KE: '케냐', CO: '콜롬비아', PE: '페루', CL: '칠레',
+    };
+
+    // 도시명을 한글로 변환
+    function toKoreanCityName(engName) {
+      if (!engName) return engName;
+      return EN_TO_KOREAN[engName.toLowerCase()] || engName;
+    }
+
+    // 국가 코드를 한글로 변환
+    function toKoreanCountry(code) {
+      return COUNTRY_KO[code] || code;
+    }
+
+    // 한글 입력을 영문으로 변환 (검색용)
+    function resolveCity(input) {
+      const trimmed = input.trim();
+      return KOREAN_TO_EN[trimmed] || trimmed;
+    }
+
+    // ========================================
+    // 🎨 Design System Components
+    // ========================================
+    function Button({ children, onClick, disabled, variant = 'primary', size = 'md', className = '' }) {
+      const base = 'font-semibold rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 cursor-pointer';
+      const variants = {
+        primary: 'bg-blue-500 hover:bg-blue-600 text-white focus:ring-blue-400 shadow-lg shadow-blue-500/30',
+        secondary: 'bg-gray-200 hover:bg-gray-300 text-gray-800 focus:ring-gray-400',
+      };
+      const sizes = {
+        sm: 'px-3 py-1.5 text-sm',
+        md: 'px-5 py-2.5 text-base',
+        lg: 'px-6 py-3 text-lg',
+      };
+      return (
+        <button
+          onClick={onClick}
+          disabled={disabled}
+          className={`${base} ${variants[variant]} ${sizes[size]} ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}
+        >
+          {children}
+        </button>
+      );
+    }
+
+    function Input({ value, onChange, placeholder, onKeyDown, className = '' }) {
+      return (
+        <input
+          type="text"
+          value={value}
+          onChange={onChange}
+          onKeyDown={onKeyDown}
+          placeholder={placeholder}
+          className={`w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-200 outline-none transition-all duration-200 text-gray-700 bg-white/80 backdrop-blur ${className}`}
+        />
+      );
+    }
+
+    function Card({ children, className = '' }) {
+      return (
+        <div className={`bg-white/80 backdrop-blur-md rounded-2xl shadow-xl p-6 ${className}`}>
+          {children}
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🌤️ Weather Helper Functions
+    // ========================================
+    function getWeatherBackground(weatherMain) {
+      const bgs = {
+        Clear: 'from-yellow-300 via-orange-300 to-blue-400',
+        Clouds: 'from-gray-300 via-gray-400 to-blue-300',
+        Rain: 'from-gray-500 via-blue-400 to-blue-600',
+        Drizzle: 'from-gray-400 via-blue-300 to-blue-500',
+        Thunderstorm: 'from-gray-700 via-purple-600 to-gray-800',
+        Snow: 'from-blue-100 via-white to-gray-200',
+        Mist: 'from-gray-300 via-gray-200 to-blue-200',
+        Haze: 'from-yellow-200 via-gray-300 to-gray-400',
+        Fog: 'from-gray-300 via-gray-200 to-gray-400',
+      };
+      return bgs[weatherMain] || 'from-blue-400 via-blue-300 to-cyan-200';
+    }
+
+    function getWindDirection(deg) {
+      const dirs = ['북', '북동', '동', '남동', '남', '남서', '서', '북서'];
+      return dirs[Math.round(deg / 45) % 8];
+    }
+
+    // ========================================
+    // 📄 Weather Info Components
+    // ========================================
+    function InfoItem({ icon, label, value }) {
+      return (
+        <div className="flex flex-col items-center gap-1 p-3 bg-white/50 rounded-xl">
+          <span className="text-2xl">{icon}</span>
+          <span className="text-xs text-gray-500">{label}</span>
+          <span className="text-sm font-bold text-gray-800">{value}</span>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🗺️ Map Component (Leaflet)
+    // ========================================
+    function WeatherMap({ lat, lon, cityName, temp, description, icon }) {
+      const mapRef = useRef(null);
+      const mapInstanceRef = useRef(null);
+      const markerRef = useRef(null);
+
+      useEffect(() => {
+        if (!mapRef.current) return;
+
+        // 맵이 없으면 생성
+        if (!mapInstanceRef.current) {
+          mapInstanceRef.current = L.map(mapRef.current, {
+            zoomControl: true,
+            scrollWheelZoom: true,
+          }).setView([lat, lon], 6);
+
+          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap',
+            maxZoom: 18,
+          }).addTo(mapInstanceRef.current);
+        } else {
+          mapInstanceRef.current.setView([lat, lon], 6, { animate: true });
+        }
+
+        // 기존 마커 제거
+        if (markerRef.current) {
+          markerRef.current.remove();
+        }
+
+        // 커스텀 핀 아이콘
+        const pinIcon = L.divIcon({
+          html: `<div style="
+            font-size: 32px;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+            line-height: 1;
+          ">📍</div>`,
+          iconSize: [32, 42],
+          iconAnchor: [16, 42],
+          popupAnchor: [0, -42],
+          className: '',
+        });
+
+        const iconUrl = `https://openweathermap.org/img/wn/${icon}@2x.png`;
+        const popupContent = `
+          <div style="text-align:center; padding:4px; min-width:120px;">
+            <strong style="font-size:14px;">${cityName}</strong><br/>
+            <img src="${iconUrl}" width="50" height="50" style="margin:-4px auto;" /><br/>
+            <span style="font-size:18px; font-weight:bold;">${Math.round(temp)}°C</span><br/>
+            <span style="font-size:12px; color:#666;">${description}</span>
+          </div>
+        `;
+
+        markerRef.current = L.marker([lat, lon], { icon: pinIcon })
+          .addTo(mapInstanceRef.current)
+          .bindPopup(popupContent)
+          .openPopup();
+
+        // 맵 사이즈 갱신
+        setTimeout(() => {
+          mapInstanceRef.current.invalidateSize();
+        }, 100);
+      }, [lat, lon, cityName, temp, description, icon]);
+
+      // 컴포넌트 언마운트 시 맵 정리
+      useEffect(() => {
+        return () => {
+          if (mapInstanceRef.current) {
+            mapInstanceRef.current.remove();
+            mapInstanceRef.current = null;
+          }
+        };
+      }, []);
+
+      return (
+        <Card className="mt-4 !p-3 fade-in">
+          <h3 className="text-sm font-semibold text-gray-500 mb-2 px-2">🗺️ 위치</h3>
+          <div ref={mapRef} id="weather-map"></div>
+        </Card>
+      );
+    }
+
+    function WeatherCard({ data }) {
+      const { name, sys, main, weather, wind, clouds, visibility, coord } = data;
+      const iconUrl = `https://openweathermap.org/img/wn/${weather[0].icon}@4x.png`;
+      const bg = getWeatherBackground(weather[0].main);
+      const koreanCity = toKoreanCityName(name);
+      const koreanCountry = toKoreanCountry(sys.country);
+
+      return (
+        <div className="fade-in">
+          <Card className={`bg-gradient-to-br ${bg} !bg-opacity-80 text-center`}>
+            {/* 도시 & 국가 */}
+            <div className="mb-2">
+              <h2 className="text-3xl font-bold text-gray-800">{koreanCity}</h2>
+              <span className="text-sm text-gray-600">{koreanCountry}</span>
+              {koreanCity !== name && (
+                <span className="text-xs text-gray-400 ml-1">({name})</span>
+              )}
+            </div>
+
+            {/* 아이콘 & 온도 */}
+            <div className="flex items-center justify-center gap-2">
+              <img src={iconUrl} alt={weather[0].description} className="w-28 h-28 drop-shadow-lg" />
+              <div className="text-left">
+                <p className="text-6xl font-extrabold text-gray-800">{Math.round(main.temp)}°</p>
+                <p className="text-lg text-gray-600 capitalize">{weather[0].description}</p>
+              </div>
+            </div>
+
+            {/* 체감온도 & 최저/최고 */}
+            <div className="flex justify-center gap-4 mt-2 text-sm text-gray-600">
+              <span>체감 {Math.round(main.feels_like)}°</span>
+              <span>|</span>
+              <span>최저 {Math.round(main.temp_min)}° / 최고 {Math.round(main.temp_max)}°</span>
+            </div>
+          </Card>
+
+          {/* 지도 */}
+          <WeatherMap
+            lat={coord.lat}
+            lon={coord.lon}
+            cityName={koreanCity}
+            temp={main.temp}
+            description={weather[0].description}
+            icon={weather[0].icon}
+          />
+
+          {/* 상세 정보 */}
+          <Card className="mt-4">
+            <h3 className="text-sm font-semibold text-gray-500 mb-3">상세 정보</h3>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <InfoItem icon="💧" label="습도" value={`${main.humidity}%`} />
+              <InfoItem icon="🌬️" label="풍속" value={`${wind.speed} m/s`} />
+              <InfoItem icon="🧭" label="풍향" value={`${getWindDirection(wind.deg)} (${wind.deg}°)`} />
+              <InfoItem icon="☁️" label="구름" value={`${clouds.all}%`} />
+              <InfoItem icon="🌡️" label="기압" value={`${main.pressure} hPa`} />
+              <InfoItem icon="👁️" label="가시거리" value={`${(visibility / 1000).toFixed(1)} km`} />
+              <InfoItem icon="🌅" label="일출" value={new Date(sys.sunrise * 1000).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} />
+              <InfoItem icon="🌇" label="일몰" value={new Date(sys.sunset * 1000).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })} />
+            </div>
+          </Card>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🚀 App Component
+    // ========================================
+    function App() {
+      const [city, setCity] = useState('');
+      const [weather, setWeather] = useState(null);
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState(null);
+      const [geoLoading, setGeoLoading] = useState(false);
+
+      // Reverse Geocoding으로 한글 지역명 가져오기
+      const fetchKoreanLocalName = useCallback(async (lat, lon) => {
+        try {
+          const res = await fetch(
+            `${REV_GEO_BASE}?lat=${lat}&lon=${lon}&limit=1&appid=${API_KEY}`
+          );
+          const data = await res.json();
+          if (data && data.length > 0 && data[0].local_names && data[0].local_names.ko) {
+            return data[0].local_names.ko;
+          }
+        } catch (e) { /* 실패해도 무시 */ }
+        return null;
+      }, []);
+
+      // 도시 이름으로 날씨 조회
+      const fetchWeatherByCity = useCallback(async (cityName) => {
+        const trimmed = cityName.trim();
+        if (!trimmed) return;
+        const resolved = resolveCity(trimmed);
+
+        setLoading(true);
+        setError(null);
+        setWeather(null);
+
+        try {
+          const geoRes = await fetch(
+            `${GEO_BASE}?q=${encodeURIComponent(resolved)}&limit=1&appid=${API_KEY}`
+          );
+          const geoData = await geoRes.json();
+
+          let url;
+          if (geoData && geoData.length > 0) {
+            const { lat, lon, local_names } = geoData[0];
+            // Geocoding에서 한글 이름을 가져와 역매핑에 추가
+            if (local_names && local_names.ko) {
+              const engName = geoData[0].name;
+              if (!EN_TO_KOREAN[engName.toLowerCase()]) {
+                EN_TO_KOREAN[engName.toLowerCase()] = local_names.ko;
+              }
+            }
+            url = `${API_BASE}?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&lang=kr`;
+          } else {
+            url = `${API_BASE}?q=${encodeURIComponent(resolved)}&appid=${API_KEY}&units=metric&lang=kr`;
+          }
+
+          const res = await fetch(url);
+          if (!res.ok) {
+            if (res.status === 404) throw new Error('도시를 찾을 수 없습니다. 다른 이름으로 검색해 보세요.');
+            throw new Error('날씨 정보를 가져오지 못했습니다.');
+          }
+          const data = await res.json();
+
+          // API 결과에서도 한글 이름 보강 시도
+          if (!EN_TO_KOREAN[data.name.toLowerCase()]) {
+            const koName = await fetchKoreanLocalName(data.coord.lat, data.coord.lon);
+            if (koName) {
+              EN_TO_KOREAN[data.name.toLowerCase()] = koName;
+            }
+          }
+
+          setWeather(data);
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setLoading(false);
+        }
+      }, [fetchKoreanLocalName]);
+
+      // 좌표로 날씨 조회
+      const fetchWeatherByCoords = useCallback(async (lat, lon) => {
+        setLoading(true);
+        setError(null);
+        setWeather(null);
+
+        try {
+          // Reverse geocoding으로 한글 이름 가져오기
+          const koName = await fetchKoreanLocalName(lat, lon);
+
+          const res = await fetch(
+            `${API_BASE}?lat=${lat}&lon=${lon}&appid=${API_KEY}&units=metric&lang=kr`
+          );
+          if (!res.ok) throw new Error('날씨 정보를 가져오지 못했습니다.');
+          const data = await res.json();
+
+          // 한글 이름을 역매핑에 저장
+          if (koName && !EN_TO_KOREAN[data.name.toLowerCase()]) {
+            EN_TO_KOREAN[data.name.toLowerCase()] = koName;
+          }
+
+          setWeather(data);
+          setCity(koName || toKoreanCityName(data.name));
+        } catch (err) {
+          setError(err.message);
+        } finally {
+          setLoading(false);
+          setGeoLoading(false);
+        }
+      }, [fetchKoreanLocalName]);
+
+      // 현재 위치 감지
+      const detectLocation = useCallback(() => {
+        if (!navigator.geolocation) {
+          setError('이 브라우저에서는 위치 감지를 지원하지 않습니다.');
+          return;
+        }
+
+        setGeoLoading(true);
+        setError(null);
+
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            fetchWeatherByCoords(pos.coords.latitude, pos.coords.longitude);
+          },
+          (err) => {
+            setGeoLoading(false);
+            if (err.code === err.PERMISSION_DENIED) {
+              setError('위치 권한이 거부되었습니다. 브라우저 설정에서 위치 권한을 허용해 주세요.');
+            } else {
+              setError('위치를 가져올 수 없습니다. 도시 이름을 직접 입력해 주세요.');
+            }
+          },
+          { enableHighAccuracy: false, timeout: 10000 }
+        );
+      }, [fetchWeatherByCoords]);
+
+      // 페이지 로드 시 자동 위치 감지
+      useEffect(() => {
+        detectLocation();
+      }, []);
+
+      const handleSearch = () => fetchWeatherByCity(city);
+      const handleKeyDown = (e) => {
+        if (e.key === 'Enter') fetchWeatherByCity(city);
+      };
+
+      const quickCities = [
+        { label: '서울', value: '서울' },
+        { label: '부산', value: '부산' },
+        { label: '제주', value: '제주' },
+        { label: '도쿄', value: '도쿄' },
+        { label: '뉴욕', value: '뉴욕' },
+        { label: '런던', value: '런던' },
+        { label: '파리', value: '파리' },
+        { label: '시드니', value: '시드니' },
+      ];
+
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-sky-50 to-indigo-100">
+          <div className="max-w-lg mx-auto px-4 py-8">
+            {/* 헤더 */}
+            <div className="text-center mb-8">
+              <h1 className="text-4xl font-extrabold text-gray-800 mb-1">🌤️ 날씨</h1>
+              <p className="text-gray-500 text-sm">도시 이름을 입력하면 현재 날씨를 알려드립니다</p>
+            </div>
+
+            {/* 현재 위치 버튼 */}
+            <button
+              onClick={detectLocation}
+              disabled={geoLoading || loading}
+              className="w-full mb-3 py-2.5 bg-white/70 hover:bg-white border border-blue-200 rounded-xl text-sm text-blue-600 font-medium transition-all cursor-pointer flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {geoLoading ? (
+                <><span className="inline-block spin-slow">📍</span> 위치 감지 중...</>
+              ) : (
+                <><span>📍</span> 현재 위치로 날씨 보기</>
+              )}
+            </button>
+
+            {/* 검색 */}
+            <div className="flex gap-2 mb-4">
+              <Input
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="도시 이름 (예: 서울, 부산, 도쿄, 뉴욕)"
+              />
+              <Button onClick={handleSearch} disabled={loading || !city.trim()}>
+                {loading ? <span className="inline-block spin-slow">⏳</span> : '검색'}
+              </Button>
+            </div>
+
+            {/* 빠른 검색 */}
+            <div className="flex flex-wrap gap-2 mb-6 justify-center">
+              {quickCities.map((c) => (
+                <button
+                  key={c.value}
+                  onClick={() => { setCity(c.value); fetchWeatherByCity(c.value); }}
+                  className="px-3 py-1 text-xs bg-white/60 hover:bg-white rounded-full text-gray-600 hover:text-blue-600 transition-all cursor-pointer border border-gray-200"
+                >
+                  {c.label}
+                </button>
+              ))}
+            </div>
+
+            {/* 로딩 */}
+            {loading && (
+              <div className="text-center py-12">
+                <div className="text-5xl spin-slow inline-block mb-3">🌀</div>
+                <p className="text-gray-500">날씨 정보를 불러오는 중...</p>
+              </div>
+            )}
+
+            {/* 에러 */}
+            {error && (
+              <Card className="!bg-red-50 border border-red-200 text-center fade-in">
+                <p className="text-red-500 text-lg mb-1">😥</p>
+                <p className="text-red-600 text-sm">{error}</p>
+              </Card>
+            )}
+
+            {/* 결과 */}
+            {weather && <WeatherCard data={weather} />}
+
+            {/* 빈 상태 */}
+            {!weather && !loading && !error && (
+              <div className="text-center py-16 text-gray-400">
+                <p className="text-5xl mb-3">🔍</p>
+                <p>도시를 검색해 보세요</p>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🏁 Rendering
+    // ========================================
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
