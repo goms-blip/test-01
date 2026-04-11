@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>마음 토닥 - 심리 상담 채팅</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .fade-in-up { animation: fadeInUp 0.3s ease-out; }
+    @keyframes dotPulse {
+      0%, 80%, 100% { opacity: 0.3; }
+      40% { opacity: 1; }
+    }
+    .dot-1 { animation: dotPulse 1.4s infinite 0s; }
+    .dot-2 { animation: dotPulse 1.4s infinite 0.2s; }
+    .dot-3 { animation: dotPulse 1.4s infinite 0.4s; }
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-slate-100 min-h-screen">
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useRef, useEffect, useCallback } = React;
+
+    // ========================================
+    // 🎨 Design System Components
+    // ========================================
+
+    function Avatar({ isBot, className = "" }) {
+      return (
+        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0 ${isBot ? "bg-violet-500" : "bg-blue-500"} ${className}`}>
+          {isBot ? "🧡" : "🙂"}
+        </div>
+      );
+    }
+
+    function TypingIndicator() {
+      return (
+        <div className="flex items-end gap-2 fade-in-up">
+          <Avatar isBot />
+          <div className="bg-white rounded-2xl rounded-bl-sm px-4 py-3 shadow-sm">
+            <div className="flex gap-1">
+              <span className="w-2 h-2 bg-violet-400 rounded-full dot-1"></span>
+              <span className="w-2 h-2 bg-violet-400 rounded-full dot-2"></span>
+              <span className="w-2 h-2 bg-violet-400 rounded-full dot-3"></span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function ChatBubble({ message }) {
+      const isBot = message.sender === "bot";
+      return (
+        <div className={`flex items-end gap-2 fade-in-up ${isBot ? "justify-start" : "justify-end"}`}>
+          {isBot && <Avatar isBot />}
+          <div className={`max-w-[75%] px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap ${
+            isBot
+              ? "bg-white text-gray-800 rounded-2xl rounded-bl-sm shadow-sm"
+              : "bg-blue-500 text-white rounded-2xl rounded-br-sm shadow-sm"
+          }`}>
+            {message.text}
+          </div>
+          {!isBot && <Avatar isBot={false} />}
+        </div>
+      );
+    }
+
+    function MoodButton({ emoji, label, selected, onClick }) {
+      return (
+        <button
+          onClick={onClick}
+          className={`flex flex-col items-center gap-1 px-4 py-3 rounded-xl transition-all ${
+            selected
+              ? "bg-violet-100 border-2 border-violet-400 scale-105"
+              : "bg-white border-2 border-gray-100 hover:border-violet-200"
+          }`}
+        >
+          <span className="text-2xl">{emoji}</span>
+          <span className="text-xs text-gray-600">{label}</span>
+        </button>
+      );
+    }
+
+    // ========================================
+    // 📡 API Communication
+    // ========================================
+
+    const API_BASE_URL = '/api';
+
+    async function fetchAIResponse(chatHistory) {
+      const res = await fetch(`${API_BASE_URL}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: chatHistory }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.message || "AI 응답 실패");
+      return json.data.message;
+    }
+
+    // ========================================
+    // 📄 Mood Selector Component
+    // ========================================
+
+    function MoodSelector({ onSelect }) {
+      const [selected, setSelected] = useState(null);
+      const moods = [
+        { emoji: "😊", label: "좋아요", value: "좋아요" },
+        { emoji: "😐", label: "그저 그래요", value: "그저 그래요" },
+        { emoji: "😔", label: "우울해요", value: "우울해요" },
+        { emoji: "😰", label: "불안해요", value: "불안해요" },
+        { emoji: "😤", label: "화나요", value: "화나요" },
+      ];
+
+      const handleSelect = (mood) => {
+        setSelected(mood.value);
+        onSelect(mood.value);
+      };
+
+      return (
+        <div className="flex flex-wrap justify-center gap-2 fade-in-up">
+          {moods.map((m) => (
+            <MoodButton
+              key={m.value}
+              emoji={m.emoji}
+              label={m.label}
+              selected={selected === m.value}
+              onClick={() => handleSelect(m)}
+            />
+          ))}
+        </div>
+      );
+    }
+
+    // ========================================
+    // 🚀 App Component
+    // ========================================
+
+    function App() {
+      const [messages, setMessages] = useState([]);
+      const [input, setInput] = useState("");
+      const [isTyping, setIsTyping] = useState(false);
+      const [showMoodSelector, setShowMoodSelector] = useState(true);
+      const chatHistoryRef = useRef([]);
+      const chatEndRef = useRef(null);
+
+      const scrollToBottom = useCallback(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+      }, []);
+
+      useEffect(() => {
+        scrollToBottom();
+      }, [messages, isTyping, scrollToBottom]);
+
+      const sendToAI = useCallback(async (userText) => {
+        chatHistoryRef.current = [...chatHistoryRef.current, { role: "user", content: userText }];
+        setIsTyping(true);
+
+        try {
+          const reply = await fetchAIResponse(chatHistoryRef.current);
+          chatHistoryRef.current = [...chatHistoryRef.current, { role: "assistant", content: reply }];
+          setMessages((prev) => [...prev, { id: Date.now(), sender: "bot", text: reply }]);
+        } catch (err) {
+          setMessages((prev) => [...prev, {
+            id: Date.now(),
+            sender: "bot",
+            text: "죄송해요, 일시적으로 응답을 받을 수 없어요. 잠시 후 다시 이야기해 주세요.",
+          }]);
+        } finally {
+          setIsTyping(false);
+        }
+      }, []);
+
+      useEffect(() => {
+        setTimeout(() => {
+          const greeting = "안녕하세요, 마음 토닥이에요 🧡\n\n편하게 이야기 나눠요. 오늘 기분이 어떠세요?";
+          setMessages([{ id: 1, sender: "bot", text: greeting }]);
+          chatHistoryRef.current = [{ role: "assistant", content: greeting }];
+        }, 500);
+      }, []);
+
+      const handleMoodSelect = (mood) => {
+        setShowMoodSelector(false);
+        const userText = `오늘 기분: ${mood}`;
+        setMessages((prev) => [...prev, { id: Date.now(), sender: "user", text: userText }]);
+        sendToAI(userText);
+      };
+
+      const handleSend = (text) => {
+        const msg = (text || input).trim();
+        if (!msg || isTyping) return;
+
+        setShowMoodSelector(false);
+        setMessages((prev) => [...prev, { id: Date.now(), sender: "user", text: msg }]);
+        setInput("");
+        sendToAI(msg);
+      };
+
+      const handleKeyDown = (e) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          handleSend();
+        }
+      };
+
+      return (
+        <div className="flex flex-col h-screen max-w-lg mx-auto bg-white sm:my-4 sm:rounded-2xl sm:shadow-xl sm:h-[calc(100vh-2rem)] overflow-hidden">
+          {/* Header */}
+          <div className="bg-gradient-to-r from-violet-500 to-purple-600 text-white px-5 py-4 shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center text-xl">🧡</div>
+              <div>
+                <h1 className="font-bold text-lg leading-tight">마음 토닥</h1>
+                <p className="text-violet-200 text-xs">당신의 마음을 편안하게</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Chat Area */}
+          <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 bg-slate-50 scrollbar-hide">
+            {messages.map((msg) => (
+              <ChatBubble key={msg.id} message={msg} />
+            ))}
+
+            {showMoodSelector && messages.length > 0 && (
+              <MoodSelector onSelect={handleMoodSelect} />
+            )}
+
+            {isTyping && <TypingIndicator />}
+
+            <div ref={chatEndRef} />
+          </div>
+
+          {/* Notice */}
+          <div className="bg-amber-50 border-t border-amber-100 px-4 py-2 shrink-0">
+            <p className="text-xs text-amber-600 text-center">
+              이 서비스는 전문 상담을 대체하지 않습니다. 위기 상황 시 자살예방상담전화 1393으로 연락해 주세요.
+            </p>
+          </div>
+
+          {/* Input Area */}
+          <div className="border-t border-gray-200 px-4 py-3 bg-white shrink-0">
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="편하게 이야기해 주세요..."
+                className="flex-1 px-4 py-2.5 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-violet-300"
+              />
+              <button
+                onClick={() => handleSend()}
+                disabled={!input.trim() || isTyping}
+                className="w-10 h-10 bg-violet-500 text-white rounded-full flex items-center justify-center hover:bg-violet-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors shrink-0"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                  <path d="M3.105 2.289a.75.75 0 00-.826.95l1.414 4.925A1.5 1.5 0 005.135 9.25h6.115a.75.75 0 010 1.5H5.135a1.5 1.5 0 00-1.442 1.086l-1.414 4.926a.75.75 0 00.826.95 28.896 28.896 0 0015.293-7.154.75.75 0 000-1.115A28.897 28.897 0 003.105 2.289z" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // Rendering
+    // ========================================
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
