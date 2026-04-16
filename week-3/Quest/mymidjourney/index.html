@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Midjourney - AI Image Generator</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+KR:wght@300;400;500;600;700;800&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', 'Noto Sans KR', sans-serif;
+      background: #000;
+      color: #fff;
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Top Navigation ── */
+    .top-nav {
+      display: flex;
+      align-items: center;
+      padding: 0 32px;
+      height: 56px;
+      flex-shrink: 0;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      z-index: 100;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 0.95rem;
+      color: #fff;
+      letter-spacing: -0.3px;
+    }
+
+    .nav-logo svg {
+      width: 28px;
+      height: 28px;
+    }
+
+    /* ── Hero Section ── */
+    .hero {
+      position: relative;
+      width: 100%;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+      background: #0a0a0a;
+    }
+
+    .hero-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .hero-placeholder {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #0a0a12 0%, #0d1117 50%, #0a0a12 100%);
+    }
+
+    .hero-placeholder-inner {
+      text-align: center;
+      color: #333;
+    }
+
+    .hero-placeholder-inner svg {
+      width: 64px;
+      height: 64px;
+      margin-bottom: 16px;
+      opacity: 0.3;
+    }
+
+    .hero-placeholder-inner p {
+      font-size: 0.85rem;
+      color: #333;
+    }
+
+    .hero-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      top: 0;
+      background: linear-gradient(to right, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0.45) 40%, transparent 70%);
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 56px;
+    }
+
+    .hero-badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      color: #999;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    .hero-title {
+      font-size: 1.3rem;
+      font-weight: 500;
+      line-height: 1.4;
+      color: rgba(255, 255, 255, 0.8);
+      margin-bottom: 32px;
+      max-width: 500px;
+    }
+
+    .hero-prompt-label {
+      position: absolute;
+      bottom: 24px;
+      right: 32px;
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.45);
+      display: none;
+    }
+
+    .hero-prompt-label.visible {
+      display: block;
+    }
+
+    /* ── Input Bar ── */
+    .input-bar {
+      display: flex;
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 14px;
+      overflow: hidden;
+      max-width: 560px;
+    }
+
+    .input-bar textarea {
+      flex: 1;
+      background: transparent;
+      border: none;
+      padding: 16px 20px;
+      color: #fff;
+      font-family: inherit;
+      font-size: 0.92rem;
+      resize: none;
+      height: 54px;
+      outline: none;
+    }
+
+    .input-bar textarea::placeholder {
+      color: rgba(255, 255, 255, 0.3);
+    }
+
+    .btn-generate {
+      background: #3b82f6;
+      border: none;
+      padding: 0 28px;
+      color: white;
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn-generate:hover {
+      background: #2563eb;
+    }
+
+    .btn-generate:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    /* ── Status (inside hero) ── */
+    .status-inline {
+      margin-top: 12px;
+      min-height: 20px;
+    }
+
+    .status-inline .message {
+      font-size: 0.8rem;
+      color: #888;
+    }
+
+    .status-inline .error {
+      color: #ef4444;
+    }
+
+    .loading-bar {
+      width: 180px;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 2px;
+      margin-top: 8px;
+      overflow: hidden;
+      display: none;
+    }
+
+    .loading-bar.active { display: block; }
+
+    .loading-bar::after {
+      content: '';
+      display: block;
+      width: 40%;
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #60a5fa, #93c5fd);
+      border-radius: 2px;
+      animation: loading 1.3s ease-in-out infinite;
+    }
+
+    @keyframes loading {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(350%); }
+    }
+
+    /* ── History Section ── */
+    .history-section {
+      padding: 12px 32px 16px;
+      height: 30vh;
+      min-height: 220px;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .history-empty {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #333;
+      font-size: 0.8rem;
+    }
+
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      padding: 0 4px;
+    }
+
+    .history-header h2 {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #888;
+    }
+
+    .history-header span {
+      font-size: 0.72rem;
+      color: #555;
+    }
+
+    .history-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .history-card {
+      background: #111;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: border-color 0.25s, transform 0.25s;
+      max-height: 100%;
+    }
+
+    .history-card:hover {
+      border-color: rgba(255, 255, 255, 0.18);
+      transform: translateY(-2px);
+    }
+
+    .history-card-img {
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+    }
+
+    .history-card-img img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .history-card-body {
+      padding: 10px 12px;
+    }
+
+    .history-card-title {
+      font-size: 0.75rem;
+      font-weight: 500;
+      color: #999;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* ── Animations ── */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .fade-in { animation: fadeIn 0.5s ease; }
+
+    /* ── Responsive ── */
+    @media (max-width: 1024px) {
+      .history-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+
+    @media (max-width: 768px) {
+      .top-nav { padding: 0 16px; }
+      .hero-overlay { padding: 32px 24px; }
+      .hero-title { font-size: 1.1rem; }
+      .input-bar { max-width: 100%; }
+      .history-grid { grid-template-columns: repeat(2, 1fr); }
+      .history-section { padding: 12px 16px 16px; height: 30vh; min-height: 180px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation -->
+  <nav class="top-nav">
+    <div class="nav-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+        <polyline points="2 17 12 22 22 17"/>
+        <polyline points="2 12 12 17 22 12"/>
+      </svg>
+      MY MIDJOURNEY
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <div class="hero" id="heroSection">
+    <div class="hero-placeholder" id="heroPlaceholder">
+      <div class="hero-placeholder-inner">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        <p>Create your first image</p>
+      </div>
+    </div>
+    <img class="hero-image" id="heroImage" src="" alt="" style="display:none;">
+    <div class="hero-overlay">
+      <div class="hero-badge">AI Painterly Image Generator</div>
+      <h2 class="hero-title" id="heroTitle">AI 회화 스타일 이미지 생성 서비스</h2>
+      <div class="input-bar">
+        <textarea id="promptInput" placeholder="원하는 이미지를 설명해주세요... (예: 계곡 위에 놓인 나무 다리)"></textarea>
+        <button class="btn-generate" id="generateBtn">생성하기</button>
+      </div>
+      <div class="status-inline">
+        <div class="message" id="statusMsg"></div>
+        <div class="loading-bar" id="loadingBar"></div>
+      </div>
+    </div>
+    <div class="hero-prompt-label" id="imagePrompt"></div>
+  </div>
+
+  <!-- History Grid -->
+  <div class="history-section" id="gallery">
+    <div class="history-empty" id="historyEmpty">Generated images will appear here</div>
+    <div class="history-header" id="historyHeader" style="display:none;">
+      <h2>History</h2>
+      <span id="historyCount"></span>
+    </div>
+    <div class="history-grid" id="galleryGrid" style="display:none;"></div>
+  </div>
+
+  <script src="client.js"></script>
+</body>
+</html>

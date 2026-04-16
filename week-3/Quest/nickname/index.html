@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 닉네임 마스터</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --primary: #8B5CF6;
+      --primary-dark: #7C3AED;
+      --primary-light: #A78BFA;
+      --accent: #EC4899;
+      --bg-start: #0F0B1A;
+      --bg-end: #1A1035;
+      --card-bg: rgba(255, 255, 255, 0.05);
+      --card-border: rgba(255, 255, 255, 0.1);
+      --text: #F8FAFC;
+      --text-muted: #94A3B8;
+      --text-dim: #64748B;
+      --success: #10B981;
+      --error: #EF4444;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: linear-gradient(135deg, var(--bg-start) 0%, var(--bg-end) 50%, #1E1145 100%);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── 배경 장식 ── */
+    .bg-orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.3;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .bg-orb-1 { width: 600px; height: 600px; background: var(--primary); top: -200px; right: -200px; }
+    .bg-orb-2 { width: 400px; height: 400px; background: var(--accent); bottom: -100px; left: -100px; }
+    .bg-orb-3 { width: 300px; height: 300px; background: #3B82F6; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+
+    /* ── 레이아웃 ── */
+    .app {
+      position: relative;
+      z-index: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+
+    /* ── 헤더 ── */
+    .header {
+      text-align: center;
+      margin-bottom: 48px;
+    }
+    .header-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(139, 92, 246, 0.15);
+      border: 1px solid rgba(139, 92, 246, 0.3);
+      border-radius: 100px;
+      padding: 6px 16px;
+      font-size: 13px;
+      color: var(--primary-light);
+      margin-bottom: 20px;
+    }
+    .header-badge .dot {
+      width: 6px; height: 6px;
+      background: var(--success);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .header h1 {
+      font-size: 48px;
+      font-weight: 800;
+      background: linear-gradient(135deg, #fff 0%, var(--primary-light) 50%, var(--accent) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.2;
+      margin-bottom: 12px;
+    }
+    .header p {
+      font-size: 18px;
+      color: var(--text-muted);
+      max-width: 500px;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    /* ── 메인 그리드 ── */
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      align-items: start;
+    }
+
+    /* ── 캐릭터 이미지 ── */
+    .character-section {
+      margin-top: 32px;
+      text-align: center;
+    }
+    .character-card {
+      background: var(--card-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 32px;
+      display: none;
+    }
+    .character-card.visible { display: block; animation: fadeIn 0.6s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+    .character-card .card-title { justify-content: center; }
+    .character-image-wrapper {
+      position: relative;
+      display: inline-block;
+      margin-top: 16px;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 8px 40px rgba(139, 92, 246, 0.3);
+    }
+    .character-image-wrapper::before {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, var(--primary), var(--accent), #3B82F6);
+      z-index: -1;
+    }
+    .character-image {
+      display: block;
+      width: 100%;
+      max-width: 400px;
+      border-radius: 16px;
+      border: 2px solid rgba(255,255,255,0.1);
+    }
+    .character-loading {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+      padding: 60px 0;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+    .character-loading.visible { display: flex; }
+    .character-loading .spinner-lg {
+      width: 40px; height: 40px;
+      border: 3px solid rgba(139, 92, 246, 0.2);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    /* ── 카드 (글래스모피즘) ── */
+    .card {
+      background: var(--card-bg);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--card-border);
+      border-radius: 20px;
+      padding: 32px;
+      transition: border-color 0.3s;
+    }
+    .card:hover { border-color: rgba(139, 92, 246, 0.3); }
+    .card-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .card-title .icon {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .card-title .icon-purple { background: rgba(139, 92, 246, 0.2); }
+    .card-title .icon-pink { background: rgba(236, 72, 153, 0.2); }
+    .card-title .icon-blue { background: rgba(59, 130, 246, 0.2); }
+
+    /* ── 폼 ── */
+    .form-group {
+      margin-bottom: 20px;
+    }
+    .form-group label {
+      display: block;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 14px 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      color: var(--text);
+      font-size: 15px;
+      font-family: inherit;
+      outline: none;
+      transition: all 0.3s;
+    }
+    .form-group input::placeholder { color: var(--text-dim); }
+    .form-group input:focus,
+    .form-group select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+    }
+    .form-group select option { background: #1A1035; color: #fff; }
+
+    .btn-generate {
+      width: 100%;
+      padding: 16px;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+      border: none;
+      border-radius: 14px;
+      color: #fff;
+      font-size: 16px;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-generate:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 30px rgba(139, 92, 246, 0.4);
+    }
+    .btn-generate:active { transform: translateY(0); }
+    .btn-generate:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .btn-generate .spinner {
+      display: none;
+      width: 20px; height: 20px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto;
+    }
+    .btn-generate.loading .btn-text { display: none; }
+    .btn-generate.loading .spinner { display: block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── 결과 영역 ── */
+    .result-area {
+      min-height: 200px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .result-empty {
+      text-align: center;
+      color: var(--text-dim);
+    }
+    .result-empty .emoji { font-size: 48px; margin-bottom: 12px; }
+    .result-empty p { font-size: 14px; line-height: 1.6; }
+
+    .nickname-list { width: 100%; }
+    .nickname-item {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 12px;
+      transition: all 0.3s;
+      animation: slideUp 0.4s ease-out forwards;
+      opacity: 0;
+    }
+    .nickname-item:nth-child(1) { animation-delay: 0.1s; }
+    .nickname-item:nth-child(2) { animation-delay: 0.2s; }
+    .nickname-item:nth-child(3) { animation-delay: 0.3s; }
+    .nickname-item:nth-child(4) { animation-delay: 0.4s; }
+    .nickname-item:nth-child(5) { animation-delay: 0.5s; }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .nickname-item:hover {
+      border-color: rgba(139, 92, 246, 0.3);
+      background: rgba(139, 92, 246, 0.05);
+    }
+    .nickname-tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 3px 10px;
+      border-radius: 100px;
+      margin-bottom: 10px;
+    }
+    .tag-cute { background: rgba(236, 72, 153, 0.2); color: #F472B6; }
+    .tag-cool { background: rgba(59, 130, 246, 0.2); color: #60A5FA; }
+    .tag-funny { background: rgba(16, 185, 129, 0.2); color: #34D399; }
+    .tag-fire { background: rgba(239, 68, 68, 0.2); color: #F87171; }
+    .tag-wave { background: rgba(56, 189, 248, 0.2); color: #38BDF8; }
+    .tag-cyber { background: rgba(168, 85, 247, 0.2); color: #C084FC; }
+    .tag-persona { background: rgba(251, 191, 36, 0.2); color: #FBBF24; }
+    .tag-lux { background: rgba(52, 211, 153, 0.2); color: #34D399; }
+    .nickname-name {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      background: linear-gradient(135deg, #fff, var(--primary-light));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .nickname-reason {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .result-meta {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    /* ── 히스토리 ── */
+    .history-section {
+      margin-top: 40px;
+    }
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .history-header h2 {
+      font-size: 20px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn-clear {
+      padding: 8px 16px;
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      border-radius: 10px;
+      color: #F87171;
+      font-size: 13px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .btn-clear:hover { background: rgba(239, 68, 68, 0.2); }
+    .history-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 16px;
+    }
+    .history-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 14px;
+      padding: 20px;
+      transition: all 0.3s;
+      cursor: default;
+    }
+    .history-card:hover { border-color: rgba(139, 92, 246, 0.3); }
+    .history-thumb {
+      width: 100%;
+      height: 140px;
+      object-fit: cover;
+      border-radius: 10px;
+      margin-bottom: 12px;
+      border: 1px solid rgba(255,255,255,0.08);
+    }
+    .history-card-name {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .history-card-info {
+      font-size: 12px;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+    }
+    .history-card-nicknames {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .history-chip {
+      font-size: 12px;
+      padding: 4px 10px;
+      background: rgba(139, 92, 246, 0.15);
+      border-radius: 100px;
+      color: var(--primary-light);
+    }
+    .history-empty {
+      text-align: center;
+      color: var(--text-dim);
+      padding: 40px;
+      font-size: 14px;
+    }
+
+    /* ── 토스트 ── */
+    .toast {
+      position: fixed;
+      top: 24px;
+      right: 24px;
+      padding: 14px 20px;
+      border-radius: 12px;
+      font-size: 14px;
+      font-weight: 500;
+      z-index: 1000;
+      transform: translateX(120%);
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .toast.show { transform: translateX(0); }
+    .toast-error {
+      background: rgba(239, 68, 68, 0.15);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      color: #FCA5A5;
+    }
+    .toast-success {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #6EE7B7;
+    }
+
+    /* ── 반응형 ── */
+    @media (max-width: 768px) {
+      .main-grid { grid-template-columns: 1fr; }
+      .header h1 { font-size: 32px; }
+      .header p { font-size: 15px; }
+      .app { padding: 24px 16px; }
+      .card { padding: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-orb bg-orb-1"></div>
+  <div class="bg-orb bg-orb-2"></div>
+  <div class="bg-orb bg-orb-3"></div>
+
+  <div class="app">
+    <!-- 헤더 -->
+    <header class="header">
+      <div class="header-badge">
+        <span class="dot"></span>
+        Powered by GPT-4o + Fal AI
+      </div>
+      <h1>AI 닉네임 마스터</h1>
+      <p>이름, 성격, 취미를 알려주세요.<br/>AI가 당신만의 특별한 별명을 만들어 드립니다.</p>
+    </header>
+
+    <!-- 메인 콘텐츠 -->
+    <div class="main-grid">
+      <!-- 입력 카드 -->
+      <div class="card">
+        <div class="card-title">
+          <span class="icon icon-purple">&#9998;</span>
+          프로필 입력
+        </div>
+        <form id="nickname-form">
+          <div class="form-group">
+            <label for="name">이름</label>
+            <input type="text" id="name" placeholder="실제 이름 또는 별칭" required />
+          </div>
+          <div class="form-group">
+            <label for="personality">성격</label>
+            <select id="personality" required>
+              <option value="" disabled selected>성격을 선택하세요</option>
+              <option value="외향적이고 활발한">외향적이고 활발한</option>
+              <option value="내향적이고 차분한">내향적이고 차분한</option>
+              <option value="유머러스하고 재치있는">유머러스하고 재치있는</option>
+              <option value="꼼꼼하고 분석적인">꼼꼼하고 분석적인</option>
+              <option value="감성적이고 따뜻한">감성적이고 따뜻한</option>
+              <option value="도전적이고 열정적인">도전적이고 열정적인</option>
+              <option value="자유롭고 창의적인">자유롭고 창의적인</option>
+              <option value="신중하고 지적인">신중하고 지적인</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="hobby">취미</label>
+            <input type="text" id="hobby" placeholder="예: 게임, 독서, 등산, 요리..." required />
+          </div>
+          <button type="submit" class="btn-generate" id="btn-submit">
+            <span class="btn-text">별명 생성하기 &#10024;</span>
+            <span class="spinner"></span>
+          </button>
+        </form>
+      </div>
+
+      <!-- 결과 카드 -->
+      <div class="card">
+        <div class="card-title">
+          <span class="icon icon-pink">&#10024;</span>
+          생성된 별명
+        </div>
+        <div class="result-area" id="result-area">
+          <div class="result-empty">
+            <div class="emoji">&#127912;</div>
+            <p>아직 생성된 별명이 없어요.<br/>프로필을 입력하고 별명을 만들어보세요!</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 캐릭터 이미지 -->
+    <div class="character-section">
+      <div class="character-card" id="character-card">
+        <div class="card-title" style="justify-content:center;">
+          <span class="icon icon-purple">&#127912;</span>
+          AI 캐릭터
+        </div>
+        <div class="character-loading" id="character-loading">
+          <div class="spinner-lg"></div>
+          캐릭터를 그리는 중...
+        </div>
+        <div class="character-image-wrapper" id="character-wrapper" style="display:none;">
+          <img class="character-image" id="character-image" alt="AI Generated Character" />
+        </div>
+      </div>
+    </div>
+
+    <!-- 히스토리 -->
+    <section class="history-section">
+      <div class="history-header">
+        <h2>
+          <span class="icon icon-blue" style="width:32px;height:32px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-size:16px;">&#128218;</span>
+          히스토리
+        </h2>
+        <button class="btn-clear" id="btn-clear" style="display:none;">초기화</button>
+      </div>
+      <div id="history-container">
+        <div class="history-empty">아직 생성 기록이 없습니다.</div>
+      </div>
+    </section>
+  </div>
+
+  <!-- 토스트 -->
+  <div class="toast" id="toast"></div>
+
+  <script src="client.js"></script>
+</body>
+</html>
