@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>성질급한 곰</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg: #fafafa;
+      --surface: #ffffff;
+      --text-primary: #1d1d1f;
+      --text-secondary: #86868b;
+      --text-tertiary: #adadb1;
+      --accent: #6e4b3a;
+      --accent-light: #f5f0ed;
+      --user-bubble: #1d1d1f;
+      --user-text: #ffffff;
+      --ai-bubble: #f5f5f7;
+      --ai-text: #1d1d1f;
+      --border: #e8e8ed;
+      --input-bg: #f5f5f7;
+      --shadow: 0 1px 3px rgba(0,0,0,0.04);
+      --shadow-lg: 0 8px 30px rgba(0,0,0,0.06);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text-primary);
+      height: 100dvh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Header */
+    header {
+      padding: 16px 24px;
+      background: rgba(255,255,255,0.8);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 0.5px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      z-index: 10;
+    }
+
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      flex-shrink: 0;
+    }
+
+    .header-info h1 {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+    }
+
+    .header-info p {
+      font-size: 12px;
+      color: var(--text-secondary);
+      font-weight: 400;
+    }
+
+    .header-actions {
+      margin-left: auto;
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: none;
+      background: var(--input-bg);
+      color: var(--text-secondary);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+      font-size: 16px;
+    }
+
+    .btn-icon:hover {
+      background: var(--border);
+    }
+
+    /* Chat Area */
+    #chat-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px 0;
+      scroll-behavior: smooth;
+    }
+
+    #chat-area::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    #chat-area::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 3px;
+    }
+
+    .chat-container {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* Welcome Screen */
+    .welcome {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 80px 24px;
+      text-align: center;
+      animation: fadeIn 0.6s ease;
+    }
+
+    .welcome-avatar {
+      width: 72px;
+      height: 72px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      margin-bottom: 20px;
+    }
+
+    .welcome h2 {
+      font-size: 28px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+    }
+
+    .welcome p {
+      font-size: 15px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      max-width: 400px;
+    }
+
+    .suggestions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 32px;
+      justify-content: center;
+      max-width: 500px;
+    }
+
+    .suggestion {
+      padding: 10px 18px;
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: 20px;
+      font-size: 13px;
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+
+    .suggestion:hover {
+      background: var(--accent-light);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Messages */
+    .message {
+      margin-bottom: 20px;
+      animation: slideUp 0.3s ease;
+    }
+
+    .message-user {
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .message-ai {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .message-avatar {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .bubble {
+      padding: 12px 18px;
+      border-radius: 20px;
+      font-size: 14.5px;
+      line-height: 1.6;
+      max-width: 85%;
+      word-break: break-word;
+    }
+
+    .bubble-user {
+      background: var(--user-bubble);
+      color: var(--user-text);
+      border-bottom-right-radius: 6px;
+    }
+
+    .bubble-ai {
+      background: var(--ai-bubble);
+      color: var(--ai-text);
+      border-bottom-left-radius: 6px;
+    }
+
+    .bubble-ai p {
+      margin-bottom: 8px;
+    }
+
+    .bubble-ai p:last-child {
+      margin-bottom: 0;
+    }
+
+    .bubble-ai img {
+      max-width: 100%;
+      border-radius: 12px;
+      margin-top: 8px;
+      display: block;
+    }
+
+    /* Typing indicator */
+    .typing {
+      display: flex;
+      gap: 4px;
+      padding: 16px 18px;
+      align-items: center;
+    }
+
+    .typing span {
+      width: 6px;
+      height: 6px;
+      background: var(--text-tertiary);
+      border-radius: 50%;
+      animation: bounce 1.2s infinite;
+    }
+
+    .typing span:nth-child(2) { animation-delay: 0.15s; }
+    .typing span:nth-child(3) { animation-delay: 0.3s; }
+
+    /* Input Area */
+    .input-area {
+      padding: 12px 24px 24px;
+      background: rgba(255,255,255,0.8);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+
+    .input-wrapper {
+      max-width: 720px;
+      margin: 0 auto;
+      display: flex;
+      align-items: flex-end;
+      gap: 10px;
+      background: var(--input-bg);
+      border-radius: 24px;
+      padding: 6px 6px 6px 20px;
+      border: 0.5px solid var(--border);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .input-wrapper:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(110,75,58,0.08);
+    }
+
+    #message-input {
+      flex: 1;
+      border: none;
+      background: transparent;
+      font-size: 15px;
+      font-family: inherit;
+      color: var(--text-primary);
+      resize: none;
+      outline: none;
+      max-height: 120px;
+      line-height: 1.5;
+      padding: 8px 0;
+    }
+
+    #message-input::placeholder {
+      color: var(--text-tertiary);
+    }
+
+    #send-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: none;
+      background: var(--accent);
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      flex-shrink: 0;
+      opacity: 0.4;
+    }
+
+    #send-btn.active {
+      opacity: 1;
+    }
+
+    #send-btn.active:hover {
+      transform: scale(1.05);
+      filter: brightness(1.1);
+    }
+
+    #send-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes bounce {
+      0%, 60%, 100% { transform: translateY(0); }
+      30% { transform: translateY(-4px); }
+    }
+
+    /* Mobile */
+    @media (max-width: 640px) {
+      header { padding: 12px 16px; }
+      .chat-container { padding: 0 16px; }
+      .input-area { padding: 8px 16px 16px; }
+      .welcome { padding: 60px 16px; }
+      .welcome h2 { font-size: 24px; }
+      .bubble { max-width: 90%; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="avatar">&#x1f43b;</div>
+    <div class="header-info">
+      <h1>성질급한 곰</h1>
+      <p>디자인 · 음식 · 디저트 전문 AI</p>
+    </div>
+    <div class="header-actions">
+      <button class="btn-icon" id="clear-btn" title="새 대화">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div id="chat-area">
+    <div class="chat-container" id="messages">
+      <div class="welcome" id="welcome">
+        <div class="welcome-avatar">&#x1f43b;</div>
+        <h2>성질급한 곰</h2>
+        <p>거칠지만 따뜻한 마음을 가진 곰에게 뭐든 물어봐.<br>디자인, 음식, 디저트는 특히 잘 알아.</p>
+        <div class="suggestions">
+          <button class="suggestion" data-msg="요즘 유행하는 디저트 뭐야?">디저트 추천</button>
+          <button class="suggestion" data-msg="깔끔한 웹 디자인 팁 좀 알려줘">디자인 팁</button>
+          <button class="suggestion" data-msg="오늘 저녁 뭐 해먹지?">저녁 메뉴</button>
+          <button class="suggestion" data-msg="귀여운 곰 그림 그려줘">그림 그려줘</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="input-area">
+    <div class="input-wrapper">
+      <textarea id="message-input" rows="1" placeholder="메시지를 입력해..." autocomplete="off"></textarea>
+      <button id="send-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <script src="client.js"></script>
+</body>
+</html>
