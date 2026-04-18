@@ -24,9 +24,8 @@
     }
     .postit {
       position: relative;
-      background: #FFFFE0;
       filter: drop-shadow(2px 4px 6px rgba(0, 0, 0, 0.25));
-      transition: transform 0.2s ease, filter 0.2s ease;
+      transition: transform 0.2s ease, filter 0.2s ease, background-color 0.3s ease;
       font-family: "Marker Felt", "Comic Sans MS", "Segoe Print", cursive;
     }
     .postit:hover {
@@ -60,6 +59,13 @@
     const { useState, useEffect, useMemo, useRef, useCallback } = React;
 
     const API = '/api/memos';
+
+    const STATUS_META = {
+      TODO:        { label: '할일',    color: '#FFFFE0', pill: 'bg-amber-200 text-amber-900 border-amber-400',     dot: 'bg-amber-400' },
+      IN_PROGRESS: { label: '진행중',  color: '#CCFFCC', pill: 'bg-green-200 text-green-900 border-green-500',      dot: 'bg-green-500' },
+      DONE:        { label: '완료',    color: '#E5E5E5', pill: 'bg-gray-300 text-gray-700 border-gray-400',         dot: 'bg-gray-500' },
+    };
+    const STATUS_ORDER = ['TODO', 'IN_PROGRESS', 'DONE'];
 
     async function api(path, options = {}) {
       const res = await fetch(path, {
@@ -109,13 +115,38 @@
       );
     }
 
-    function PostIt({ memo, onSave, onDelete }) {
+    function StatusPills({ current, onChange, disabled }) {
+      return (
+        <div className="flex gap-1 flex-wrap">
+          {STATUS_ORDER.map(s => {
+            const meta = STATUS_META[s];
+            const active = s === current;
+            return (
+              <button
+                key={s}
+                type="button"
+                disabled={disabled}
+                onClick={(e) => { e.stopPropagation(); if (!active) onChange(s); }}
+                className={`text-[11px] px-2 py-0.5 rounded-full border font-semibold transition ${
+                  active ? meta.pill + ' ring-1 ring-offset-1 ring-gray-500/40' : 'bg-white/60 text-gray-600 border-gray-300 hover:bg-white'
+                }`}
+              >
+                {meta.label}
+              </button>
+            );
+          })}
+        </div>
+      );
+    }
+
+    function PostIt({ memo, onSave, onDelete, onStatusChange }) {
       const [editing, setEditing] = useState(false);
       const [title, setTitle] = useState(memo.title);
       const [content, setContent] = useState(memo.content || '');
       const [saving, setSaving] = useState(false);
       const contentRef = useRef(null);
       const rot = useMemo(() => rotationFor(memo.id), [memo.id]);
+      const meta = STATUS_META[memo.status] || STATUS_META.TODO;
 
       useEffect(() => {
         if (!editing) {
@@ -147,11 +178,11 @@
       };
 
       return (
-        <div className="postit fade-in p-4 pb-6 rounded-sm min-h-[180px]"
-             style={{ transform: `rotate(${rot}deg)` }}>
+        <div className="postit fade-in p-4 pb-6 rounded-sm min-h-[200px]"
+             style={{ transform: `rotate(${rot}deg)`, backgroundColor: meta.color }}>
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(memo.id); }}
-            className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/10 hover:bg-red-500 hover:text-white text-gray-700 text-xs flex items-center justify-center opacity-0 hover:!opacity-100 transition"
+            className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/10 hover:bg-red-500 hover:text-white text-gray-700 text-xs flex items-center justify-center transition"
             style={{ opacity: 0 }}
             onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
             onMouseLeave={(e) => e.currentTarget.style.opacity = '0'}
@@ -197,12 +228,54 @@
               {memo.content && (
                 <p className="mt-2 text-sm text-gray-700 whitespace-pre-line break-words">{memo.content}</p>
               )}
-              <p className="absolute bottom-1.5 left-3 text-[10px] text-gray-500/80">
-                {relativeTime(memo.created_at)}
-              </p>
             </div>
           )}
+
+          <div className="absolute bottom-1.5 left-3 right-3 flex items-center justify-between gap-2">
+            <StatusPills
+              current={memo.status}
+              onChange={(s) => onStatusChange(memo.id, s)}
+              disabled={editing}
+            />
+            <span className="text-[10px] text-gray-500/80 whitespace-nowrap">
+              {relativeTime(memo.created_at)}
+            </span>
+          </div>
         </div>
+      );
+    }
+
+    function HistoryItem({ memo, onStatusChange, onDelete }) {
+      const meta = STATUS_META.DONE;
+      return (
+        <li className="fade-in flex items-start gap-3 px-4 py-3 bg-white/70 backdrop-blur rounded-lg border border-gray-200 hover:bg-white/90 transition">
+          <span className={`mt-1 w-2 h-2 rounded-full ${meta.dot}`} aria-hidden="true"></span>
+          <div className="flex-1 min-w-0">
+            <div className="font-semibold text-gray-500 line-through break-words">{memo.title}</div>
+            {memo.content && (
+              <p className="mt-0.5 text-sm text-gray-400 line-through whitespace-pre-line break-words">{memo.content}</p>
+            )}
+            <div className="mt-1 text-[11px] text-gray-500 flex items-center gap-2 flex-wrap">
+              <span className={`px-1.5 py-0.5 rounded border text-[10px] font-semibold ${meta.pill}`}>{meta.label}</span>
+              <span>완료: {relativeTime(memo.updated_at || memo.created_at)}</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              onClick={() => onStatusChange(memo.id, 'IN_PROGRESS')}
+              className="text-xs px-2 py-1 rounded-md bg-green-100 hover:bg-green-200 text-green-800 border border-green-300 transition"
+              title="다시 진행중으로"
+            >
+              되돌리기
+            </button>
+            <button
+              onClick={() => onDelete(memo.id)}
+              className="text-xs px-2 py-1 rounded-md bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 transition"
+            >
+              삭제
+            </button>
+          </div>
+        </li>
       );
     }
 
@@ -275,6 +348,23 @@
         }
       };
 
+      const handleStatusChange = async (id, status) => {
+        const prev = memos.find(m => m.id === id);
+        // optimistic
+        setMemos(list => list.map(m => m.id === id ? { ...m, status } : m));
+        try {
+          const body = await api(`${API}/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify({ status }),
+          });
+          setMemos(list => list.map(m => m.id === id ? body.data : m));
+          setError(null);
+        } catch (e) {
+          setError(e.message);
+          if (prev) setMemos(list => list.map(m => m.id === id ? prev : m));
+        }
+      };
+
       const handleDelete = async (id) => {
         if (!window.confirm('이 메모를 삭제할까요?')) return;
         try {
@@ -284,8 +374,19 @@
         } catch (e) { setError(e.message); }
       };
 
+      const { active, done } = useMemo(() => {
+        const act = [];
+        const dn = [];
+        for (const m of memos) {
+          if (m.status === 'DONE') dn.push(m);
+          else act.push(m);
+        }
+        dn.sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at));
+        return { active: act, done: dn };
+      }, [memos]);
+
       const isSearching = debouncedSearch.length > 0;
-      const empty = !loading && memos.length === 0;
+      const totallyEmpty = !loading && memos.length === 0;
 
       return (
         <div className="min-h-screen px-4 py-8 sm:py-12">
@@ -294,7 +395,13 @@
               <h1 className="text-3xl sm:text-4xl font-bold text-amber-900 tracking-tight drop-shadow-sm">
                 📌 포스트잇 메모장
               </h1>
-              <p className="mt-2 text-sm text-amber-950/70">생각을 붙여두세요</p>
+              <p className="mt-2 text-sm text-amber-950/70">
+                <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full" style={{background:'#FFFFE0',border:'1px solid #c89f3a'}}></span>할일</span>
+                <span className="mx-2">·</span>
+                <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full" style={{background:'#CCFFCC',border:'1px solid #4ca34c'}}></span>진행중</span>
+                <span className="mx-2">·</span>
+                <span className="inline-flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-full bg-gray-400"></span>완료 → 아래 히스토리</span>
+              </p>
             </header>
 
             <div className="bg-white/70 backdrop-blur rounded-2xl shadow-lg p-4 sm:p-5 mb-6">
@@ -354,10 +461,10 @@
             {loading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                 {Array.from({ length: 4 }).map((_, i) => (
-                  <div key={i} className="skeleton rounded-sm min-h-[180px]" />
+                  <div key={i} className="skeleton rounded-sm min-h-[200px]" />
                 ))}
               </div>
-            ) : empty ? (
+            ) : totallyEmpty ? (
               <div className="text-center py-16 text-amber-950/70">
                 <div className="text-5xl mb-3">{isSearching ? '🔍' : '📝'}</div>
                 <p className="text-base font-medium">
@@ -368,15 +475,51 @@
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {memos.map(m => (
-                  <PostIt key={m.id} memo={m} onSave={handleSave} onDelete={handleDelete} />
-                ))}
-              </div>
+              <>
+                {active.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    {active.map(m => (
+                      <PostIt
+                        key={m.id}
+                        memo={m}
+                        onSave={handleSave}
+                        onDelete={handleDelete}
+                        onStatusChange={handleStatusChange}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-10 text-amber-950/70">
+                    <div className="text-3xl mb-2">✅</div>
+                    <p className="text-sm">진행 중인 메모가 없어요 — 아래 히스토리를 확인해 보세요!</p>
+                  </div>
+                )}
+
+                {done.length > 0 && (
+                  <section className="mt-12">
+                    <div className="flex items-center gap-3 mb-4">
+                      <h2 className="text-xl font-bold text-amber-950/90">📜 완료 히스토리</h2>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-gray-200 text-gray-700 border border-gray-300">
+                        {done.length}개
+                      </span>
+                    </div>
+                    <ul className="space-y-2">
+                      {done.map(m => (
+                        <HistoryItem
+                          key={m.id}
+                          memo={m}
+                          onStatusChange={handleStatusChange}
+                          onDelete={handleDelete}
+                        />
+                      ))}
+                    </ul>
+                  </section>
+                )}
+              </>
             )}
 
             <footer className="mt-10 text-center text-xs text-amber-950/60">
-              PostgreSQL · {memos.length}개의 메모
+              PostgreSQL · 진행 {active.length}개 · 완료 {done.length}개
             </footer>
           </div>
         </div>
