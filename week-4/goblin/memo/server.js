@@ -20,6 +20,8 @@ const pool = connectionString
       ssl: { rejectUnauthorized: false },
     });
 
+const VALID_STATUSES = ['TODO', 'IN_PROGRESS', 'DONE'];
+
 let dbInitialized = false;
 async function initDB() {
   if (dbInitialized) return;
@@ -30,6 +32,11 @@ async function initDB() {
       content    TEXT,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
+  `);
+  await pool.query(`
+    ALTER TABLE public.memos
+      ADD COLUMN IF NOT EXISTS status     TEXT NOT NULL DEFAULT 'TODO',
+      ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
   `);
   dbInitialized = true;
 }
@@ -55,14 +62,14 @@ app.get('/api/memos', async (req, res) => {
     const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
     const result = q
       ? await pool.query(
-          `SELECT id, title, content, created_at
+          `SELECT id, title, content, status, created_at, updated_at
              FROM public.memos
             WHERE title ILIKE $1 OR content ILIKE $1
             ORDER BY created_at DESC`,
           [`%${q}%`]
         )
       : await pool.query(
-          `SELECT id, title, content, created_at
+          `SELECT id, title, content, status, created_at, updated_at
              FROM public.memos
             ORDER BY created_at DESC`
         );
@@ -76,20 +83,27 @@ app.get('/api/memos', async (req, res) => {
 // POST /api/memos — create a new memo.
 app.post('/api/memos', async (req, res) => {
   try {
-    const { title, content } = req.body || {};
+    const { title, content, status } = req.body || {};
     if (typeof title !== 'string' || title.trim() === '') {
       return res.status(400).json({
         success: false,
         message: 'title is required and must be a non-empty string',
       });
     }
+    if (status !== undefined && !VALID_STATUSES.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `status must be one of: ${VALID_STATUSES.join(', ')}`,
+      });
+    }
     const safeContent = typeof content === 'string' ? content : null;
+    const safeStatus = status || 'TODO';
 
     const result = await pool.query(
-      `INSERT INTO public.memos (title, content)
-            VALUES ($1, $2)
-         RETURNING id, title, content, created_at`,
-      [title.trim(), safeContent]
+      `INSERT INTO public.memos (title, content, status)
+            VALUES ($1, $2, $3)
+         RETURNING id, title, content, status, created_at, updated_at`,
+      [title.trim(), safeContent, safeStatus]
     );
     res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) {
@@ -106,7 +120,7 @@ app.patch('/api/memos/:id', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid id' });
     }
 
-    const { title, content } = req.body || {};
+    const { title, content, status } = req.body || {};
     const sets = [];
     const values = [];
 
@@ -126,19 +140,32 @@ app.patch('/api/memos/:id', async (req, res) => {
       sets.push(`content = $${values.length}`);
     }
 
+    if (status !== undefined) {
+      if (!VALID_STATUSES.includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: `status must be one of: ${VALID_STATUSES.join(', ')}`,
+        });
+      }
+      values.push(status);
+      sets.push(`status = $${values.length}`);
+    }
+
     if (sets.length === 0) {
       return res.status(400).json({
         success: false,
-        message: 'At least one of title or content must be provided',
+        message: 'At least one of title, content, or status must be provided',
       });
     }
+
+    sets.push(`updated_at = NOW()`);
 
     values.push(id);
     const result = await pool.query(
       `UPDATE public.memos
           SET ${sets.join(', ')}
         WHERE id = $${values.length}
-        RETURNING id, title, content, created_at`,
+        RETURNING id, title, content, status, created_at, updated_at`,
       values
     );
     if (result.rowCount === 0) {
@@ -159,7 +186,7 @@ app.delete('/api/memos/:id', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid id' });
     }
     const result = await pool.query(
-      `DELETE FROM public.memos WHERE id = $1 RETURNING id, title, content, created_at`,
+      `DELETE FROM public.memos WHERE id = $1 RETURNING id, title, content, status, created_at, updated_at`,
       [id]
     );
     if (result.rowCount === 0) {
