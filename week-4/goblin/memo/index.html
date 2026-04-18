@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>포스트잇 메모장</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body {
+      min-height: 100vh;
+      background-color: #d9b382;
+      background-image:
+        radial-gradient(circle at 20% 30%, rgba(120, 80, 40, 0.25) 0, transparent 2px),
+        radial-gradient(circle at 70% 60%, rgba(90, 60, 30, 0.2) 0, transparent 2px),
+        radial-gradient(circle at 40% 80%, rgba(160, 110, 60, 0.25) 0, transparent 2px),
+        radial-gradient(circle at 85% 20%, rgba(110, 70, 35, 0.22) 0, transparent 2px),
+        radial-gradient(circle at 10% 70%, rgba(140, 95, 50, 0.2) 0, transparent 2px),
+        linear-gradient(135deg, #d9b382 0%, #c9a072 100%);
+      background-size: 6px 6px, 5px 5px, 7px 7px, 4px 4px, 8px 8px, 100% 100%;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .postit {
+      position: relative;
+      background: #FFFFE0;
+      filter: drop-shadow(2px 4px 6px rgba(0, 0, 0, 0.25));
+      transition: transform 0.2s ease, filter 0.2s ease;
+      font-family: "Marker Felt", "Comic Sans MS", "Segoe Print", cursive;
+    }
+    .postit:hover {
+      transform: scale(1.03) rotate(0deg) !important;
+      filter: drop-shadow(4px 8px 10px rgba(0, 0, 0, 0.3));
+      z-index: 10;
+    }
+    .postit::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 22px;
+      height: 22px;
+      background: linear-gradient(225deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.05) 40%, transparent 55%);
+      clip-path: polygon(100% 0, 0 100%, 100% 100%);
+    }
+    .fade-in { animation: fadeIn 0.25s ease-in; }
+    @keyframes fadeIn { from {opacity:0; transform: translateY(-4px);} to {opacity:1; transform: translateY(0);} }
+    .skeleton {
+      background: linear-gradient(90deg, #e9d9b0 0%, #f0e3c0 50%, #e9d9b0 100%);
+      background-size: 200% 100%;
+      animation: shimmer 1.2s infinite;
+    }
+    @keyframes shimmer { 0% {background-position: 200% 0;} 100% {background-position: -200% 0;} }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useRef, useCallback } = React;
+
+    const API = '/api/memos';
+
+    async function api(path, options = {}) {
+      const res = await fetch(path, {
+        headers: { 'Content-Type': 'application/json' },
+        ...options,
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || body.success === false) {
+        throw new Error(body.message || `요청 실패 (${res.status})`);
+      }
+      return body;
+    }
+
+    function relativeTime(iso) {
+      if (!iso) return '';
+      const diffMs = Date.now() - new Date(iso).getTime();
+      const s = Math.floor(diffMs / 1000);
+      if (s < 60) return '방금 전';
+      const m = Math.floor(s / 60);
+      if (m < 60) return `${m}분 전`;
+      const h = Math.floor(m / 60);
+      if (h < 24) return `${h}시간 전`;
+      const d = Math.floor(h / 24);
+      if (d < 7) return `${d}일 전`;
+      return new Date(iso).toLocaleDateString('ko-KR');
+    }
+
+    function rotationFor(id) {
+      const seed = (id * 2654435761) >>> 0;
+      return ((seed % 500) / 100) - 2.5;
+    }
+
+    function Button({ variant = 'primary', size = 'md', disabled, onClick, className = '', type = 'button', children, ...rest }) {
+      const base = 'inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed';
+      const variants = {
+        primary: 'bg-amber-600 hover:bg-amber-700 text-white focus:ring-amber-400',
+        secondary: 'bg-white/80 hover:bg-white text-gray-800 focus:ring-gray-300',
+        danger: 'bg-red-500 hover:bg-red-600 text-white focus:ring-red-300',
+        ghost: 'bg-transparent hover:bg-white/40 text-gray-700 focus:ring-gray-300',
+      };
+      const sizes = { sm: 'text-xs px-2.5 py-1.5', md: 'text-sm px-4 py-2' };
+      return (
+        <button type={type} disabled={disabled} onClick={onClick}
+          className={`${base} ${variants[variant]} ${sizes[size]} ${className}`} {...rest}>
+          {children}
+        </button>
+      );
+    }
+
+    function PostIt({ memo, onSave, onDelete }) {
+      const [editing, setEditing] = useState(false);
+      const [title, setTitle] = useState(memo.title);
+      const [content, setContent] = useState(memo.content || '');
+      const [saving, setSaving] = useState(false);
+      const contentRef = useRef(null);
+      const rot = useMemo(() => rotationFor(memo.id), [memo.id]);
+
+      useEffect(() => {
+        if (!editing) {
+          setTitle(memo.title);
+          setContent(memo.content || '');
+        }
+      }, [memo, editing]);
+
+      const commit = async () => {
+        if (saving) return;
+        const patch = {};
+        if (title.trim() !== memo.title) patch.title = title.trim();
+        if ((content || '') !== (memo.content || '')) patch.content = content;
+        if (!title.trim()) { setTitle(memo.title); setEditing(false); return; }
+        if (Object.keys(patch).length === 0) { setEditing(false); return; }
+        setSaving(true);
+        try {
+          await onSave(memo.id, patch);
+          setEditing(false);
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      const cancel = () => {
+        setTitle(memo.title);
+        setContent(memo.content || '');
+        setEditing(false);
+      };
+
+      return (
+        <div className="postit fade-in p-4 pb-6 rounded-sm min-h-[180px]"
+             style={{ transform: `rotate(${rot}deg)` }}>
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(memo.id); }}
+            className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/10 hover:bg-red-500 hover:text-white text-gray-700 text-xs flex items-center justify-center opacity-0 hover:!opacity-100 transition"
+            style={{ opacity: 0 }}
+            onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+            onMouseLeave={(e) => e.currentTarget.style.opacity = '0'}
+            aria-label="삭제">×</button>
+
+          {editing ? (
+            <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); contentRef.current?.focus(); }
+                  if (e.key === 'Escape') cancel();
+                  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') commit();
+                }}
+                placeholder="제목"
+                className="w-full bg-transparent border-b border-gray-500/40 focus:outline-none focus:border-amber-600 font-bold text-gray-800 text-base pb-1"
+                autoFocus
+              />
+              <textarea
+                ref={contentRef}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Escape') cancel();
+                  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') commit();
+                }}
+                placeholder="내용 (선택)"
+                rows={4}
+                className="w-full bg-transparent resize-none focus:outline-none text-sm text-gray-700"
+              />
+              <div className="flex gap-2 justify-end">
+                <Button variant="ghost" size="sm" onClick={cancel} disabled={saving}>취소</Button>
+                <Button variant="primary" size="sm" onClick={commit} disabled={saving || !title.trim()}>
+                  {saving ? '저장...' : '저장'}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div onClick={() => setEditing(true)} className="cursor-pointer h-full">
+              <h3 className="font-bold text-gray-800 text-base break-words pr-6">{memo.title}</h3>
+              {memo.content && (
+                <p className="mt-2 text-sm text-gray-700 whitespace-pre-line break-words">{memo.content}</p>
+              )}
+              <p className="absolute bottom-1.5 left-3 text-[10px] text-gray-500/80">
+                {relativeTime(memo.created_at)}
+              </p>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    function MemoApp() {
+      const [memos, setMemos] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+      const [saving, setSaving] = useState(false);
+
+      const [title, setTitle] = useState('');
+      const [content, setContent] = useState('');
+      const [search, setSearch] = useState('');
+      const [debouncedSearch, setDebouncedSearch] = useState('');
+
+      const titleRef = useRef(null);
+
+      useEffect(() => {
+        const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+        return () => clearTimeout(t);
+      }, [search]);
+
+      const fetchMemos = useCallback(async (q) => {
+        setLoading(true);
+        try {
+          const url = q ? `${API}?q=${encodeURIComponent(q)}` : API;
+          const body = await api(url);
+          setMemos(body.data || []);
+          setError(null);
+        } catch (e) {
+          setError(e.message);
+        } finally {
+          setLoading(false);
+        }
+      }, []);
+
+      useEffect(() => { fetchMemos(debouncedSearch); }, [debouncedSearch, fetchMemos]);
+
+      const handleAdd = async () => {
+        const t = title.trim();
+        if (!t || saving) return;
+        setSaving(true);
+        try {
+          const body = await api(API, {
+            method: 'POST',
+            body: JSON.stringify({ title: t, content }),
+          });
+          setMemos(prev => [body.data, ...prev]);
+          setTitle('');
+          setContent('');
+          setError(null);
+          titleRef.current?.focus();
+        } catch (e) {
+          setError(e.message);
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      const handleSave = async (id, patch) => {
+        try {
+          const body = await api(`${API}/${id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(patch),
+          });
+          setMemos(prev => prev.map(m => m.id === id ? body.data : m));
+          setError(null);
+        } catch (e) {
+          setError(e.message);
+          throw e;
+        }
+      };
+
+      const handleDelete = async (id) => {
+        if (!window.confirm('이 메모를 삭제할까요?')) return;
+        try {
+          await api(`${API}/${id}`, { method: 'DELETE' });
+          setMemos(prev => prev.filter(m => m.id !== id));
+          setError(null);
+        } catch (e) { setError(e.message); }
+      };
+
+      const isSearching = debouncedSearch.length > 0;
+      const empty = !loading && memos.length === 0;
+
+      return (
+        <div className="min-h-screen px-4 py-8 sm:py-12">
+          <div className="max-w-6xl mx-auto">
+            <header className="mb-6 text-center">
+              <h1 className="text-3xl sm:text-4xl font-bold text-amber-900 tracking-tight drop-shadow-sm">
+                📌 포스트잇 메모장
+              </h1>
+              <p className="mt-2 text-sm text-amber-950/70">생각을 붙여두세요</p>
+            </header>
+
+            <div className="bg-white/70 backdrop-blur rounded-2xl shadow-lg p-4 sm:p-5 mb-6">
+              <input
+                ref={titleRef}
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAdd(); } }}
+                placeholder="메모 제목"
+                className="w-full px-4 py-2.5 rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-amber-400 font-medium"
+                aria-label="제목"
+              />
+              <textarea
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') handleAdd(); }}
+                placeholder="메모 내용 (선택)"
+                rows={2}
+                className="mt-2 w-full px-4 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 focus:border-amber-400 resize-none"
+                aria-label="내용"
+              />
+              <div className="mt-2 flex justify-end">
+                <Button onClick={handleAdd} disabled={!title.trim() || saving}>
+                  {saving ? '추가 중...' : '메모 붙이기'}
+                </Button>
+              </div>
+            </div>
+
+            <div className="bg-white/70 backdrop-blur rounded-2xl shadow-lg p-3 mb-6 flex items-center gap-2">
+              <span className="pl-2 text-gray-500">🔎</span>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="제목 또는 내용으로 검색..."
+                className="flex-1 px-2 py-2 bg-transparent focus:outline-none text-sm"
+                aria-label="검색"
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch('')}
+                  className="text-xs px-2.5 py-1 rounded-full bg-amber-100 hover:bg-amber-200 text-amber-800"
+                >
+                  "{search}" ×
+                </button>
+              )}
+            </div>
+
+            {error && (
+              <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700 flex items-center justify-between">
+                <span>⚠️ {error}</span>
+                <Button variant="ghost" size="sm" onClick={() => fetchMemos(debouncedSearch)}>다시 시도</Button>
+              </div>
+            )}
+
+            {loading ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="skeleton rounded-sm min-h-[180px]" />
+                ))}
+              </div>
+            ) : empty ? (
+              <div className="text-center py-16 text-amber-950/70">
+                <div className="text-5xl mb-3">{isSearching ? '🔍' : '📝'}</div>
+                <p className="text-base font-medium">
+                  {isSearching ? '검색 결과가 없어요' : '아직 메모가 없어요'}
+                </p>
+                <p className="mt-1 text-sm opacity-80">
+                  {isSearching ? '다른 키워드로 검색해 보세요' : '위에서 첫 메모를 붙여보세요'}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {memos.map(m => (
+                  <PostIt key={m.id} memo={m} onSave={handleSave} onDelete={handleDelete} />
+                ))}
+              </div>
+            )}
+
+            <footer className="mt-10 text-center text-xs text-amber-950/60">
+              PostgreSQL · {memos.length}개의 메모
+            </footer>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<MemoApp />);
+  </script>
+</body>
+</html>
