@@ -1,0 +1,13 @@
+{
+  "name": "memo",
+  "version": "1.0.0",
+  "description": "Post-It style memo app backend (PostgreSQL)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^5.0.0",
+    "pg": "^8.20.0"
+  }
+}

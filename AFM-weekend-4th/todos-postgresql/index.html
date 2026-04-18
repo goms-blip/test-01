@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>오늘의 할 일 (JSON)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body {
+      background: linear-gradient(135deg, #f0f4ff 0%, #fdf2ff 100%);
+      min-height: 100vh;
+    }
+    .fade-in { animation: fadeIn 0.25s ease-in; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useRef } = React;
+
+    const API = '/api/todos';
+    const PRIORITIES = ['높음', '중간', '보통', '낮음'];
+
+    const priorityStyle = (p) => {
+      if (p === '높음') return 'bg-red-50 text-red-600 border-red-100';
+      if (p === '중간') return 'bg-amber-50 text-amber-600 border-amber-100';
+      if (p === '낮음') return 'bg-gray-100 text-gray-500 border-gray-200';
+      return 'bg-indigo-50 text-indigo-600 border-indigo-100';
+    };
+
+    async function api(path, options = {}) {
+      const res = await fetch(path, {
+        headers: { 'Content-Type': 'application/json' },
+        ...options,
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || body.success === false) {
+        throw new Error(body.message || `요청 실패 (${res.status})`);
+      }
+      return body;
+    }
+
+    function Button({ variant = 'primary', size = 'md', disabled, onClick, className = '', type = 'button', children, ...rest }) {
+      const base = 'inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed';
+      const variants = {
+        primary: 'bg-indigo-600 hover:bg-indigo-700 text-white focus:ring-indigo-400',
+        secondary: 'bg-gray-100 hover:bg-gray-200 text-gray-800 focus:ring-gray-300',
+        danger: 'bg-red-50 hover:bg-red-100 text-red-600 focus:ring-red-300',
+        ghost: 'bg-transparent hover:bg-gray-100 text-gray-600 focus:ring-gray-300',
+      };
+      const sizes = { sm: 'text-xs px-2.5 py-1.5', md: 'text-sm px-4 py-2' };
+      return (
+        <button type={type} disabled={disabled} onClick={onClick}
+          className={`${base} ${variants[variant]} ${sizes[size]} ${className}`} {...rest}>
+          {children}
+        </button>
+      );
+    }
+
+    function Card({ className = '', children }) {
+      return <div className={`bg-white rounded-2xl shadow-xl shadow-indigo-100/50 p-6 sm:p-8 ${className}`}>{children}</div>;
+    }
+
+    function Badge({ children, className = '' }) {
+      return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${className}`}>{children}</span>;
+    }
+
+    const FILTERS = [
+      { key: 'all', label: '전체' },
+      { key: 'active', label: '진행중' },
+      { key: 'completed', label: '완료' },
+    ];
+
+    function FilterTabs({ filter, onChange, counts }) {
+      return (
+        <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1" role="tablist">
+          {FILTERS.map(f => {
+            const active = filter === f.key;
+            return (
+              <button key={f.key} role="tab" aria-selected={active} onClick={() => onChange(f.key)}
+                className={`flex-1 text-sm font-medium px-3 py-1.5 rounded-lg transition-all ${
+                  active ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                }`}>
+                {f.label}<span className="ml-1.5 text-xs opacity-70">({counts[f.key]})</span>
+              </button>
+            );
+          })}
+        </div>
+      );
+    }
+
+    function TodoItem({ todo, onToggle, onDelete }) {
+      return (
+        <li className="fade-in group flex items-start gap-3 px-4 py-3 bg-white border border-gray-100 rounded-xl hover:border-indigo-200 hover:shadow-sm transition">
+          <input
+            type="checkbox"
+            checked={todo.completed}
+            onChange={() => onToggle(todo.id)}
+            className="mt-1 w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-400 cursor-pointer"
+            aria-label={`${todo.title} 완료 토글`}
+          />
+          <div className="flex-1 min-w-0">
+            <div className={`text-sm sm:text-base font-medium break-words ${todo.completed ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+              {todo.title}
+            </div>
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+              {todo.priority && (
+                <Badge className={priorityStyle(todo.priority)}>우선순위 · {todo.priority}</Badge>
+              )}
+              {todo.date && (
+                <Badge className="bg-slate-50 text-slate-600 border-slate-100">📅 {todo.date}</Badge>
+              )}
+              {todo.estimatedTime && (
+                <Badge className="bg-violet-50 text-violet-600 border-violet-100">⏱ {todo.estimatedTime}</Badge>
+              )}
+            </div>
+          </div>
+          <Button variant="danger" size="sm" onClick={() => onDelete(todo.id)}
+            className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition" aria-label="삭제">
+            삭제
+          </Button>
+        </li>
+      );
+    }
+
+    function EmptyState({ filter }) {
+      const msg = {
+        all: '아직 등록된 할 일이 없어요. 새 할 일을 추가해 보세요!',
+        active: '진행중인 할 일이 없어요.',
+        completed: '완료한 할 일이 아직 없어요.',
+      };
+      return (
+        <div className="text-center py-12 text-gray-400">
+          <div className="text-4xl mb-2">📝</div>
+          <p className="text-sm">{msg[filter]}</p>
+        </div>
+      );
+    }
+
+    function TodoApp() {
+      const [todos, setTodos] = useState([]);
+      const [filter, setFilter] = useState('all');
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+      const [saving, setSaving] = useState(false);
+
+      const [title, setTitle] = useState('');
+      const [date, setDate] = useState('');
+      const [priority, setPriority] = useState('중간');
+      const [estimatedTime, setEstimatedTime] = useState('');
+      const titleRef = useRef(null);
+
+      const refresh = async () => {
+        try {
+          const body = await api(API);
+          setTodos(body.data || []);
+          setError(null);
+        } catch (e) {
+          setError(e.message);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      useEffect(() => { refresh(); }, []);
+
+      const counts = useMemo(() => ({
+        all: todos.length,
+        active: todos.filter(t => !t.completed).length,
+        completed: todos.filter(t => t.completed).length,
+      }), [todos]);
+
+      const visible = useMemo(() => {
+        if (filter === 'active') return todos.filter(t => !t.completed);
+        if (filter === 'completed') return todos.filter(t => t.completed);
+        return todos;
+      }, [todos, filter]);
+
+      const handleAdd = async () => {
+        const t = title.trim();
+        if (!t || saving) return;
+        setSaving(true);
+        try {
+          const body = await api(API, {
+            method: 'POST',
+            body: JSON.stringify({ title: t, date, priority, estimatedTime }),
+          });
+          setTodos(prev => [...prev, body.data]);
+          setTitle('');
+          setEstimatedTime('');
+          setError(null);
+          titleRef.current?.focus();
+        } catch (e) {
+          setError(e.message);
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      const handleToggle = async (id) => {
+        try {
+          const body = await api(`${API}/${id}`, { method: 'PATCH' });
+          setTodos(prev => prev.map(t => t.id === id ? body.data : t));
+          setError(null);
+        } catch (e) { setError(e.message); }
+      };
+
+      const handleDelete = async (id) => {
+        try {
+          await api(`${API}/${id}`, { method: 'DELETE' });
+          setTodos(prev => prev.filter(t => t.id !== id));
+          setError(null);
+        } catch (e) { setError(e.message); }
+      };
+
+      const handleClearCompleted = async () => {
+        try {
+          await api(API, { method: 'DELETE' });
+          setTodos(prev => prev.filter(t => !t.completed));
+          setError(null);
+        } catch (e) { setError(e.message); }
+      };
+
+      return (
+        <div className="min-h-screen flex items-start justify-center px-4 py-10 sm:py-16">
+          <div className="w-full max-w-xl">
+            <header className="mb-6 text-center">
+              <h1 className="text-3xl sm:text-4xl font-bold text-gray-800 tracking-tight">오늘의 할 일</h1>
+              <p className="mt-2 text-sm text-gray-500">JSON 파일(todos.json) 한 곳에 저장돼요.</p>
+            </header>
+
+            <Card>
+              {/* Add form */}
+              <div className="space-y-2">
+                <input
+                  ref={titleRef}
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && title.trim()) handleAdd(); }}
+                  placeholder="할 일 제목"
+                  className="w-full px-4 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400"
+                  aria-label="제목"
+                />
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    aria-label="날짜"
+                  />
+                  <select
+                    value={priority}
+                    onChange={(e) => setPriority(e.target.value)}
+                    className="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    aria-label="우선순위"
+                  >
+                    {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                  <input
+                    type="text"
+                    value={estimatedTime}
+                    onChange={(e) => setEstimatedTime(e.target.value)}
+                    placeholder="예상 시간 (예: 30분)"
+                    className="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-300 col-span-2 sm:col-span-1"
+                    aria-label="예상 시간"
+                  />
+                </div>
+                <Button onClick={handleAdd} disabled={!title.trim() || saving} className="w-full">
+                  {saving ? '추가 중...' : '할 일 추가'}
+                </Button>
+              </div>
+
+              {error && (
+                <div className="mt-3 px-3 py-2 rounded-lg bg-red-50 border border-red-100 text-xs text-red-600">
+                  {error}
+                </div>
+              )}
+
+              <div className="mt-5">
+                <FilterTabs filter={filter} onChange={setFilter} counts={counts} />
+              </div>
+
+              <div className="mt-5">
+                {loading ? (
+                  <div className="text-center py-12 text-gray-400 text-sm">불러오는 중...</div>
+                ) : visible.length === 0 ? (
+                  <EmptyState filter={filter} />
+                ) : (
+                  <ul className="space-y-2">
+                    {visible.map(t => (
+                      <TodoItem key={t.id} todo={t} onToggle={handleToggle} onDelete={handleDelete} />
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <Badge className="bg-indigo-50 text-indigo-600 border-indigo-100">남은 {counts.active}개</Badge>
+                  {counts.completed > 0 && (
+                    <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100">완료 {counts.completed}개</Badge>
+                  )}
+                </div>
+                <Button variant="ghost" size="sm" onClick={handleClearCompleted} disabled={counts.completed === 0}>
+                  완료된 할 일 지우기
+                </Button>
+              </div>
+            </Card>
+
+            <footer className="mt-6 text-center text-xs text-gray-400">
+              할 일은 서버의 <code className="text-gray-500">todos.json</code> 한 파일에 저장돼요.
+            </footer>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<TodoApp />);
+  </script>
+</body>
+</html>

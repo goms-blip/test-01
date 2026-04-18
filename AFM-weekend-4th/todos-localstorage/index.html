@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>오늘의 할 일 (localStorage)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body {
+      background: linear-gradient(135deg, #f0f4ff 0%, #fdf2ff 100%);
+      min-height: 100vh;
+    }
+    .fade-in { animation: fadeIn 0.25s ease-in; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useRef } = React;
+
+    const STORAGE_KEY = 'todos-localstorage:v1';
+    const PRIORITIES = ['높음', '중간', '보통', '낮음'];
+
+    const priorityStyle = (p) => {
+      if (p === '높음') return 'bg-red-50 text-red-600 border-red-100';
+      if (p === '중간') return 'bg-amber-50 text-amber-600 border-amber-100';
+      if (p === '낮음') return 'bg-gray-100 text-gray-500 border-gray-200';
+      return 'bg-indigo-50 text-indigo-600 border-indigo-100';
+    };
+
+    const SEED = [
+      { id: 'todo_1', title: 'AFM 주말 4차 과제 요구사항 검토하기', date: '2026-04-18', priority: '높음', estimatedTime: '30분', completed: false },
+      { id: 'todo_2', title: 'my-data 폴더 구조 설계하기',          date: '2026-04-18', priority: '높음', estimatedTime: '1시간', completed: false },
+      { id: 'todo_3', title: '지난주 학습한 에이전트 코드 복습하기', date: '2026-04-18', priority: '중간', estimatedTime: '1시간 30분', completed: false },
+      { id: 'todo_4', title: 'Claude Code 신규 기능 문서 읽기',      date: '2026-04-18', priority: '중간', estimatedTime: '45분', completed: false },
+      { id: 'todo_5', title: '오늘 작업 내용 git 커밋 및 정리하기',  date: '2026-04-18', priority: '낮음', estimatedTime: '20분', completed: false },
+    ];
+
+    function loadTodos() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) return parsed;
+        }
+      } catch (_) { /* ignore */ }
+      return SEED;
+    }
+
+    function saveTodos(todos) {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(todos)); }
+      catch (_) { /* quota or privacy mode — ignore */ }
+    }
+
+    const genId = () => `todo_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+    function Button({ variant = 'primary', size = 'md', disabled, onClick, className = '', type = 'button', children, ...rest }) {
+      const base = 'inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed';
+      const variants = {
+        primary: 'bg-indigo-600 hover:bg-indigo-700 text-white focus:ring-indigo-400',
+        secondary: 'bg-gray-100 hover:bg-gray-200 text-gray-800 focus:ring-gray-300',
+        danger: 'bg-red-50 hover:bg-red-100 text-red-600 focus:ring-red-300',
+        ghost: 'bg-transparent hover:bg-gray-100 text-gray-600 focus:ring-gray-300',
+      };
+      const sizes = { sm: 'text-xs px-2.5 py-1.5', md: 'text-sm px-4 py-2' };
+      return (
+        <button type={type} disabled={disabled} onClick={onClick}
+          className={`${base} ${variants[variant]} ${sizes[size]} ${className}`} {...rest}>
+          {children}
+        </button>
+      );
+    }
+
+    function Card({ className = '', children }) {
+      return <div className={`bg-white rounded-2xl shadow-xl shadow-indigo-100/50 p-6 sm:p-8 ${className}`}>{children}</div>;
+    }
+
+    function Badge({ children, className = '' }) {
+      return <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${className}`}>{children}</span>;
+    }
+
+    const FILTERS = [
+      { key: 'all', label: '전체' },
+      { key: 'active', label: '진행중' },
+      { key: 'completed', label: '완료' },
+    ];
+
+    function FilterTabs({ filter, onChange, counts }) {
+      return (
+        <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1" role="tablist">
+          {FILTERS.map(f => {
+            const active = filter === f.key;
+            return (
+              <button key={f.key} role="tab" aria-selected={active} onClick={() => onChange(f.key)}
+                className={`flex-1 text-sm font-medium px-3 py-1.5 rounded-lg transition-all ${
+                  active ? 'bg-white text-indigo-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                }`}>
+                {f.label}<span className="ml-1.5 text-xs opacity-70">({counts[f.key]})</span>
+              </button>
+            );
+          })}
+        </div>
+      );
+    }
+
+    function TodoItem({ todo, onToggle, onDelete }) {
+      return (
+        <li className="fade-in group flex items-start gap-3 px-4 py-3 bg-white border border-gray-100 rounded-xl hover:border-indigo-200 hover:shadow-sm transition">
+          <input
+            type="checkbox"
+            checked={todo.completed}
+            onChange={() => onToggle(todo.id)}
+            className="mt-1 w-5 h-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-400 cursor-pointer"
+            aria-label={`${todo.title} 완료 토글`}
+          />
+          <div className="flex-1 min-w-0">
+            <div className={`text-sm sm:text-base font-medium break-words ${todo.completed ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+              {todo.title}
+            </div>
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+              {todo.priority && (
+                <Badge className={priorityStyle(todo.priority)}>우선순위 · {todo.priority}</Badge>
+              )}
+              {todo.date && (
+                <Badge className="bg-slate-50 text-slate-600 border-slate-100">📅 {todo.date}</Badge>
+              )}
+              {todo.estimatedTime && (
+                <Badge className="bg-violet-50 text-violet-600 border-violet-100">⏱ {todo.estimatedTime}</Badge>
+              )}
+            </div>
+          </div>
+          <Button variant="danger" size="sm" onClick={() => onDelete(todo.id)}
+            className="opacity-0 group-hover:opacity-100 focus:opacity-100 transition" aria-label="삭제">
+            삭제
+          </Button>
+        </li>
+      );
+    }
+
+    function EmptyState({ filter }) {
+      const msg = {
+        all: '아직 등록된 할 일이 없어요. 새 할 일을 추가해 보세요!',
+        active: '진행중인 할 일이 없어요.',
+        completed: '완료한 할 일이 아직 없어요.',
+      };
+      return (
+        <div className="text-center py-12 text-gray-400">
+          <div className="text-4xl mb-2">📝</div>
+          <p className="text-sm">{msg[filter]}</p>
+        </div>
+      );
+    }
+
+    function TodoApp() {
+      const [todos, setTodos] = useState(loadTodos);
+      const [filter, setFilter] = useState('all');
+
+      const [title, setTitle] = useState('');
+      const [date, setDate] = useState('');
+      const [priority, setPriority] = useState('중간');
+      const [estimatedTime, setEstimatedTime] = useState('');
+      const titleRef = useRef(null);
+
+      // Persist on every change
+      useEffect(() => { saveTodos(todos); }, [todos]);
+
+      // Sync across tabs/windows
+      useEffect(() => {
+        const onStorage = (e) => {
+          if (e.key !== STORAGE_KEY) return;
+          try {
+            const parsed = e.newValue ? JSON.parse(e.newValue) : [];
+            if (Array.isArray(parsed)) setTodos(parsed);
+          } catch (_) { /* ignore */ }
+        };
+        window.addEventListener('storage', onStorage);
+        return () => window.removeEventListener('storage', onStorage);
+      }, []);
+
+      const counts = useMemo(() => ({
+        all: todos.length,
+        active: todos.filter(t => !t.completed).length,
+        completed: todos.filter(t => t.completed).length,
+      }), [todos]);
+
+      const visible = useMemo(() => {
+        if (filter === 'active') return todos.filter(t => !t.completed);
+        if (filter === 'completed') return todos.filter(t => t.completed);
+        return todos;
+      }, [todos, filter]);
+
+      const handleAdd = () => {
+        const t = title.trim();
+        if (!t) return;
+        setTodos(prev => [...prev, {
+          id: genId(),
+          title: t,
+          date,
+          priority,
+          estimatedTime,
+          completed: false,
+        }]);
+        setTitle('');
+        setEstimatedTime('');
+        titleRef.current?.focus();
+      };
+
+      const handleToggle = (id) => {
+        setTodos(prev => prev.map(t => t.id === id ? { ...t, completed: !t.completed } : t));
+      };
+
+      const handleDelete = (id) => {
+        setTodos(prev => prev.filter(t => t.id !== id));
+      };
+
+      const handleClearCompleted = () => {
+        setTodos(prev => prev.filter(t => !t.completed));
+      };
+
+      const handleResetSeed = () => {
+        if (confirm('저장된 할 일을 모두 지우고 기본 샘플로 되돌릴까요?')) {
+          setTodos(SEED);
+        }
+      };
+
+      return (
+        <div className="min-h-screen flex items-start justify-center px-4 py-10 sm:py-16">
+          <div className="w-full max-w-xl">
+            <header className="mb-6 text-center">
+              <h1 className="text-3xl sm:text-4xl font-bold text-gray-800 tracking-tight">오늘의 할 일</h1>
+              <p className="mt-2 text-sm text-gray-500">브라우저 localStorage에 저장돼요.</p>
+            </header>
+
+            <Card>
+              <div className="space-y-2">
+                <input
+                  ref={titleRef}
+                  type="text"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && title.trim()) handleAdd(); }}
+                  placeholder="할 일 제목"
+                  className="w-full px-4 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-indigo-400"
+                  aria-label="제목"
+                />
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={(e) => setDate(e.target.value)}
+                    className="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    aria-label="날짜"
+                  />
+                  <select
+                    value={priority}
+                    onChange={(e) => setPriority(e.target.value)}
+                    className="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300"
+                    aria-label="우선순위"
+                  >
+                    {PRIORITIES.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                  <input
+                    type="text"
+                    value={estimatedTime}
+                    onChange={(e) => setEstimatedTime(e.target.value)}
+                    placeholder="예상 시간 (예: 30분)"
+                    className="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-300 col-span-2 sm:col-span-1"
+                    aria-label="예상 시간"
+                  />
+                </div>
+                <Button onClick={handleAdd} disabled={!title.trim()} className="w-full">
+                  할 일 추가
+                </Button>
+              </div>
+
+              <div className="mt-5">
+                <FilterTabs filter={filter} onChange={setFilter} counts={counts} />
+              </div>
+
+              <div className="mt-5">
+                {visible.length === 0 ? (
+                  <EmptyState filter={filter} />
+                ) : (
+                  <ul className="space-y-2">
+                    {visible.map(t => (
+                      <TodoItem key={t.id} todo={t} onToggle={handleToggle} onDelete={handleDelete} />
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <Badge className="bg-indigo-50 text-indigo-600 border-indigo-100">남은 {counts.active}개</Badge>
+                  {counts.completed > 0 && (
+                    <Badge className="bg-emerald-50 text-emerald-600 border-emerald-100">완료 {counts.completed}개</Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button variant="ghost" size="sm" onClick={handleResetSeed}>
+                    초기화
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={handleClearCompleted} disabled={counts.completed === 0}>
+                    완료 지우기
+                  </Button>
+                </div>
+              </div>
+            </Card>
+
+            <footer className="mt-6 text-center text-xs text-gray-400">
+              서버 없이 동작해요. 할 일은 브라우저 <code className="text-gray-500">localStorage</code>에 저장됩니다.
+            </footer>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<TodoApp />);
+  </script>
+</body>
+</html>

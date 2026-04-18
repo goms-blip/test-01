@@ -1,0 +1,44 @@
+{
+  "todos": [
+    {
+      "id": "todo_1",
+      "title": "AFM 주말 4차 과제 요구사항 검토하기",
+      "date": "2026-04-18",
+      "priority": "높음",
+      "estimatedTime": "30분",
+      "completed": false
+    },
+    {
+      "id": "todo_2",
+      "title": "my-data 폴더 구조 설계하기",
+      "date": "2026-04-18",
+      "priority": "높음",
+      "estimatedTime": "1시간",
+      "completed": false
+    },
+    {
+      "id": "todo_3",
+      "title": "지난주 학습한 에이전트 코드 복습하기",
+      "date": "2026-04-18",
+      "priority": "중간",
+      "estimatedTime": "1시간 30분",
+      "completed": false
+    },
+    {
+      "id": "todo_4",
+      "title": "Claude Code 신규 기능 문서 읽기",
+      "date": "2026-04-18",
+      "priority": "중간",
+      "estimatedTime": "45분",
+      "completed": false
+    },
+    {
+      "id": "todo_5",
+      "title": "오늘 작업 내용 git 커밋 및 정리하기",
+      "date": "2026-04-18",
+      "priority": "낮음",
+      "estimatedTime": "20분",
+      "completed": false
+    }
+  ]
+}
