@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>REFRI · MANAGER — Ingredients & Recipes Engineering</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', 'sans-serif'],
+            mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
+          },
+          colors: {
+            paper: '#f4f2ec',
+            ink: '#0a0a0a',
+            hairline: '#d7d3c9',
+            muted: '#8a8680',
+            alert: '#d93025',
+          },
+          letterSpacing: {
+            'wider-2': '0.18em',
+          },
+        },
+      },
+    };
+  </script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    html, body { background: #f4f2ec; color: #0a0a0a; }
+    body {
+      min-height: 100vh;
+      font-family: 'Inter', system-ui, sans-serif;
+      font-feature-settings: "ss01", "cv11";
+      -webkit-font-smoothing: antialiased;
+    }
+    .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+    .fade-in { animation: fadeIn 0.18s ease-out; }
+    @keyframes fadeIn { from {opacity:0; transform: translateY(2px);} to {opacity:1; transform: translateY(0);} }
+
+    /* Grid backdrop */
+    .grid-bg {
+      background-image:
+        linear-gradient(to right, rgba(10,10,10,0.045) 1px, transparent 1px);
+      background-size: 80px 100%;
+    }
+
+    /* Hairline helpers */
+    .hl-top    { border-top: 1px solid #d7d3c9; }
+    .hl-bottom { border-bottom: 1px solid #d7d3c9; }
+    .hl-all    { border: 1px solid #d7d3c9; }
+
+    /* Inputs: flat, hairline */
+    .in {
+      background: transparent;
+      border: 1px solid #d7d3c9;
+      padding: 10px 12px;
+      font-size: 13px;
+      color: #0a0a0a;
+      border-radius: 0;
+      outline: none;
+      transition: border-color .15s ease;
+    }
+    .in:focus { border-color: #0a0a0a; }
+    .in::placeholder { color: #a6a29b; }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      border: 1px solid #0a0a0a;
+      background: transparent;
+      color: #0a0a0a;
+    }
+    .tag-inv { background: #0a0a0a; color: #f4f2ec; }
+    .tag-muted { border-color: #d7d3c9; color: #8a8680; }
+    .dot { width: 6px; height: 6px; display: inline-block; border-radius: 9999px; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11.5px; letter-spacing: 0.14em; text-transform: uppercase;
+      padding: 10px 16px; border-radius: 0;
+      border: 1px solid #0a0a0a; background: #0a0a0a; color: #f4f2ec;
+      transition: transform .08s ease, background .15s ease, color .15s ease;
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: #262626; }
+    .btn:active:not(:disabled) { transform: translateY(1px); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-ghost { background: transparent; color: #0a0a0a; }
+    .btn-ghost:hover:not(:disabled) { background: #0a0a0a; color: #f4f2ec; }
+    .btn-danger { background: #d93025; border-color: #d93025; color: #fff; }
+    .btn-danger:hover:not(:disabled) { background: #b1271d; }
+    .btn-sm { padding: 6px 10px; font-size: 10.5px; }
+
+    /* Section label */
+    .label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: #8a8680;
+    }
+    .rule-x { position: relative; }
+    .rule-x::after {
+      content: ""; position: absolute; left: 0; right: 0; bottom: -1px;
+      height: 1px; background: #0a0a0a;
+    }
+
+    /* Ticker bar */
+    .ticker {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10.5px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+
+    /* Card */
+    .card {
+      background: #fbfaf6;
+      border: 1px solid #d7d3c9;
+      border-radius: 0;
+      transition: border-color .15s ease, background .15s ease;
+    }
+    .card:hover { border-color: #0a0a0a; }
+
+    /* Modal */
+    .modal-backdrop { background: rgba(10,10,10,0.55); }
+    .modal-panel { background: #f4f2ec; border: 1px solid #0a0a0a; border-radius: 0; }
+
+    /* Tabs underline */
+    .tab {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      padding: 14px 4px;
+      color: #8a8680;
+      border-bottom: 1px solid transparent;
+      margin-bottom: -1px;
+    }
+    .tab[aria-selected="true"] { color: #0a0a0a; border-bottom-color: #0a0a0a; }
+
+    /* utilities */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+  </style>
+</head>
+<body class="grid-bg">
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useRef, useCallback } = React;
+
+    const API = '/api';
+    const CATEGORIES = ['육류', '채소', '유제품', '곡물', '조미료', '기타'];
+    // Monochrome dot marker per category — the only chromatic accent.
+    const CATEGORY_META = {
+      '육류':   { code: 'MT', color: '#b23a2b' },
+      '채소':   { code: 'VG', color: '#3f6b2e' },
+      '유제품': { code: 'DY', color: '#3a6ea5' },
+      '곡물':   { code: 'GR', color: '#b88a2a' },
+      '조미료': { code: 'SP', color: '#6d4aa8' },
+      '기타':   { code: 'OT', color: '#555555' },
+    };
+
+    async function api(path, options = {}) {
+      const res = await fetch(path, {
+        headers: { 'Content-Type': 'application/json' },
+        ...options,
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || body.success === false) {
+        throw new Error(body.message || `요청 실패 (${res.status})`);
+      }
+      return body;
+    }
+
+    function pad(n, w = 2) { return String(n).padStart(w, '0'); }
+
+    function dDayLabel(expiry) {
+      if (!expiry) return null;
+      const today = new Date(); today.setHours(0,0,0,0);
+      const e = new Date(expiry); e.setHours(0,0,0,0);
+      const diff = Math.round((e - today) / 86400000);
+      if (diff < 0)   return { text: `D+${-diff}`, status: 'EXPIRED', tone: 'inv-alert' };
+      if (diff === 0) return { text: `D-00`,       status: 'TODAY',   tone: 'inv-alert' };
+      if (diff <= 3)  return { text: `D-${pad(diff)}`, status: 'SOON',   tone: 'inv' };
+      if (diff <= 7)  return { text: `D-${pad(diff)}`, status: 'WATCH',  tone: 'outline' };
+      return            { text: `D-${pad(diff)}`, status: 'OK',     tone: 'muted' };
+    }
+
+    function DDayTag({ dday }) {
+      if (!dday) return null;
+      const cls =
+        dday.tone === 'inv-alert' ? 'tag' : dday.tone === 'inv' ? 'tag tag-inv' :
+        dday.tone === 'outline'   ? 'tag' : 'tag tag-muted';
+      const style = dday.tone === 'inv-alert' ? { background: '#d93025', borderColor: '#d93025', color: '#fff' } : {};
+      return (
+        <span className={cls} style={style}>
+          <span className="mono">{dday.text}</span>
+          <span className="opacity-60">· {dday.status}</span>
+        </span>
+      );
+    }
+
+    function CategoryTag({ category, size = 'sm' }) {
+      const meta = CATEGORY_META[category] || CATEGORY_META['기타'];
+      return (
+        <span className="tag tag-muted">
+          <span className="dot" style={{ background: meta.color }}></span>
+          <span className="mono">{meta.code}</span>
+          <span className="opacity-70">· {category}</span>
+        </span>
+      );
+    }
+
+    function Modal({ open, onClose, title, meta, children, footer }) {
+      useEffect(() => {
+        if (!open) return;
+        const h = (e) => { if (e.key === 'Escape') onClose(); };
+        window.addEventListener('keydown', h);
+        return () => window.removeEventListener('keydown', h);
+      }, [open, onClose]);
+      if (!open) return null;
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop" onClick={onClose}>
+          <div className="fade-in modal-panel w-full max-w-2xl max-h-[86vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-4 hl-bottom flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="label">{meta || 'DOC'}</div>
+                <h2 className="mt-1 text-xl font-semibold tracking-tight truncate">{title}</h2>
+              </div>
+              <button onClick={onClose} aria-label="닫기"
+                className="mono text-xs tracking-wider hover:underline shrink-0 pt-1">CLOSE ✕</button>
+            </div>
+            <div className="px-6 py-5 overflow-y-auto flex-1">{children}</div>
+            {footer && <div className="px-6 py-3 hl-top flex justify-end gap-2 flex-wrap">{footer}</div>}
+          </div>
+        </div>
+      );
+    }
+
+    function SectionHeader({ index, title, subtitle, right }) {
+      return (
+        <div className="flex items-end justify-between gap-4 pb-3 hl-bottom mb-5">
+          <div className="flex items-baseline gap-4 min-w-0">
+            <span className="mono text-xs tracking-wider-2 text-muted shrink-0">{index}</span>
+            <div className="min-w-0">
+              <h2 className="text-[22px] sm:text-2xl font-semibold tracking-tight leading-none truncate">{title}</h2>
+              {subtitle && <p className="mt-1 text-xs text-muted">{subtitle}</p>}
+            </div>
+          </div>
+          {right}
+        </div>
+      );
+    }
+
+    // =================== Ingredients Tab ===================
+
+    function IngredientsTab() {
+      const [items, setItems] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+      const [saving, setSaving] = useState(false);
+
+      const [name, setName] = useState('');
+      const [category, setCategory] = useState('');
+      const [expiryDate, setExpiryDate] = useState('');
+
+      const [search, setSearch] = useState('');
+      const [debouncedSearch, setDebouncedSearch] = useState('');
+      const [categoryFilter, setCategoryFilter] = useState('');
+
+      useEffect(() => {
+        const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+        return () => clearTimeout(t);
+      }, [search]);
+
+      const fetchItems = useCallback(async (q, cat) => {
+        setLoading(true);
+        try {
+          const params = new URLSearchParams();
+          if (q) params.set('q', q);
+          if (cat) params.set('category', cat);
+          const qs = params.toString();
+          const body = await api(`${API}/ingredients${qs ? '?' + qs : ''}`);
+          setItems(body.data || []);
+          setError(null);
+        } catch (e) { setError(e.message); }
+        finally { setLoading(false); }
+      }, []);
+
+      useEffect(() => { fetchItems(debouncedSearch, categoryFilter); }, [debouncedSearch, categoryFilter, fetchItems]);
+
+      const handleAdd = async () => {
+        const n = name.trim();
+        if (!n || saving) return;
+        setSaving(true);
+        try {
+          const body = await api(`${API}/ingredients`, {
+            method: 'POST',
+            body: JSON.stringify({ name: n, category: category || null, expiry_date: expiryDate || null }),
+          });
+          setItems(prev => [body.data, ...prev]);
+          setName(''); setCategory(''); setExpiryDate('');
+          setError(null);
+        } catch (e) { setError(e.message); }
+        finally { setSaving(false); }
+      };
+
+      const handleDelete = async (id) => {
+        if (!window.confirm('이 재료를 삭제할까요?')) return;
+        try {
+          await api(`${API}/ingredients/${id}`, { method: 'DELETE' });
+          setItems(prev => prev.filter(x => x.id !== id));
+          setError(null);
+        } catch (e) { setError(e.message); }
+      };
+
+      const counts = useMemo(() => {
+        const c = {};
+        for (const it of items) c[it.category || '기타'] = (c[it.category || '기타'] || 0) + 1;
+        return c;
+      }, [items]);
+
+      return (
+        <div>
+          <SectionHeader
+            index="§ 01 / INTAKE"
+            title="재료 인수 (Ingredient Intake)"
+            subtitle="냉장고에 반입되는 자재를 기록합니다"
+            right={<span className="ticker text-muted hidden sm:inline">TOTAL · {pad(items.length, 3)}</span>}
+          />
+
+          <div className="card p-5 mb-6">
+            <div className="label mb-3">NEW ENTRY</div>
+            <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+              <input
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && name.trim()) handleAdd(); }}
+                placeholder="재료명 (e.g. Onion)"
+                className="in sm:col-span-5"
+                aria-label="재료명"
+              />
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="in sm:col-span-3 bg-transparent"
+                aria-label="카테고리"
+              >
+                <option value="">— Category —</option>
+                {CATEGORIES.map(c => <option key={c} value={c}>{CATEGORY_META[c].code} · {c}</option>)}
+              </select>
+              <input
+                type="date"
+                value={expiryDate}
+                onChange={(e) => setExpiryDate(e.target.value)}
+                className="in sm:col-span-2 mono"
+                aria-label="유통기한"
+              />
+              <button onClick={handleAdd} disabled={!name.trim() || saving} className="btn sm:col-span-2">
+                {saving ? 'SAVING…' : '＋ ADD'}
+              </button>
+            </div>
+          </div>
+
+          <div className="card p-4 mb-5 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <span className="label shrink-0">SEARCH /</span>
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="재료명 검색…"
+                className="flex-1 bg-transparent focus:outline-none text-sm border-none p-0"
+                aria-label="검색"
+                style={{ border: 'none' }}
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => setCategoryFilter('')}
+                className={categoryFilter === '' ? 'tag tag-inv' : 'tag tag-muted'}
+              >
+                <span className="mono">ALL</span>
+              </button>
+              {CATEGORIES.map(c => {
+                const active = categoryFilter === c;
+                return (
+                  <button
+                    key={c}
+                    onClick={() => setCategoryFilter(active ? '' : c)}
+                    className={active ? 'tag tag-inv' : 'tag tag-muted'}
+                  >
+                    <span className="dot" style={{ background: CATEGORY_META[c].color }}></span>
+                    <span className="mono">{CATEGORY_META[c].code}</span>
+                    <span className="opacity-70">· {c}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {error && (
+            <div className="mb-5 px-4 py-3 hl-all bg-[#fdf2f1] text-sm text-alert flex items-start gap-3">
+              <span className="mono text-[11px] tracking-wider shrink-0 pt-0.5">ERR ·</span>
+              <span>{error}</span>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="text-center py-16 text-muted text-sm mono tracking-wider">LOADING…</div>
+          ) : items.length === 0 ? (
+            <div className="hl-all py-20 text-center">
+              <div className="mono text-6xl font-light text-muted">000</div>
+              <p className="mt-4 font-medium">
+                {debouncedSearch || categoryFilter ? '조건에 맞는 재료가 없어요' : '아직 등록된 재료가 없어요'}
+              </p>
+              <p className="mt-1 text-xs text-muted">위 폼에서 첫 재료를 추가해 보세요</p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-0 hl-top hl-bottom">
+                {items.map((it, idx) => {
+                  const meta = CATEGORY_META[it.category] || CATEGORY_META['기타'];
+                  const dday = dDayLabel(it.expiry_date);
+                  return (
+                    <div
+                      key={it.id}
+                      className="fade-in group relative p-5 border-r border-b border-hairline last:border-r-0 hover:bg-[#fbfaf6]"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="mono text-[10.5px] tracking-wider text-muted">
+                          № {pad(idx + 1, 3)}
+                        </span>
+                        <button
+                          onClick={() => handleDelete(it.id)}
+                          className="opacity-0 group-hover:opacity-100 transition mono text-[10.5px] tracking-wider text-alert hover:underline"
+                          aria-label="삭제"
+                        >
+                          DELETE ✕
+                        </button>
+                      </div>
+                      <div className="mt-4 flex items-start gap-3">
+                        <span className="dot mt-2 shrink-0" style={{ background: meta.color, width: 8, height: 8 }}></span>
+                        <div className="min-w-0">
+                          <div className="text-[17px] font-semibold tracking-tight leading-snug break-words">{it.name}</div>
+                          {it.category && (
+                            <div className="mt-1 mono text-[10.5px] tracking-wider text-muted">
+                              {meta.code} · {it.category}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-2 items-center">
+                        {dday && <DDayTag dday={dday} />}
+                        {it.expiry_date && (
+                          <span className="mono text-[10.5px] tracking-wider text-muted">
+                            EXP · {it.expiry_date}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-5 flex flex-wrap gap-3 items-center">
+                <span className="label">DISTRIBUTION /</span>
+                {Object.entries(counts).map(([c, n]) => (
+                  <span key={c} className="mono text-[11px] tracking-wider text-ink">
+                    <span className="dot mr-1.5" style={{ background: (CATEGORY_META[c] || CATEGORY_META['기타']).color }}></span>
+                    {(CATEGORY_META[c] || CATEGORY_META['기타']).code} {pad(n, 2)}
+                  </span>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      );
+    }
+
+    // =================== Recipes Tab ===================
+
+    function RecipeCard({ recipe, index, onOpen }) {
+      return (
+        <button
+          onClick={() => onOpen(recipe)}
+          className="fade-in text-left card p-5 hover:bg-[#f4f2ec]"
+        >
+          <div className="flex items-center justify-between">
+            <span className="mono text-[10.5px] tracking-wider text-muted">
+              FILE / R-{pad(index + 1, 3)}
+            </span>
+            <span className="mono text-[10.5px] tracking-wider text-muted">
+              {new Date(recipe.created_at).toLocaleDateString('ko-KR').replaceAll('. ', '.').replace(/\.$/, '')}
+            </span>
+          </div>
+          <h3 className="mt-4 text-lg font-semibold tracking-tight leading-snug break-words">{recipe.title}</h3>
+          {recipe.ingredients?.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {recipe.ingredients.slice(0, 6).map((ing, i) => (
+                <span key={i} className="tag tag-muted"><span className="mono">{ing}</span></span>
+              ))}
+              {recipe.ingredients.length > 6 && (
+                <span className="mono text-[10.5px] tracking-wider text-muted self-center">
+                  + {recipe.ingredients.length - 6}
+                </span>
+              )}
+            </div>
+          )}
+          {recipe.steps && (
+            <p className="mt-3 text-sm text-ink/80 line-clamp-2 whitespace-pre-line leading-relaxed">
+              {recipe.steps}
+            </p>
+          )}
+        </button>
+      );
+    }
+
+    function RecipesTab() {
+      const [items, setItems] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+      const [saving, setSaving] = useState(false);
+
+      const [title, setTitle] = useState('');
+      const [ingredientsText, setIngredientsText] = useState('');
+      const [steps, setSteps] = useState('');
+
+      const [search, setSearch] = useState('');
+      const [debouncedSearch, setDebouncedSearch] = useState('');
+      const [selected, setSelected] = useState(null);
+      const [editing, setEditing] = useState(false);
+      const [editTitle, setEditTitle] = useState('');
+      const [editIngredientsText, setEditIngredientsText] = useState('');
+      const [editSteps, setEditSteps] = useState('');
+      const [editSaving, setEditSaving] = useState(false);
+
+      const [aiOpen, setAiOpen] = useState(false);
+      const [aiLoading, setAiLoading] = useState(false);
+      const [aiError, setAiError] = useState(null);
+      const [aiResult, setAiResult] = useState(null);
+      const [aiSaving, setAiSaving] = useState(false);
+
+      useEffect(() => {
+        const t = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+        return () => clearTimeout(t);
+      }, [search]);
+
+      const fetchItems = useCallback(async (q) => {
+        setLoading(true);
+        try {
+          const url = q ? `${API}/recipes?q=${encodeURIComponent(q)}` : `${API}/recipes`;
+          const body = await api(url);
+          setItems(body.data || []);
+          setError(null);
+        } catch (e) { setError(e.message); }
+        finally { setLoading(false); }
+      }, []);
+
+      useEffect(() => { fetchItems(debouncedSearch); }, [debouncedSearch, fetchItems]);
+
+      const handleAdd = async () => {
+        const t = title.trim();
+        if (!t || saving) return;
+        setSaving(true);
+        try {
+          const ingredients = ingredientsText.split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+          const body = await api(`${API}/recipes`, {
+            method: 'POST',
+            body: JSON.stringify({ title: t, ingredients, steps }),
+          });
+          setItems(prev => [body.data, ...prev]);
+          setTitle(''); setIngredientsText(''); setSteps('');
+          setError(null);
+        } catch (e) { setError(e.message); }
+        finally { setSaving(false); }
+      };
+
+      const handleDelete = async (id) => {
+        if (!window.confirm('이 레시피를 삭제할까요?')) return;
+        try {
+          await api(`${API}/recipes/${id}`, { method: 'DELETE' });
+          setItems(prev => prev.filter(x => x.id !== id));
+          setSelected(null);
+          setError(null);
+        } catch (e) { setError(e.message); }
+      };
+
+      const startEdit = () => {
+        if (!selected) return;
+        setEditTitle(selected.title);
+        setEditIngredientsText((selected.ingredients || []).join(', '));
+        setEditSteps(selected.steps || '');
+        setEditing(true);
+      };
+
+      const saveEdit = async () => {
+        if (!selected || editSaving) return;
+        const t = editTitle.trim();
+        if (!t) { setError('제목은 비워둘 수 없습니다'); return; }
+        setEditSaving(true);
+        try {
+          const ingredients = editIngredientsText.split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+          const patch = {};
+          if (t !== selected.title) patch.title = t;
+          if (JSON.stringify(ingredients) !== JSON.stringify(selected.ingredients || [])) patch.ingredients = ingredients;
+          if (editSteps !== (selected.steps || '')) patch.steps = editSteps;
+          if (Object.keys(patch).length === 0) { setEditing(false); return; }
+          const body = await api(`${API}/recipes/${selected.id}`, {
+            method: 'PATCH',
+            body: JSON.stringify(patch),
+          });
+          setItems(prev => prev.map(x => x.id === body.data.id ? body.data : x));
+          setSelected(body.data);
+          setEditing(false);
+          setError(null);
+        } catch (e) { setError(e.message); }
+        finally { setEditSaving(false); }
+      };
+
+      const cancelEdit = () => setEditing(false);
+
+      const requestAiSuggest = async () => {
+        setAiLoading(true); setAiError(null); setAiResult(null); setAiOpen(true);
+        try {
+          const body = await api(`${API}/recipes/suggest`, {
+            method: 'POST',
+            body: JSON.stringify({ days_within: 7 }),
+          });
+          setAiResult(body.data);
+        } catch (e) { setAiError(e.message); }
+        finally { setAiLoading(false); }
+      };
+
+      const saveAiRecipe = async () => {
+        if (!aiResult || aiSaving) return;
+        setAiSaving(true);
+        try {
+          const body = await api(`${API}/recipes`, {
+            method: 'POST',
+            body: JSON.stringify({
+              title: aiResult.title,
+              ingredients: aiResult.ingredients,
+              steps: aiResult.steps,
+            }),
+          });
+          setItems(prev => [body.data, ...prev]);
+          setAiOpen(false); setAiResult(null); setError(null);
+        } catch (e) { setAiError(e.message); }
+        finally { setAiSaving(false); }
+      };
+
+      return (
+        <div>
+          <SectionHeader
+            index="§ 02 / FORMULA"
+            title="레시피 설계 (Recipe Engineering)"
+            subtitle="재료로부터 조립되는 1인분 설계도"
+            right={<span className="ticker text-muted hidden sm:inline">TOTAL · {pad(items.length, 3)}</span>}
+          />
+
+          {/* AI suggest strip — brutalist inverse bar */}
+          <div className="mb-6 border border-ink bg-ink text-paper p-0 flex flex-col sm:flex-row">
+            <div className="flex-1 p-5">
+              <div className="mono text-[10.5px] tracking-wider-2 text-paper/70">MODULE / AI-SUGGEST · 01</div>
+              <div className="mt-2 text-lg font-semibold tracking-tight">
+                유통기한 임박 재료로 1인분 레시피를 자동 설계합니다
+              </div>
+              <div className="mt-1 text-xs text-paper/60">INPUT: ingredients where EXP ≤ 7 DAYS · OUTPUT: 1 formula</div>
+            </div>
+            <div className="sm:border-l border-paper/20 flex">
+              <button
+                onClick={requestAiSuggest}
+                className="flex-1 px-6 py-5 mono text-xs tracking-wider-2 hover:bg-paper hover:text-ink transition"
+              >
+                RUN SUGGEST →
+              </button>
+            </div>
+          </div>
+
+          <div className="card p-5 mb-6">
+            <div className="label mb-3">NEW FORMULA</div>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="요리명 / TITLE (e.g. 김치볶음밥)"
+              className="in w-full text-[15px] font-medium"
+              aria-label="요리명"
+            />
+            <input
+              type="text"
+              value={ingredientsText}
+              onChange={(e) => setIngredientsText(e.target.value)}
+              placeholder="필요 재료 / INGREDIENTS (쉼표 또는 줄바꿈으로 구분)"
+              className="in w-full mt-2"
+              aria-label="재료"
+            />
+            <textarea
+              value={steps}
+              onChange={(e) => setSteps(e.target.value)}
+              placeholder="조리법 / PROCEDURE (단계별로 줄바꿈)"
+              rows={5}
+              className="in w-full mt-2 resize-y leading-relaxed"
+              aria-label="조리법"
+            />
+            <div className="mt-3 flex justify-end">
+              <button onClick={handleAdd} disabled={!title.trim() || saving} className="btn">
+                {saving ? 'FILING…' : 'FILE RECIPE →'}
+              </button>
+            </div>
+          </div>
+
+          <div className="card p-4 mb-5 flex items-center gap-3">
+            <span className="label shrink-0">SEARCH /</span>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="요리명 · 재료 검색…"
+              className="flex-1 bg-transparent focus:outline-none text-sm"
+              aria-label="검색"
+            />
+            {search && (
+              <button onClick={() => setSearch('')} className="tag tag-inv">
+                <span className="mono">"{search}"</span> ✕
+              </button>
+            )}
+          </div>
+
+          {error && (
+            <div className="mb-5 px-4 py-3 hl-all bg-[#fdf2f1] text-sm text-alert flex items-start gap-3">
+              <span className="mono text-[11px] tracking-wider shrink-0 pt-0.5">ERR ·</span>
+              <span>{error}</span>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="text-center py-16 text-muted text-sm mono tracking-wider">LOADING…</div>
+          ) : items.length === 0 ? (
+            <div className="hl-all py-20 text-center">
+              <div className="mono text-6xl font-light text-muted">R-000</div>
+              <p className="mt-4 font-medium">
+                {debouncedSearch ? '검색 결과가 없어요' : '아직 저장된 레시피가 없어요'}
+              </p>
+              <p className="mt-1 text-xs text-muted">
+                {debouncedSearch ? '다른 키워드로 검색해 보세요' : '위에서 첫 레시피를 저장해 보세요'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {items.map((r, i) => <RecipeCard key={r.id} recipe={r} index={i} onOpen={setSelected} />)}
+            </div>
+          )}
+
+          <Modal
+            open={!!selected}
+            onClose={() => { setSelected(null); setEditing(false); }}
+            meta={selected ? `FILE / R-${pad(items.findIndex(x => x.id === selected.id) + 1, 3)}` : 'FILE'}
+            title={editing ? '레시피 편집 · EDIT' : selected?.title}
+            footer={selected && (
+              editing ? (
+                <>
+                  <button className="btn btn-ghost" onClick={cancelEdit} disabled={editSaving}>CANCEL</button>
+                  <button className="btn" onClick={saveEdit} disabled={editSaving || !editTitle.trim()}>
+                    {editSaving ? 'SAVING…' : 'SAVE →'}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button className="btn btn-ghost" onClick={() => setSelected(null)}>CLOSE</button>
+                  <button className="btn btn-ghost" onClick={startEdit}>EDIT</button>
+                  <button className="btn btn-danger" onClick={() => handleDelete(selected.id)}>DELETE</button>
+                </>
+              )
+            )}
+          >
+            {selected && !editing && (
+              <div className="space-y-6">
+                <section>
+                  <div className="label mb-2">§ A · INGREDIENTS</div>
+                  {selected.ingredients?.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {selected.ingredients.map((ing, i) => (
+                        <span key={i} className="tag tag-muted"><span className="mono">{ing}</span></span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted">재료가 등록되어 있지 않아요</p>
+                  )}
+                </section>
+                <section>
+                  <div className="label mb-2">§ B · PROCEDURE</div>
+                  {selected.steps ? (
+                    <pre className="whitespace-pre-wrap break-words font-sans text-[14px] text-ink leading-relaxed hl-all p-4 bg-[#fbfaf6]">{selected.steps}</pre>
+                  ) : (
+                    <p className="text-sm text-muted">조리법이 비어있어요</p>
+                  )}
+                </section>
+                <div className="mono text-[10.5px] tracking-wider text-muted pt-3 hl-top">
+                  REV · {new Date(selected.created_at).toLocaleString('ko-KR')}
+                </div>
+              </div>
+            )}
+            {selected && editing && (
+              <div className="space-y-4">
+                <div>
+                  <div className="label mb-1">TITLE</div>
+                  <input type="text" value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className="in w-full" />
+                </div>
+                <div>
+                  <div className="label mb-1">INGREDIENTS (쉼표 / 줄바꿈)</div>
+                  <input type="text" value={editIngredientsText} onChange={(e) => setEditIngredientsText(e.target.value)} className="in w-full" />
+                </div>
+                <div>
+                  <div className="label mb-1">PROCEDURE</div>
+                  <textarea value={editSteps} onChange={(e) => setEditSteps(e.target.value)} rows={8} className="in w-full resize-y leading-relaxed" />
+                </div>
+              </div>
+            )}
+          </Modal>
+
+          <Modal
+            open={aiOpen}
+            onClose={() => { setAiOpen(false); setAiResult(null); setAiError(null); }}
+            meta="MODULE / AI-SUGGEST"
+            title={aiResult ? aiResult.title : 'AI 추천 설계'}
+            footer={(
+              <>
+                <button className="btn btn-ghost" onClick={() => { setAiOpen(false); setAiResult(null); setAiError(null); }}>CLOSE</button>
+                {aiResult && (
+                  <>
+                    <button className="btn btn-ghost" onClick={requestAiSuggest} disabled={aiLoading}>
+                      {aiLoading ? 'RE-RUN…' : '↻ RE-RUN'}
+                    </button>
+                    <button className="btn" onClick={saveAiRecipe} disabled={aiSaving}>
+                      {aiSaving ? 'FILING…' : 'FILE AS MINE →'}
+                    </button>
+                  </>
+                )}
+              </>
+            )}
+          >
+            {aiLoading && (
+              <div className="py-16 text-center">
+                <div className="mono text-xs tracking-wider-2 text-muted">COMPUTING…</div>
+                <div className="mt-3 mono text-4xl font-light">···</div>
+                <p className="mt-4 text-sm text-muted">유통기한 임박 재료로 레시피를 설계 중</p>
+              </div>
+            )}
+            {aiError && !aiLoading && (
+              <div className="px-4 py-3 hl-all bg-[#fdf2f1] text-sm text-alert flex items-start gap-3">
+                <span className="mono text-[11px] tracking-wider shrink-0 pt-0.5">ERR ·</span>
+                <span>{aiError}</span>
+              </div>
+            )}
+            {aiResult && !aiLoading && (
+              <div className="space-y-5">
+                <div className="hl-all p-3 bg-[#fbfaf6]">
+                  <div className="mono text-[10.5px] tracking-wider-2 text-muted">INPUT REPORT</div>
+                  <div className="mt-1 text-sm">
+                    {aiResult.used_fallback
+                      ? '유통기한 임박 재료 없음 — 최근 등록 재료로 대체 설계'
+                      : `유통기한 ${aiResult.days_within}일 이내 재료 우선 활용`}
+                  </div>
+                  {aiResult.source_ingredients?.length > 0 && (
+                    <div className="mt-2 mono text-[11px] tracking-wider text-muted">
+                      SRC · {aiResult.source_ingredients.join(' / ')}
+                    </div>
+                  )}
+                </div>
+                <section>
+                  <div className="label mb-2">§ A · INGREDIENTS</div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {aiResult.ingredients.map((ing, i) => (
+                      <span key={i} className="tag tag-muted"><span className="mono">{ing}</span></span>
+                    ))}
+                  </div>
+                </section>
+                <section>
+                  <div className="label mb-2">§ B · PROCEDURE</div>
+                  <pre className="whitespace-pre-wrap break-words font-sans text-[14px] text-ink leading-relaxed hl-all p-4 bg-[#fbfaf6]">{aiResult.steps}</pre>
+                </section>
+              </div>
+            )}
+          </Modal>
+        </div>
+      );
+    }
+
+    // =================== Root App ===================
+
+    function App() {
+      const [tab, setTab] = useState('ingredients');
+      const now = new Date();
+      const stamp = `${now.getFullYear()}.${pad(now.getMonth()+1)}.${pad(now.getDate())} · ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+      return (
+        <div className="min-h-screen">
+          {/* Top ticker */}
+          <div className="hl-bottom">
+            <div className="max-w-6xl mx-auto px-6 py-2 flex items-center justify-between gap-4 ticker text-muted">
+              <span>REFRI · MANAGER / INGREDIENTS × RECIPES</span>
+              <span className="hidden sm:inline">EST · 2026 — KITCHEN ENGINEERING LAB</span>
+              <span className="mono">{stamp}</span>
+            </div>
+          </div>
+
+          {/* Masthead */}
+          <header className="max-w-6xl mx-auto px-6 pt-12 pb-10">
+            <div className="flex items-start justify-between gap-8 flex-wrap">
+              <div className="min-w-0">
+                <div className="mono text-xs tracking-wider-2 text-muted">INDEX № 024 / REFRIGERATOR · CUISINE · SYSTEM</div>
+                <h1 className="mt-4 text-5xl sm:text-6xl md:text-7xl font-bold tracking-[-0.04em] leading-[0.92]">
+                  REFRI<span className="text-muted">·</span>MANAGER
+                </h1>
+                <p className="mt-5 text-sm text-ink/80 max-w-md leading-relaxed">
+                  냉장고에 쌓여가는 재료와 매일의 레시피를 하나의 엔지니어링 시스템으로.
+                  <span className="block mt-1 text-muted">A minimal operating manual for your kitchen.</span>
+                </p>
+              </div>
+              <div className="shrink-0 hl-all p-4 w-full sm:w-auto">
+                <div className="grid grid-cols-3 sm:grid-cols-2 gap-x-8 gap-y-3 text-sm">
+                  <div>
+                    <div className="label">STACK</div>
+                    <div className="mono text-[11px] tracking-wider mt-1">REACT · EXPRESS</div>
+                  </div>
+                  <div>
+                    <div className="label">DB</div>
+                    <div className="mono text-[11px] tracking-wider mt-1">SUPABASE · PG</div>
+                  </div>
+                  <div>
+                    <div className="label">AI</div>
+                    <div className="mono text-[11px] tracking-wider mt-1">GEMINI · 2.0</div>
+                  </div>
+                  <div>
+                    <div className="label">BUILD</div>
+                    <div className="mono text-[11px] tracking-wider mt-1">v1 · 2026.04</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          {/* Tabs */}
+          <div className="hl-bottom">
+            <div className="max-w-6xl mx-auto px-6 flex gap-8" role="tablist">
+              {[
+                { key: 'ingredients', label: '01 · INGREDIENTS', sub: '재료' },
+                { key: 'recipes',     label: '02 · RECIPES',     sub: '레시피' },
+              ].map(t => (
+                <button
+                  key={t.key}
+                  role="tab"
+                  aria-selected={tab === t.key}
+                  onClick={() => setTab(t.key)}
+                  className="tab"
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Body */}
+          <main className="max-w-6xl mx-auto px-6 py-10">
+            {tab === 'ingredients' ? <IngredientsTab /> : <RecipesTab />}
+          </main>
+
+          <footer className="hl-top">
+            <div className="max-w-6xl mx-auto px-6 py-6 flex items-center justify-between gap-4 ticker text-muted flex-wrap">
+              <span>© REFRI · MANAGER — KITCHEN ENGINEERING LAB / 2026</span>
+              <span className="mono">END OF DOCUMENT —</span>
+            </div>
+          </footer>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

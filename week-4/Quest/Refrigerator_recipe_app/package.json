@@ -1,7 +1,7 @@
 {
-  "name": "refregentor-recipe",
+  "name": "refri-ai-app",
   "version": "1.0.0",
-  "description": "Refri-Manager — 냉장고 재료 & 레시피 관리 앱 (Supabase PostgreSQL)",
+  "description": "Refri-AI-App — AI 기반 냉장고 파먹기 레시피 앱 (Supabase + OpenAI)",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
