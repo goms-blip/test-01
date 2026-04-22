@@ -1,0 +1,14 @@
+{
+  "name": "salary-comparision",
+  "version": "1.0.0",
+  "description": "익명 연봉/지출 비교 앱 — 너 얼마 벌고 얼마나 써? (Supabase + Express + React CDN)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "express": "^5.0.0",
+    "pg": "^8.11.3"
+  }
+}

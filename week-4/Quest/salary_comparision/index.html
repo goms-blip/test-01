@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>너 얼마 벌고 얼마나 써? · 익명 연봉/지출 웹진</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+KR:wght@300;400;500;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" as="style" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Pretendard Variable"', 'Pretendard', '"Noto Sans KR"', 'Inter', 'system-ui', 'sans-serif'],
+            display: ['"Noto Sans KR"', '"Pretendard Variable"', 'Pretendard', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            page: '#faf8f3',
+            ink: '#111111',
+            sub: '#5b5b5b',
+            line: '#e5e2d8',
+            neon: '#d4ff00',
+            cream: '#fffaed',
+          },
+        },
+      },
+    };
+  </script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/prop-types@15.8.1/prop-types.min.js"></script>
+  <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    html, body { background: #faf8f3; color: #111; }
+    body {
+      min-height: 100vh;
+      font-family: 'Pretendard Variable', Pretendard, 'Inter', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .display { font-family: 'Noto Sans KR', 'Pretendard Variable', Pretendard, system-ui, sans-serif; font-weight: 800; letter-spacing: -0.035em; }
+    .display { font-weight: 800; letter-spacing: -0.035em; }
+    .hl-top    { border-top: 1px solid #e5e2d8; }
+    .hl-bottom { border-bottom: 1px solid #e5e2d8; }
+    .hl-left   { border-left: 1px solid #e5e2d8; }
+    .hl-right  { border-right: 1px solid #e5e2d8; }
+    .fade-in { animation: fadeIn 0.25s ease-out; }
+    @keyframes fadeIn { from {opacity:0; transform: translateY(4px);} to {opacity:1; transform: translateY(0);} }
+
+    .in {
+      background: transparent;
+      border: 1px solid #e5e2d8;
+      padding: 12px 14px;
+      font-size: 14px;
+      color: #111;
+      outline: none;
+      transition: border-color .15s ease;
+      width: 100%;
+    }
+    .in:focus { border-color: #111; }
+    .in::placeholder { color: #b2b0a6; }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      font-size: 13px; letter-spacing: 0.05em; font-weight: 700;
+      padding: 14px 22px; border: 1px solid #111; background: #111; color: #faf8f3;
+      transition: background .15s ease, color .15s ease, transform .08s ease;
+      cursor: pointer;
+      text-transform: uppercase;
+    }
+    .btn:hover:not(:disabled) { background: #faf8f3; color: #111; }
+    .btn:active:not(:disabled) { transform: translateY(1px); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-accent { background: #d4ff00; color: #111; border-color: #111; }
+    .btn-accent:hover:not(:disabled) { background: #111; color: #d4ff00; }
+
+    .chip {
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 12px; letter-spacing: 0.02em;
+      padding: 8px 14px; border: 1px solid #e5e2d8; background: transparent; color: #111;
+      cursor: pointer; transition: all .12s ease;
+    }
+    .chip:hover { border-color: #111; }
+    .chip.active { background: #111; color: #faf8f3; border-color: #111; }
+
+    /* webzine heading highlight */
+    .hl-neon {
+      background: linear-gradient(transparent 55%, #d4ff00 55%, #d4ff00 92%, transparent 92%);
+      padding: 0 .06em;
+    }
+    .num { font-variant-numeric: tabular-nums; }
+
+    /* scrollable sample area */
+    .scrolly::-webkit-scrollbar { height: 6px; }
+    .scrolly::-webkit-scrollbar-thumb { background: #e5e2d8; }
+
+    .ticker { font-size: 11px; letter-spacing: 0.18em; color: #5b5b5b; text-transform: uppercase; }
+
+    /* editorial rule */
+    .rule::before {
+      content: ""; display: inline-block; width: 28px; height: 1px; background: #111;
+      vertical-align: middle; margin-right: 10px; transform: translateY(-3px);
+    }
+  </style>
+</head>
+<body class="bg-page text-ink">
+  <div id="root"></div>
+
+  <script type="text/babel" data-presets="env,react">
+    const { useEffect, useMemo, useState } = React;
+    const {
+      BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+      PieChart, Pie, Cell, Legend, ScatterChart, Scatter, ZAxis
+    } = Recharts;
+
+    const EXPENSE_COLORS = {
+      food:         '#111111',
+      housing:      '#d4ff00',
+      transport:    '#6b7280',
+      subscription: '#f59e0b',
+      leisure:      '#22c55e',
+      etc:          '#a1a1aa',
+    };
+
+    function fmtKRW(n) {
+      if (n === null || n === undefined || Number.isNaN(n)) return '—';
+      const x = Math.round(Number(n));
+      if (x >= 100000000) return (x / 100000000).toFixed(1).replace(/\.0$/, '') + '억';
+      if (x >= 10000)     return (x / 10000).toFixed(1).replace(/\.0$/, '') + '만';
+      return x.toLocaleString('ko-KR');
+    }
+    function fmtFull(n) {
+      if (n === null || n === undefined || Number.isNaN(n)) return '—';
+      return Math.round(Number(n)).toLocaleString('ko-KR') + '원';
+    }
+    const onlyDigits = (s) => String(s ?? '').replace(/\D/g, '');
+    const fmtSep = (s) => {
+      const d = onlyDigits(s);
+      return d ? d.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '';
+    };
+
+    async function api(url, options) {
+      const r = await fetch(url, options);
+      const data = await r.json().catch(() => ({ success: false, message: 'bad json' }));
+      if (!r.ok || !data.success) throw new Error(data.message || `HTTP ${r.status}`);
+      return data.data;
+    }
+
+    function Header({ total, dateStr }) {
+      return (
+        <header className="border-b border-line">
+          <div className="max-w-[1240px] mx-auto px-6 py-3 flex items-center justify-between ticker">
+            <div>ISSUE N° 001 · 익명 웹진</div>
+            <div>{dateStr}</div>
+            <div>TOTAL {total?.toLocaleString('ko-KR') ?? 0} STORIES</div>
+          </div>
+          <div className="max-w-[1240px] mx-auto px-6 pt-10 pb-16 grid grid-cols-1 md:grid-cols-12 gap-8">
+            <div className="md:col-span-8">
+              <div className="ticker mb-4">Vol.01 — 너 얼마 벌고 얼마나 써?</div>
+              <h1 className="display text-[44px] md:text-[72px] leading-[1.02]">
+                월급은 조용히,<br/>
+                지출은 <span className="hl-neon">솔직하게</span>.
+              </h1>
+              <p className="mt-6 text-sub text-[15px] max-w-[620px] leading-relaxed">
+                이름도, 회사도, 얼굴도 없는 연봉·지출 비교 매거진.
+                익명으로 숫자만 남기면, 내 위치와 또래의 평균이 한 장에 정리됩니다.
+              </p>
+            </div>
+            <div className="md:col-span-4 grid grid-cols-2 gap-[1px] bg-line self-end">
+              <Meta label="Stack" value="Next‧Express · Supabase" />
+              <Meta label="Method" value="Anonymous Input" />
+              <Meta label="Chart" value="Recharts" />
+              <Meta label="Access" value="Public / Free" />
+            </div>
+          </div>
+        </header>
+      );
+    }
+    function Meta({ label, value }) {
+      return (
+        <div className="bg-page p-4">
+          <div className="ticker mb-2">{label}</div>
+          <div className="text-[13px]">{value}</div>
+        </div>
+      );
+    }
+
+    function SectionTitle({ tag, title, desc }) {
+      return (
+        <div className="mb-6">
+          <div className="ticker rule">{tag}</div>
+          <h2 className="display text-[26px] md:text-[34px] leading-tight mt-2">{title}</h2>
+          {desc && <p className="text-sub text-[14px] mt-2 max-w-[620px]">{desc}</p>}
+        </div>
+      );
+    }
+
+    function InputForm({ meta, onSubmitted }) {
+      const [income, setIncome] = useState('');
+      const [job, setJob] = useState('');
+      const [years, setYears] = useState('');
+      const [cat, setCat] = useState({ food:'', housing:'', transport:'', subscription:'', leisure:'', etc:'' });
+      const [err, setErr] = useState('');
+      const [busy, setBusy] = useState(false);
+
+      const sumCat = Object.values(cat).reduce((s, v) => s + (Number(v) || 0), 0);
+
+      const disabled = busy || !income || sumCat <= 0 || !job || years === '';
+
+      async function submit(e) {
+        e.preventDefault();
+        if (disabled) return;
+        setErr('');
+        setBusy(true);
+        try {
+          const body = {
+            monthly_income: Number(income),
+            monthly_expenses: sumCat,
+            job_category: job,
+            experience_years: Number(years),
+            category_expenses: Object.fromEntries(
+              Object.entries(cat).filter(([_, v]) => v !== '' && !Number.isNaN(Number(v)))
+                .map(([k, v]) => [k, Number(v)])
+            ),
+          };
+          const row = await api('/api/salary', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+          });
+          setIncome(''); setYears(''); setJob('');
+          setCat({ food:'', housing:'', transport:'', subscription:'', leisure:'', etc:'' });
+          onSubmitted?.(row);
+        } catch (e2) {
+          setErr(e2.message || '입력 실패');
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      if (!meta) return null;
+
+      return (
+        <form onSubmit={submit} className="hl-top hl-bottom py-10 fade-in">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+            <div className="md:col-span-4">
+              <SectionTitle tag="Input / 01" title="당신의 숫자를 적어주세요" desc="모든 값은 익명으로 저장됩니다. 월 지출은 아래 카테고리별 지출의 합계로 자동 계산됩니다 — 최소 1개 카테고리 입력 필수." />
+            </div>
+            <div className="md:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Field label="월급 (원)" required>
+                <input className="in num" type="text" inputMode="numeric" autoComplete="off" placeholder="예: 3.500.000"
+                  value={fmtSep(income)} onChange={(e) => setIncome(onlyDigits(e.target.value))} />
+              </Field>
+              <Field label="월 지출 (원) · 자동 합산" required>
+                <div className="in num"
+                     style={{ background:'#f5f1e6', color: sumCat ? '#111' : '#b2b0a6', cursor:'not-allowed' }}
+                     title="아래 카테고리별 지출 합계로 자동 계산됩니다">
+                  {sumCat ? fmtSep(String(sumCat)) : '카테고리 지출 입력 시 자동 계산'}
+                </div>
+              </Field>
+              <Field label="직군" required>
+                <div className="flex flex-wrap gap-1.5">
+                  {meta.job_categories.map((j) => (
+                    <button type="button" key={j}
+                      className={`chip ${job === j ? 'active' : ''}`}
+                      onClick={() => setJob(j)}>{j}</button>
+                  ))}
+                </div>
+              </Field>
+              <Field label="연차 (년)" required>
+                <input className="in num" type="number" min="0" max="60" inputMode="numeric" placeholder="예: 3"
+                  value={years} onChange={(e) => setYears(e.target.value)} />
+              </Field>
+
+              <div className="sm:col-span-2 mt-2">
+                <div className="ticker mb-3">카테고리별 지출 <span className="text-red-500">*</span> <span className="text-sub">· 최소 1개 입력 → 월 지출 자동 합산</span></div>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  {meta.expense_keys.map((k) => (
+                    <label key={k} className="flex items-center gap-2">
+                      <span className="text-[12px] text-sub w-14 shrink-0">{meta.expense_labels[k]}</span>
+                      <input className="in num" type="text" inputMode="numeric" autoComplete="off" placeholder="0"
+                        value={fmtSep(cat[k])} onChange={(e) => setCat((p) => ({ ...p, [k]: onlyDigits(e.target.value) }))} />
+                    </label>
+                  ))}
+                </div>
+                {sumCat > 0 && (
+                  <div className="mt-2 text-[12px] text-sub">합계 <span className="text-[#111] font-semibold">{fmtKRW(sumCat)}</span> · {fmtFull(sumCat)}</div>
+                )}
+              </div>
+
+              <div className="sm:col-span-2 flex items-center justify-between pt-2">
+                <div className="text-[12px] text-sub">{err ? <span className="text-red-600">{err}</span> : '저장된 모든 값은 개인 식별 정보 없이 통계에만 사용됩니다.'}</div>
+                <button type="submit" className="btn btn-accent" disabled={disabled}>
+                  {busy ? '저장 중…' : '익명으로 제출하기 →'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+      );
+    }
+    function Field({ label, required, children }) {
+      return (
+        <label className="block">
+          <div className="ticker mb-2">{label}{required && <span className="text-red-500 ml-1">*</span>}</div>
+          {children}
+        </label>
+      );
+    }
+
+    function Filter({ meta, job, setJob, exp, setExp }) {
+      return (
+        <div className="hl-bottom py-6 flex flex-col md:flex-row gap-4 md:items-end md:justify-between">
+          <div>
+            <div className="ticker mb-2">Filter · 비교 대상</div>
+            <h3 className="display text-[22px]">누구와 비교할까요?</h3>
+          </div>
+          <div className="flex flex-wrap gap-2 items-center">
+            <span className="ticker mr-1">직군</span>
+            <button className={`chip ${!job ? 'active' : ''}`} onClick={() => setJob('')}>전체</button>
+            {meta.job_categories.map((j) => (
+              <button key={j} className={`chip ${job === j ? 'active' : ''}`} onClick={() => setJob(j === job ? '' : j)}>{j}</button>
+            ))}
+            <span className="mx-2 h-4 w-px bg-line"></span>
+            <span className="ticker mr-1">연차</span>
+            <select className="in !py-2 !px-3 w-[120px]" value={exp} onChange={(e) => setExp(e.target.value)}>
+              <option value="">전체</option>
+              {Array.from({ length: 21 }).map((_, i) => (
+                <option key={i} value={i}>{i}년차</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      );
+    }
+
+    function MyResult({ mine, overall, myInput }) {
+      if (!mine || !myInput.income) return null;
+      const { income_percentile_in_group: ip, expenses_percentile_in_group: ep } = mine;
+      const top = (p) => p === null ? '—' : `상위 ${(100 - p).toFixed(1)}%`;
+      const diffIncome = myInput.income - Number(overall.avg_income || 0);
+      const diffExp = (myInput.expenses ?? 0) - Number(overall.avg_expenses || 0);
+
+      const surplus = myInput.income - (myInput.expenses ?? 0);
+      const surplusPct = (surplus / Math.max(1, myInput.income)) * 100;
+      const surplusTag = surplus > 0 ? '저축 여력' : surplus < 0 ? '지출 초과' : '수지 균형';
+      const surplusSign = surplus > 0 ? '+' : surplus < 0 ? '−' : '';
+      const surplusTitle = `${surplusSign}${fmtKRW(Math.abs(surplus))}`;
+      const surplusDesc =
+        surplus > 0 ? `월 ${surplusPct.toFixed(0)}% 저축 가능` :
+        surplus < 0 ? `월급의 ${Math.abs(surplusPct).toFixed(0)}%만큼 초과 지출` :
+        `월급과 지출이 동일`;
+
+      return (
+        <section className="hl-bottom py-10 fade-in">
+          <SectionTitle tag="Feature" title="오늘의 당신, 대략 이쯤입니다" desc="필터 조건 안에서 입력하신 월급/지출이 위치한 지점입니다." />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-[1px] bg-line">
+            <BigCell
+              tag="월급 위치"
+              title={top(ip)}
+              desc={`평균 대비 ${diffIncome >= 0 ? '+' : '−'}${fmtKRW(Math.abs(diffIncome))}`}
+              accent
+            />
+            <BigCell
+              tag="지출 위치"
+              title={top(ep)}
+              desc={`평균 대비 ${diffExp >= 0 ? '+' : '−'}${fmtKRW(Math.abs(diffExp))}`}
+            />
+            <BigCell
+              tag={surplusTag}
+              title={surplusTitle}
+              desc={surplusDesc}
+            />
+          </div>
+        </section>
+      );
+    }
+    function BigCell({ tag, title, desc, accent }) {
+      return (
+        <div className={`p-6 md:p-8 ${accent ? 'bg-neon' : 'bg-cream'}`}>
+          <div className="ticker">{tag}</div>
+          <div className="display text-[34px] md:text-[46px] leading-tight mt-2 num">{title}</div>
+          {desc && <div className="text-sub text-[13px] mt-2">{desc}</div>}
+        </div>
+      );
+    }
+
+    function Overall({ overall }) {
+      return (
+        <section className="hl-bottom py-10 fade-in">
+          <SectionTitle tag="Statistics / 01" title="전체 독자들의 평균" desc="현재 필터에 해당하는 응답자들의 단순 평균과 중앙값입니다." />
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-[1px] bg-line">
+            <Stat tag="응답 수" value={`${overall.total?.toLocaleString('ko-KR') ?? 0} 건`} />
+            <Stat tag="평균 월급" value={fmtKRW(overall.avg_income)} sub={fmtFull(overall.avg_income)} />
+            <Stat tag="중앙값 월급" value={fmtKRW(overall.median_income)} />
+            <Stat tag="평균 지출" value={fmtKRW(overall.avg_expenses)} sub={fmtFull(overall.avg_expenses)} />
+            <Stat tag="중앙값 지출" value={fmtKRW(overall.median_expenses)} />
+          </div>
+        </section>
+      );
+    }
+    function Stat({ tag, value, sub }) {
+      return (
+        <div className="bg-cream p-5">
+          <div className="ticker mb-2">{tag}</div>
+          <div className="display text-[24px] num">{value}</div>
+          {sub && <div className="text-sub text-[12px] num mt-1">{sub}</div>}
+        </div>
+      );
+    }
+
+    function ByJobChart({ data }) {
+      const mapped = data.map((d) => ({
+        name: d.job_category,
+        income: Math.round(Number(d.avg_income)),
+        expenses: Math.round(Number(d.avg_expenses)),
+        n: d.n,
+      }));
+      return (
+        <section className="hl-bottom py-10 fade-in">
+          <SectionTitle tag="Statistics / 02" title="직군별 평균 월급 & 지출" desc="어떤 직군이 가장 많이 벌고, 가장 많이 쓰는지." />
+          <div className="h-[360px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={mapped} margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
+                <CartesianGrid stroke="#e5e2d8" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="#111" />
+                <YAxis tickFormatter={(v) => fmtKRW(v)} tick={{ fontSize: 11 }} stroke="#111" />
+                <Tooltip formatter={(v, k) => [fmtFull(v), k === 'income' ? '평균 월급' : '평균 지출']} labelStyle={{ color:'#111' }}
+                  contentStyle={{ background:'#fffaed', border:'1px solid #e5e2d8' }} />
+                <Legend wrapperStyle={{ fontSize: 12 }} formatter={(k) => k === 'income' ? '월급' : '지출'} />
+                <Bar dataKey="income" fill="#111111" />
+                <Bar dataKey="expenses" fill="#d4ff00" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+      );
+    }
+
+    function ByExpChart({ data }) {
+      const mapped = data.map((d) => ({
+        name: `${d.experience_years}년차`,
+        income: Math.round(Number(d.avg_income)),
+        expenses: Math.round(Number(d.avg_expenses)),
+        n: d.n,
+      }));
+      return (
+        <section className="hl-bottom py-10 fade-in">
+          <SectionTitle tag="Statistics / 03" title="연차가 쌓일수록" desc="연차별 평균 월급·지출 변화." />
+          <div className="h-[340px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={mapped} margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
+                <CartesianGrid stroke="#e5e2d8" vertical={false} />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} stroke="#111" />
+                <YAxis tickFormatter={(v) => fmtKRW(v)} tick={{ fontSize: 11 }} stroke="#111" />
+                <Tooltip formatter={(v, k) => [fmtFull(v), k === 'income' ? '평균 월급' : '평균 지출']}
+                  contentStyle={{ background:'#fffaed', border:'1px solid #e5e2d8' }} />
+                <Legend wrapperStyle={{ fontSize: 12 }} formatter={(k) => k === 'income' ? '월급' : '지출'} />
+                <Bar dataKey="income" fill="#111111" />
+                <Bar dataKey="expenses" fill="#6b7280" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+      );
+    }
+
+    function CategoryCompare({ meta, avgCategory, myCat }) {
+      const avg = meta.expense_keys.map((k) => ({ key: k, label: meta.expense_labels[k], value: Math.round(Number(avgCategory?.[k] || 0)) }));
+      const avgSum = Math.max(1, avg.reduce((s, x) => s + x.value, 0));
+      const mySum = Math.max(1, Object.values(myCat).reduce((s, v) => s + (Number(v) || 0), 0));
+
+      const avgPie = avg.filter((x) => x.value > 0).map((x) => ({ name: x.label, value: x.value, key: x.key }));
+      const myPie = meta.expense_keys
+        .map((k) => ({ name: meta.expense_labels[k], value: Number(myCat[k] || 0), key: k }))
+        .filter((x) => x.value > 0);
+
+      return (
+        <section className="hl-bottom py-10 fade-in">
+          <SectionTitle tag="Statistics / 04" title="무엇에 가장 많이 쓰는가"
+            desc="카테고리별 평균 지출 비중과, (입력한 경우) 나의 비중을 나란히 봅니다." />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-[1px] bg-line">
+            <div className="bg-cream p-6">
+              <div className="ticker mb-3">전체 평균 비중</div>
+              <div className="h-[260px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={avgPie} dataKey="value" nameKey="name" outerRadius={90} innerRadius={50}>
+                      {avgPie.map((e) => <Cell key={e.key} fill={EXPENSE_COLORS[e.key]} />)}
+                    </Pie>
+                    <Tooltip formatter={(v, n) => [fmtFull(v), n]} contentStyle={{ background:'#fffaed', border:'1px solid #e5e2d8' }} />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+              <ul className="mt-3 grid grid-cols-2 gap-y-1 text-[12px]">
+                {avg.map((x) => (
+                  <li key={x.key} className="flex items-center gap-2">
+                    <span className="inline-block w-2 h-2" style={{ background: EXPENSE_COLORS[x.key] }}></span>
+                    <span className="text-sub">{x.label}</span>
+                    <span className="ml-auto num">{((x.value / avgSum) * 100).toFixed(0)}%</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="bg-cream p-6">
+              <div className="ticker mb-3">나의 비중</div>
+              {myPie.length === 0 ? (
+                <div className="h-[260px] flex items-center justify-center text-sub text-[13px]">
+                  입력한 카테고리별 지출이 없어요. 위 폼에서 한번 기록해볼까요?
+                </div>
+              ) : (
+                <>
+                  <div className="h-[260px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie data={myPie} dataKey="value" nameKey="name" outerRadius={90} innerRadius={50}>
+                          {myPie.map((e) => <Cell key={e.key} fill={EXPENSE_COLORS[e.key]} />)}
+                        </Pie>
+                        <Tooltip formatter={(v, n) => [fmtFull(v), n]} contentStyle={{ background:'#fffaed', border:'1px solid #e5e2d8' }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <ul className="mt-3 grid grid-cols-2 gap-y-1 text-[12px]">
+                    {myPie.map((x) => (
+                      <li key={x.key} className="flex items-center gap-2">
+                        <span className="inline-block w-2 h-2" style={{ background: EXPENSE_COLORS[x.key] }}></span>
+                        <span className="text-sub">{x.name}</span>
+                        <span className="ml-auto num">{((x.value / mySum) * 100).toFixed(0)}%</span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    function ScatterView({ sample, myInput }) {
+      const mapped = sample.map((d) => ({
+        x: Number(d.monthly_income),
+        y: Number(d.monthly_expenses),
+      }));
+      const me = myInput.income ? [{ x: myInput.income, y: myInput.expenses ?? 0 }] : [];
+      return (
+        <section className="hl-bottom py-10 fade-in">
+          <SectionTitle tag="Distribution" title="당신의 점은 어디쯤?" desc="가로축 = 월급, 세로축 = 월 지출. 형광 점이 당신입니다." />
+          <div className="h-[360px] bg-cream p-4">
+            <ResponsiveContainer width="100%" height="100%">
+              <ScatterChart margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
+                <CartesianGrid stroke="#e5e2d8" />
+                <XAxis type="number" dataKey="x" name="월급" tickFormatter={(v) => fmtKRW(v)} tick={{ fontSize: 11 }} stroke="#111" />
+                <YAxis type="number" dataKey="y" name="지출" tickFormatter={(v) => fmtKRW(v)} tick={{ fontSize: 11 }} stroke="#111" />
+                <ZAxis range={[40, 40]} />
+                <Tooltip cursor={{ strokeDasharray: '3 3' }}
+                  formatter={(v) => fmtFull(v)}
+                  contentStyle={{ background:'#fffaed', border:'1px solid #e5e2d8' }} />
+                <Scatter data={mapped} fill="#111" fillOpacity={0.45} />
+                {me.length > 0 && <Scatter data={me} fill="#d4ff00" stroke="#111" strokeWidth={1.5} shape="circle" />}
+              </ScatterChart>
+            </ResponsiveContainer>
+          </div>
+        </section>
+      );
+    }
+
+    function Footer() {
+      return (
+        <footer className="hl-top mt-10 py-10">
+          <div className="max-w-[1240px] mx-auto px-6 flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+            <div>
+              <div className="ticker">Colophon</div>
+              <div className="display text-[22px] mt-2">너 얼마 벌고 얼마나 써? — 익명 연봉·지출 웹진</div>
+              <p className="text-sub text-[13px] mt-2 max-w-[580px]">
+                숫자만 남기면, 매거진이 알아서 정리합니다. 로그인도, 이름도 없습니다.
+              </p>
+            </div>
+            <div className="text-sub text-[12px]">
+              Built with Supabase · Express · React · Recharts
+            </div>
+          </div>
+        </footer>
+      );
+    }
+
+    function App() {
+      const [meta, setMeta] = useState(null);
+      const [stats, setStats] = useState(null);
+      const [job, setJob] = useState('');
+      const [exp, setExp] = useState('');
+      const [myInput, setMyInput] = useState({ income: null, expenses: null, cat: {} });
+      const [loading, setLoading] = useState(true);
+      const [err, setErr] = useState('');
+
+      const dateStr = useMemo(() => {
+        const d = new Date();
+        return `${d.getFullYear()}.${String(d.getMonth()+1).padStart(2,'0')}.${String(d.getDate()).padStart(2,'0')}`;
+      }, []);
+
+      useEffect(() => {
+        api('/api/meta').then(setMeta).catch((e) => setErr(e.message));
+      }, []);
+
+      async function reload() {
+        setLoading(true);
+        setErr('');
+        try {
+          const qs = new URLSearchParams();
+          if (job) qs.set('job', job);
+          if (exp !== '') qs.set('experience', exp);
+          if (myInput.income !== null) qs.set('income', String(myInput.income));
+          if (myInput.expenses !== null) qs.set('expenses', String(myInput.expenses));
+          const data = await api(`/api/stats?${qs.toString()}`);
+          setStats(data);
+        } catch (e) {
+          setErr(e.message);
+        } finally {
+          setLoading(false);
+        }
+      }
+
+      useEffect(() => { reload(); /* eslint-disable-next-line */ }, [job, exp, myInput.income, myInput.expenses]);
+
+      function onSubmitted(row) {
+        setMyInput({
+          income: Number(row.monthly_income),
+          expenses: Number(row.monthly_expenses),
+          cat: row.category_expenses || {},
+        });
+        // Reset filter so the user sees the overall effect (could also lock to row.job)
+      }
+
+      if (err && !stats) {
+        return (
+          <div className="min-h-screen flex items-center justify-center px-6">
+            <div className="max-w-md text-center">
+              <div className="ticker">Error</div>
+              <div className="display text-[24px] mt-2">데이터를 불러오지 못했어요</div>
+              <div className="text-sub text-[13px] mt-2">{err}</div>
+              <button className="btn mt-6" onClick={reload}>다시 시도</button>
+            </div>
+          </div>
+        );
+      }
+
+      const total = stats?.overall?.total ?? 0;
+
+      return (
+        <div className="min-h-screen">
+          <Header total={total} dateStr={dateStr} />
+          <main className="max-w-[1240px] mx-auto px-6">
+            {meta && <InputForm meta={meta} onSubmitted={onSubmitted} />}
+
+            {meta && <Filter meta={meta} job={job} setJob={setJob} exp={exp} setExp={setExp} />}
+
+            {stats && (
+              <>
+                <MyResult mine={stats.mine} overall={stats.overall} myInput={myInput} />
+                <Overall overall={stats.overall} />
+                <ByJobChart data={stats.by_job} />
+                <ByExpChart data={stats.by_experience} />
+                {meta && <CategoryCompare meta={meta} avgCategory={stats.by_category} myCat={myInput.cat || {}} />}
+                <ScatterView sample={stats.sample} myInput={myInput} />
+              </>
+            )}
+            {loading && !stats && (
+              <div className="py-24 text-center text-sub text-[13px]">불러오는 중…</div>
+            )}
+          </main>
+          <Footer />
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
