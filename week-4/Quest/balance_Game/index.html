@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Money Balance · 머니 밸런스 — 실시간 밸런스 게임</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" as="style" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Pretendard Variable"', 'Pretendard', 'Inter', 'system-ui', 'sans-serif'],
+            display: ['"Pretendard Variable"', 'Pretendard', 'Inter', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            page: '#fbf5e6',
+            ink: '#181511',
+            sub: '#6b6453',
+            line: '#e8dfc8',
+            paper: '#ffffff',
+            sideA: '#ff5c3a',
+            sideB: '#2f6bff',
+            mint:  '#7de2b9',
+          },
+        },
+      },
+    };
+  </script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    html, body { background: #fbf5e6; color: #181511; }
+    body {
+      min-height: 100vh;
+      font-family: 'Pretendard Variable', Pretendard, 'Inter', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .display {
+      font-family: 'Pretendard Variable', Pretendard, 'Inter', system-ui, sans-serif;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+    }
+    .fade-in { animation: fadeIn 0.24s ease-out; }
+    @keyframes fadeIn { from {opacity:0; transform: translateY(4px);} to {opacity:1; transform: translateY(0);} }
+
+    @keyframes pop { 0%{transform:scale(1)} 40%{transform:scale(1.08)} 100%{transform:scale(1)} }
+    .pop { animation: pop 0.32s ease-out; }
+
+    .hl-top    { border-top: 1px solid #e8dfc8; }
+    .hl-bottom { border-bottom: 1px solid #e8dfc8; }
+
+    .in {
+      background: transparent;
+      border: 1px solid #e8dfc8;
+      padding: 14px 16px;
+      font-size: 16px;
+      color: #181511;
+      outline: none;
+      transition: border-color .15s ease;
+      width: 100%;
+    }
+    .in:focus { border-color: #181511; }
+    .in::placeholder { color: #b8b09a; }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 15px; letter-spacing: 0.04em; font-weight: 700;
+      padding: 14px 24px; border: 1px solid #181511; background: #181511; color: #fbf5e6;
+      transition: background .15s ease, color .15s ease, transform .08s ease;
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: #fbf5e6; color: #181511; }
+    .btn:active:not(:disabled) { transform: translateY(1px); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-accent {
+      background: #7de2b9; color: #181511; border-color: #181511;
+    }
+    .btn-accent:hover:not(:disabled) { background: #181511; color: #7de2b9; }
+
+    .chip {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 9px 16px; font-size: 14px; font-weight: 600;
+      border: 1px solid #e8dfc8; background: transparent; color: #181511;
+      cursor: pointer; transition: all .15s ease;
+    }
+    .chip:hover { border-color: #181511; }
+    .chip[aria-pressed="true"] {
+      background: #181511; color: #fbf5e6; border-color: #181511;
+    }
+
+    .dot { width: 7px; height: 7px; border-radius: 9999px; display: inline-block; }
+    .num-mono { font-variant-numeric: tabular-nums; }
+
+    /* VS tile */
+    .tile {
+      position: relative;
+      border: 1.5px solid #181511;
+      background: #ffffff;
+      padding: 22px 20px;
+      text-align: left;
+      cursor: pointer;
+      transition: transform .12s ease, background .15s ease;
+      overflow: hidden;
+    }
+    .tile:hover:not(.voted) { transform: translateY(-2px); background: #fffcee; }
+    .tile:active:not(.voted) { transform: translateY(0); }
+    .tile.selected { background: #fff9d9; }
+    .tile.voted { cursor: default; }
+
+    .tile .bar-fill {
+      position: absolute; inset: auto 0 0 0; height: 6px;
+      transform-origin: left center;
+      transition: width .6s cubic-bezier(.2,.8,.2,1);
+    }
+
+    .tileA .bar-fill { background: #ff5c3a; }
+    .tileB .bar-fill { background: #2f6bff; }
+    .tileA.selected  { box-shadow: inset 0 0 0 2px #ff5c3a; }
+    .tileB.selected  { box-shadow: inset 0 0 0 2px #2f6bff; }
+
+    .ribbon {
+      display:inline-flex; align-items:center; justify-content:center;
+      width: 40px; height: 40px; border-radius: 9999px;
+      border: 1.5px solid #181511; background: #fbf5e6;
+      font-weight: 900; letter-spacing: 0.02em; font-size: 14px;
+    }
+    .ribbon.a { background: #ff5c3a; color: #181511; }
+    .ribbon.b { background: #2f6bff; color: #ffffff; }
+
+    .vs-badge {
+      display:inline-flex; align-items:center; justify-content:center;
+      width: 48px; height: 48px; border-radius: 9999px;
+      background: #181511; color: #7de2b9; font-weight: 900; letter-spacing: 0.03em;
+      font-size: 14px; border: 1.5px solid #181511;
+    }
+
+    /* Stamp-style card outline */
+    .stamp {
+      position: relative;
+      border: 1.5px solid #181511;
+      background: #ffffff;
+    }
+    .stamp::before{
+      content:""; position:absolute; inset:6px; border:1px dashed #181511;
+      pointer-events:none;
+    }
+
+    /* Live dot */
+    .live {
+      display:inline-flex; align-items:center; gap: 8px; font-size: 13px;
+      letter-spacing: 0.16em; text-transform: uppercase; font-weight: 700;
+    }
+    .live .pulse {
+      width: 8px; height: 8px; border-radius: 9999px; background: #ff5c3a;
+      box-shadow: 0 0 0 0 rgba(255,92,58,0.6);
+      animation: pulse 1.6s infinite;
+    }
+    @keyframes pulse {
+      0%   { box-shadow: 0 0 0 0 rgba(255,92,58,0.55); }
+      70%  { box-shadow: 0 0 0 10px rgba(255,92,58,0); }
+      100% { box-shadow: 0 0 0 0 rgba(255,92,58,0); }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useCallback, useRef } = React;
+
+    const API = '/api';
+    const CATEGORIES = ['직장/연봉', '재테크/소비', '일상/음식', '연애/관계', '기타'];
+    const CATEGORY_META = {
+      '직장/연봉':   { color: '#ff5c3a', blurb: 'Work & Salary' },
+      '재테크/소비': { color: '#2f6bff', blurb: 'Money & Spend' },
+      '일상/음식':   { color: '#7de2b9', blurb: 'Life & Food' },
+      '연애/관계':   { color: '#f5b754', blurb: 'Love & Bond' },
+      '기타':       { color: '#9a9282', blurb: 'Etc' },
+    };
+    const SORTS = [
+      { key: 'recent',  label: '최신순' },
+      { key: 'popular', label: '인기순' },
+    ];
+
+    async function api(path, options = {}) {
+      const res = await fetch(path, {
+        headers: { 'Content-Type': 'application/json' },
+        ...options,
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || body.success === false) {
+        throw new Error(body.message || `요청 실패 (${res.status})`);
+      }
+      return body;
+    }
+
+    function pad(n, w = 2) { return String(n).padStart(w, '0'); }
+    function pct(n, total) {
+      if (!total) return 0;
+      return Math.round((n / total) * 1000) / 10;
+    }
+    function timeAgo(iso) {
+      const t = new Date(iso).getTime();
+      const diff = Math.max(0, Date.now() - t);
+      const m = Math.floor(diff / 60000);
+      if (m < 1)  return '방금 전';
+      if (m < 60) return `${m}분 전`;
+      const h = Math.floor(m / 60);
+      if (h < 24) return `${h}시간 전`;
+      const d = Math.floor(h / 24);
+      if (d < 7)  return `${d}일 전`;
+      const dt = new Date(iso);
+      return `${dt.getFullYear()}.${pad(dt.getMonth()+1)}.${pad(dt.getDate())}`;
+    }
+
+    // LocalStorage — remember which questions this browser already voted on
+    const VOTED_KEY = 'mb_voted';
+    function getVotedMap() {
+      try { return JSON.parse(localStorage.getItem(VOTED_KEY) || '{}'); }
+      catch { return {}; }
+    }
+    function saveVotedMap(m) {
+      try { localStorage.setItem(VOTED_KEY, JSON.stringify(m)); } catch {}
+    }
+
+    function CategoryTag({ name }) {
+      const meta = CATEGORY_META[name] || CATEGORY_META['기타'];
+      return (
+        <span className="inline-flex items-center gap-2 text-[13px] font-semibold text-ink">
+          <span className="dot" style={{ background: meta.color, outline: '1px solid #181511' }}></span>
+          {name}
+        </span>
+      );
+    }
+
+    // =================== Composer ===================
+
+    function Composer({ onCreated }) {
+      const [a, setA] = useState('');
+      const [b, setB] = useState('');
+      const [category, setCategory] = useState('');
+      const [saving, setSaving] = useState(false);
+      const [error, setError] = useState(null);
+      const aRef = useRef(null);
+
+      const submit = async () => {
+        setError(null);
+        if (!a.trim() || !b.trim()) { setError('두 선택지를 모두 입력해주세요'); return; }
+        if (!category) { setError('카테고리를 선택해주세요'); return; }
+        setSaving(true);
+        try {
+          const res = await api(`${API}/questions`, {
+            method: 'POST',
+            body: JSON.stringify({ option_a: a.trim(), option_b: b.trim(), category }),
+          });
+          onCreated(res.data);
+          setA(''); setB(''); setCategory('');
+          aRef.current?.focus();
+        } catch (e) { setError(e.message); }
+        finally { setSaving(false); }
+      };
+
+      return (
+        <section className="mb-14">
+          <div className="flex items-end justify-between mb-4 flex-wrap gap-3">
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
+              당신이라면 어느 쪽?
+            </h2>
+            <span className="text-[14px] text-sub">
+              누구나 · 로그인 없이 · 즉시 반영
+            </span>
+          </div>
+
+          <div className="stamp p-6 sm:p-7">
+            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-stretch gap-4">
+              <label className="block">
+                <span className="text-[13px] tracking-widest text-sub uppercase font-semibold">Option A</span>
+                <input
+                  ref={aRef}
+                  className="in mt-2"
+                  placeholder="예) 월 500 · 주 7일"
+                  value={a}
+                  onChange={(e) => setA(e.target.value)}
+                  maxLength={160}
+                />
+              </label>
+              <div className="flex items-center justify-center">
+                <span className="vs-badge">VS</span>
+              </div>
+              <label className="block">
+                <span className="text-[13px] tracking-widest text-sub uppercase font-semibold">Option B</span>
+                <input
+                  className="in mt-2"
+                  placeholder="예) 월 300 · 주 4일"
+                  value={b}
+                  onChange={(e) => setB(e.target.value)}
+                  maxLength={160}
+                />
+              </label>
+            </div>
+
+            <div className="mt-6 flex flex-wrap gap-2">
+              {CATEGORIES.map(c => (
+                <button
+                  key={c}
+                  className="chip"
+                  aria-pressed={category === c}
+                  onClick={() => setCategory(category === c ? '' : c)}
+                >
+                  <span className="dot" style={{ background: CATEGORY_META[c].color, outline: '1px solid currentColor' }}></span>
+                  {c}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-6 pt-5 hl-top flex items-center justify-between gap-3 flex-wrap">
+              <div className="text-[14px] text-sub">
+                입력한 두 선택지는 공개되며, 투표수는 누구나 볼 수 있어요.
+              </div>
+              <div className="flex items-center gap-3">
+                {error && <span className="text-[14px] text-red-600">⚠ {error}</span>}
+                <button
+                  className="btn btn-accent"
+                  onClick={submit}
+                  disabled={saving || !a.trim() || !b.trim() || !category}
+                >
+                  {saving ? '등록 중…' : '질문 올리기 →'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    // =================== Question Card ===================
+
+    function QuestionCard({ q, myChoice, onVote, onDelete, index }) {
+      const [popSide, setPopSide] = useState(null);
+      const voted = !!myChoice;
+      const total = Number(q.total_votes || 0);
+      const va = Number(q.votes_a || 0);
+      const vb = Number(q.votes_b || 0);
+      const pa = pct(va, total);
+      const pb = total ? (100 - pa) : 0;
+      const meta = CATEGORY_META[q.category] || CATEGORY_META['기타'];
+      const leadA = va >= vb && total > 0;
+
+      const click = (side) => {
+        if (voted) return;
+        setPopSide(side);
+        setTimeout(() => setPopSide(null), 320);
+        onVote(q.id, side);
+      };
+
+      return (
+        <article className="fade-in stamp p-5 sm:p-6">
+          <header className="flex items-center justify-between text-[14px] text-sub">
+            <div className="flex items-center gap-3">
+              <span className="num-mono text-[#b8b09a] font-semibold">Q{pad(index + 1, 2)}</span>
+              <CategoryTag name={q.category} />
+              <span className="hidden sm:inline text-[12px] tracking-[0.18em] uppercase font-semibold">{meta.blurb}</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="num-mono">{timeAgo(q.created_at)}</span>
+              <button
+                onClick={() => onDelete(q.id)}
+                className="text-[18px] leading-none text-sub hover:text-red-600"
+                aria-label="삭제"
+                title="질문 삭제"
+              >
+                ×
+              </button>
+            </div>
+          </header>
+
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-stretch gap-3">
+            <button
+              className={`tile tileA ${myChoice === 'A' ? 'selected' : ''} ${voted ? 'voted' : ''}`}
+              onClick={() => click('A')}
+              disabled={voted}
+              aria-pressed={myChoice === 'A'}
+            >
+              <div className="flex items-start gap-3">
+                <span className={`ribbon a ${popSide === 'A' ? 'pop' : ''}`}>A</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[17px] leading-snug font-semibold break-words">{q.option_a}</div>
+                  {voted && (
+                    <div className="mt-3 flex items-baseline gap-2 flex-wrap">
+                      <span className="display text-4xl" style={{ color: '#ff5c3a' }}>{pa}%</span>
+                      <span className="text-[14px] text-sub num-mono font-semibold">· {va.toLocaleString()}표</span>
+                      {leadA && total > 0 && (
+                        <span className="ml-2 text-[12px] font-bold tracking-widest uppercase" style={{ color: '#ff5c3a' }}>Lead</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="bar-fill" style={{ width: voted ? `${pa}%` : '0%' }} />
+            </button>
+
+            <div className="flex items-center justify-center py-1">
+              <span className="vs-badge">VS</span>
+            </div>
+
+            <button
+              className={`tile tileB ${myChoice === 'B' ? 'selected' : ''} ${voted ? 'voted' : ''}`}
+              onClick={() => click('B')}
+              disabled={voted}
+              aria-pressed={myChoice === 'B'}
+            >
+              <div className="flex items-start gap-3">
+                <span className={`ribbon b ${popSide === 'B' ? 'pop' : ''}`}>B</span>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[17px] leading-snug font-semibold break-words">{q.option_b}</div>
+                  {voted && (
+                    <div className="mt-3 flex items-baseline gap-2 flex-wrap">
+                      <span className="display text-4xl" style={{ color: '#2f6bff' }}>{pb}%</span>
+                      <span className="text-[14px] text-sub num-mono font-semibold">· {vb.toLocaleString()}표</span>
+                      {!leadA && total > 0 && (
+                        <span className="ml-2 text-[12px] font-bold tracking-widest uppercase" style={{ color: '#2f6bff' }}>Lead</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="bar-fill" style={{ width: voted ? `${pb}%` : '0%' }} />
+            </button>
+          </div>
+
+          <footer className="mt-5 pt-4 hl-top flex items-center justify-between text-[14px] text-sub flex-wrap gap-2">
+            <div className="flex items-center gap-3 flex-wrap">
+              <span className="num-mono">총 <span className="font-bold text-ink">{total.toLocaleString()}</span>명 참여</span>
+              {!voted && <span className="text-[#b8b09a]">· 카드를 눌러 투표하세요</span>}
+              {voted && <span className="text-[#b8b09a]">· 내 선택: <b className="text-ink">{myChoice}</b></span>}
+            </div>
+            <span className="live"><span className="pulse"></span>LIVE</span>
+          </footer>
+        </article>
+      );
+    }
+
+    // =================== Board ===================
+
+    function Board() {
+      const [items, setItems] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+      const [sort, setSort] = useState('recent');
+      const [filter, setFilter] = useState('');
+      const [voted, setVoted] = useState(() => getVotedMap());
+      const pollRef = useRef(null);
+
+      const fetchQuestions = useCallback(async () => {
+        try {
+          const params = new URLSearchParams();
+          params.set('sort', sort);
+          if (filter) params.set('category', filter);
+          const res = await api(`${API}/questions?${params.toString()}`);
+          setItems(res.data || []);
+          setError(null);
+        } catch (e) { setError(e.message); }
+      }, [sort, filter]);
+
+      useEffect(() => {
+        let active = true;
+        (async () => {
+          setLoading(true);
+          await fetchQuestions();
+          if (active) setLoading(false);
+        })();
+        return () => { active = false; };
+      }, [fetchQuestions]);
+
+      // Poll for near-realtime updates (4s)
+      useEffect(() => {
+        if (pollRef.current) clearInterval(pollRef.current);
+        pollRef.current = setInterval(() => {
+          if (document.visibilityState === 'visible') fetchQuestions();
+        }, 4000);
+        return () => { if (pollRef.current) clearInterval(pollRef.current); };
+      }, [fetchQuestions]);
+
+      const handleCreated = (q) => {
+        setItems(prev => [q, ...prev]);
+      };
+
+      const handleVote = async (id, choice) => {
+        if (voted[id]) return;
+        // optimistic: add +1 to the chosen side
+        setItems(prev => prev.map(p => {
+          if (p.id !== id) return p;
+          const next = { ...p };
+          if (choice === 'A') next.votes_a = Number(p.votes_a) + 1;
+          else next.votes_b = Number(p.votes_b) + 1;
+          next.total_votes = Number(p.total_votes) + 1;
+          return next;
+        }));
+        const nextVoted = { ...voted, [id]: choice }; setVoted(nextVoted); saveVotedMap(nextVoted);
+        try {
+          const res = await api(`${API}/questions/${id}/vote`, {
+            method: 'POST',
+            body: JSON.stringify({ choice }),
+          });
+          setItems(prev => prev.map(p => p.id === id ? res.data : p));
+        } catch (e) {
+          // rollback
+          setItems(prev => prev.map(p => {
+            if (p.id !== id) return p;
+            const next = { ...p };
+            if (choice === 'A') next.votes_a = Math.max(0, Number(p.votes_a) - 1);
+            else next.votes_b = Math.max(0, Number(p.votes_b) - 1);
+            next.total_votes = Math.max(0, Number(p.total_votes) - 1);
+            return next;
+          }));
+          const rb = { ...voted }; delete rb[id]; setVoted(rb); saveVotedMap(rb);
+          setError(e.message);
+        }
+      };
+
+      const handleDelete = async (id) => {
+        if (!window.confirm('이 질문을 삭제할까요? 되돌릴 수 없어요.')) return;
+        try {
+          await api(`${API}/questions/${id}`, { method: 'DELETE' });
+          setItems(prev => prev.filter(p => p.id !== id));
+          const rb = { ...voted }; delete rb[id]; setVoted(rb); saveVotedMap(rb);
+        } catch (e) { setError(e.message); }
+      };
+
+      const stats = useMemo(() => {
+        const total = items.length;
+        const votes = items.reduce((s, p) => s + Number(p.total_votes || 0), 0);
+        const byCat = {};
+        for (const p of items) byCat[p.category] = (byCat[p.category] || 0) + 1;
+        return { total, votes, byCat };
+      }, [items]);
+
+      return (
+        <div>
+          <Composer onCreated={handleCreated} />
+
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6 hl-bottom pb-4">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">Balance Feed</h2>
+              <p className="text-[14px] text-sub mt-2">
+                질문 <span className="num-mono font-bold text-ink">{stats.total.toLocaleString()}</span>개
+                · 누적 투표 <span className="num-mono font-bold text-ink">{stats.votes.toLocaleString()}</span>표
+              </p>
+            </div>
+
+            <div className="flex flex-wrap gap-2 items-center">
+              <div className="flex">
+                {SORTS.map(s => (
+                  <button
+                    key={s.key}
+                    onClick={() => setSort(s.key)}
+                    aria-pressed={sort === s.key}
+                    className="chip"
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+              <span className="mx-1 text-line">│</span>
+              <button
+                onClick={() => setFilter('')}
+                aria-pressed={filter === ''}
+                className="chip"
+              >
+                전체
+              </button>
+              {CATEGORIES.map(c => (
+                <button
+                  key={c}
+                  onClick={() => setFilter(filter === c ? '' : c)}
+                  aria-pressed={filter === c}
+                  className="chip"
+                >
+                  <span className="dot" style={{ background: CATEGORY_META[c].color, outline: '1px solid currentColor' }}></span>
+                  {c}
+                  {stats.byCat[c] ? <span className="num-mono opacity-70 ml-1">{stats.byCat[c]}</span> : null}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {error && (
+            <div className="mb-5 px-4 py-3 border border-red-300 bg-red-50 text-[15px] text-red-700 flex items-start gap-3">
+              <span className="shrink-0">⚠</span>
+              <span>{error}</span>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="py-16 text-center text-[15px] text-sub">불러오는 중…</div>
+          ) : items.length === 0 ? (
+            <div className="py-20 text-center stamp">
+              <div className="text-3xl font-bold tracking-tight text-ink">아직 질문이 없어요</div>
+              <p className="mt-3 text-[15px] text-sub">
+                {filter ? '조건에 맞는 질문이 아직 없어요. 필터를 바꾸거나 첫 질문을 등록해보세요.' : '첫 번째 밸런스 질문을 만들어보세요.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4">
+              {items.map((q, i) => (
+                <QuestionCard
+                  key={q.id}
+                  q={q}
+                  index={i}
+                  myChoice={voted[q.id]}
+                  onVote={handleVote}
+                  onDelete={handleDelete}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // =================== App ===================
+
+    function App() {
+      const now = new Date();
+      const stamp = `${now.getFullYear()}.${pad(now.getMonth()+1)}.${pad(now.getDate())}`;
+
+      return (
+        <div className="min-h-screen">
+          {/* Topbar */}
+          <div className="hl-bottom bg-page">
+            <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between text-[11px] text-sub">
+              <span className="font-bold tracking-widest text-ink text-[13px]">MONEY BALANCE / 머니 밸런스</span>
+              <span className="hidden sm:inline text-[13px]">밸런스 게임 · 실시간 투표</span>
+              <span className="num-mono text-[13px]">{stamp}</span>
+            </div>
+          </div>
+
+          {/* Masthead */}
+          <header className="max-w-5xl mx-auto px-6 pt-14 pb-12">
+            <div className="flex items-start justify-between flex-wrap gap-8">
+              <div className="max-w-2xl">
+                <div className="text-[14px] tracking-[0.22em] text-sub uppercase font-bold">
+                  Balance · Money · Choose One
+                </div>
+                <h1 className="display mt-5 text-5xl sm:text-6xl md:text-7xl leading-[0.96]">
+                  당신이라면<br/>
+                  <span style={{ color: '#ff5c3a' }}>A</span>와&nbsp;
+                  <span style={{ color: '#2f6bff' }}>B</span>,<br/>
+                  어느 쪽?
+                </h1>
+                <p className="mt-6 text-[17px] text-sub leading-relaxed">
+                  월 500 주7일 vs 월 300 주4일 — 돈과 삶, 당신의 균형을 골라보세요.<br className="hidden sm:inline"/>
+                  한 번 고르면 되돌릴 수 없습니다. 실시간으로 투표율이 바뀌어요.
+                </p>
+              </div>
+              <div className="grid grid-cols-2 gap-x-10 gap-y-4 stamp p-6">
+                <div>
+                  <div className="text-[12px] tracking-wider uppercase text-sub font-semibold">Stack</div>
+                  <div className="text-[15px] mt-1.5 font-bold">React · Express 5</div>
+                </div>
+                <div>
+                  <div className="text-[12px] tracking-wider uppercase text-sub font-semibold">DB</div>
+                  <div className="text-[15px] mt-1.5 font-bold">Supabase · PG</div>
+                </div>
+                <div>
+                  <div className="text-[12px] tracking-wider uppercase text-sub font-semibold">Realtime</div>
+                  <div className="text-[15px] mt-1.5 font-bold">Poll · 4s</div>
+                </div>
+                <div>
+                  <div className="text-[12px] tracking-wider uppercase text-sub font-semibold">Build</div>
+                  <div className="text-[15px] mt-1.5 font-bold">v1 · 2026.04</div>
+                </div>
+              </div>
+            </div>
+          </header>
+
+          <main className="max-w-5xl mx-auto px-6 pb-16">
+            <Board />
+          </main>
+
+          <footer className="hl-top">
+            <div className="max-w-5xl mx-auto px-6 py-6 flex items-center justify-between text-[13px] text-sub flex-wrap gap-3">
+              <span className="font-semibold">© MONEY BALANCE — 실시간 밸런스 게임 / 2026</span>
+              <span>브라우저별 1회 투표 · 익명 집계 · 서버에 개인정보를 저장하지 않습니다.</span>
+            </div>
+          </footer>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
