@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>익명 게시판 — QUEST</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link rel="stylesheet" href="/assets/css/common.css" />
+  <style>
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 48px;
+      align-items: flex-start;
+    }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; gap: 32px; } }
+
+    .sidebar {
+      position: sticky;
+      top: 88px;
+      border: 1px solid var(--line);
+      padding: 24px;
+      background: #fff;
+    }
+    @media (max-width: 900px) { .sidebar { position: static; } }
+
+    .sidebar h3 { font-size: 14px; letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 16px; color: var(--ink-muted); }
+
+    .post {
+      border: 1px solid var(--line);
+      padding: 20px;
+      background: #fff;
+      transition: border-color .15s;
+    }
+    .post + .post { margin-top: 16px; }
+    .post:hover { border-color: var(--ink); }
+    .post-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .post-cat {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      padding: 4px 8px;
+      background: var(--ink);
+      color: #fff;
+    }
+    .post-time { font-size: 12px; color: var(--ink-faint); }
+    .post-content {
+      font-size: 15px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: var(--ink);
+    }
+    .post-actions {
+      margin-top: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .like-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border: 1px solid var(--line);
+      background: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all .15s;
+    }
+    .like-btn:hover { border-color: var(--ink); }
+    .like-btn.liked { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .filter-group { display: flex; gap: 8px; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+  <div data-quest-header></div>
+
+  <section class="page-head">
+    <div class="container">
+      <div class="crumb">Community · 01</div>
+      <h1>익명 게시판</h1>
+      <p>고민, 칭찬, 응원 — 카테고리별로 익명 메시지를 남겨보세요. 공감 버튼으로 글쓴이에게 마음을 전달할 수 있습니다.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="layout">
+        <!-- LIST -->
+        <div>
+          <div class="toolbar">
+            <div class="filter-group" id="catFilter"></div>
+            <div class="filter-group" id="sortFilter">
+              <button class="chip active" data-sort="recent">최신순</button>
+              <button class="chip" data-sort="likes">공감순</button>
+            </div>
+          </div>
+          <div id="list"></div>
+        </div>
+
+        <!-- WRITE -->
+        <aside class="sidebar">
+          <h3>글쓰기</h3>
+          <form id="writeForm">
+            <div class="form-group">
+              <label class="label">카테고리</label>
+              <div class="chips" id="catChips"></div>
+            </div>
+            <div class="form-group">
+              <label class="label" for="content">내용</label>
+              <textarea id="content" class="textarea" placeholder="익명으로 마음을 전해보세요..." maxlength="2000" required></textarea>
+              <div class="help" id="charCount">0 / 2000</div>
+            </div>
+            <button type="submit" class="btn btn-block" id="submitBtn">올리기</button>
+          </form>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <div data-quest-footer></div>
+
+  <script src="/assets/js/common.js"></script>
+  <script>
+    Quest.mount('board');
+
+    const state = { sort: 'recent', category: '', selectedCat: '', categories: [] };
+    const $list = document.getElementById('list');
+    const $catFilter = document.getElementById('catFilter');
+    const $catChips = document.getElementById('catChips');
+    const $sortFilter = document.getElementById('sortFilter');
+    const $form = document.getElementById('writeForm');
+    const $content = document.getElementById('content');
+    const $charCount = document.getElementById('charCount');
+    const $submitBtn = document.getElementById('submitBtn');
+
+    $content.addEventListener('input', () => {
+      $charCount.textContent = `${$content.value.length} / 2000`;
+    });
+
+    async function loadMeta() {
+      try {
+        const meta = await Quest.api('/api/board/meta');
+        state.categories = meta.categories;
+        renderCatFilter();
+        renderCatChips();
+      } catch (e) { Quest.toast(e.message, 'error'); }
+    }
+
+    function renderCatFilter() {
+      $catFilter.innerHTML = `<button class="chip ${state.category === '' ? 'active' : ''}" data-cat="">전체</button>` +
+        state.categories.map(c =>
+          `<button class="chip ${state.category === c ? 'active' : ''}" data-cat="${Quest.escapeHtml(c)}">${Quest.escapeHtml(c)}</button>`
+        ).join('');
+      $catFilter.querySelectorAll('.chip').forEach(b => {
+        b.onclick = () => { state.category = b.dataset.cat; renderCatFilter(); load(); };
+      });
+    }
+
+    function renderCatChips() {
+      $catChips.innerHTML = state.categories.map(c =>
+        `<button type="button" class="chip ${state.selectedCat === c ? 'active' : ''}" data-cat="${Quest.escapeHtml(c)}">${Quest.escapeHtml(c)}</button>`
+      ).join('');
+      $catChips.querySelectorAll('.chip').forEach(b => {
+        b.onclick = () => { state.selectedCat = b.dataset.cat; renderCatChips(); };
+      });
+    }
+
+    $sortFilter.addEventListener('click', e => {
+      const btn = e.target.closest('[data-sort]'); if (!btn) return;
+      state.sort = btn.dataset.sort;
+      $sortFilter.querySelectorAll('.chip').forEach(b => b.classList.toggle('active', b === btn));
+      load();
+    });
+
+    function getLikedSet() {
+      try { return new Set(JSON.parse(localStorage.getItem('board_liked') || '[]')); }
+      catch { return new Set(); }
+    }
+    function saveLiked(id) {
+      const s = getLikedSet(); s.add(id);
+      localStorage.setItem('board_liked', JSON.stringify([...s]));
+    }
+
+    async function load() {
+      $list.innerHTML = '<div class="empty"><span class="spinner"></span> 불러오는 중…</div>';
+      try {
+        const url = `/api/board/posts?sort=${state.sort}${state.category ? `&category=${encodeURIComponent(state.category)}` : ''}`;
+        const posts = await Quest.api(url);
+        if (!posts.length) { $list.innerHTML = '<div class="empty">아직 글이 없어요. 첫 글을 남겨보세요!</div>'; return; }
+        const liked = getLikedSet();
+        $list.innerHTML = posts.map(p => `
+          <article class="post">
+            <div class="post-meta">
+              <span class="post-cat">${Quest.escapeHtml(p.category)}</span>
+              <span class="post-time">${Quest.fmtTime(p.created_at)}</span>
+            </div>
+            <div class="post-content">${Quest.escapeHtml(p.content)}</div>
+            <div class="post-actions">
+              <button class="like-btn ${liked.has(p.id) ? 'liked' : ''}" data-id="${p.id}">
+                <span>♥</span> <span>${p.likes}</span>
+              </button>
+            </div>
+          </article>
+        `).join('');
+        $list.querySelectorAll('.like-btn').forEach(b => {
+          b.onclick = () => like(b.dataset.id, b);
+        });
+      } catch (e) {
+        $list.innerHTML = `<div class="empty">불러오기 실패: ${Quest.escapeHtml(e.message)}</div>`;
+      }
+    }
+
+    async function like(id, btn) {
+      if (btn.classList.contains('liked')) { Quest.toast('이미 공감하셨어요'); return; }
+      try {
+        const updated = await Quest.api(`/api/board/posts/${id}/like`, { method: 'POST' });
+        saveLiked(id);
+        btn.classList.add('liked');
+        btn.querySelector('span:last-child').textContent = updated.likes;
+      } catch (e) { Quest.toast(e.message, 'error'); }
+    }
+
+    $form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const content = $content.value.trim();
+      if (!state.selectedCat) { Quest.toast('카테고리를 선택해주세요', 'error'); return; }
+      if (!content) { Quest.toast('내용을 입력해주세요', 'error'); return; }
+      $submitBtn.disabled = true; $submitBtn.textContent = '올리는 중...';
+      try {
+        await Quest.api('/api/board/posts', { method: 'POST', body: { category: state.selectedCat, content } });
+        $content.value = ''; $charCount.textContent = '0 / 2000';
+        Quest.toast('글이 등록되었습니다');
+        load();
+      } catch (e) { Quest.toast(e.message, 'error'); }
+      finally { $submitBtn.disabled = false; $submitBtn.textContent = '올리기'; }
+    });
+
+    (async () => { await loadMeta(); load(); })();
+  </script>
+</body>
+</html>

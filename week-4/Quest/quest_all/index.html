@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="description" content="QUEST — Week-4 6개 미션을 하나의 사이트로 통합한 미니 서비스 허브. 익명 게시판, 밸런스 게임, 연봉 비교, 냉장고 관리, AI 레시피, Skill." />
+  <title>QUEST — Week-4 통합 허브</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link rel="stylesheet" href="/assets/css/common.css" />
+  <style>
+    /* Landing-only tweaks */
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 64px;
+      align-items: center;
+    }
+    @media (max-width: 900px) { .hero-grid { grid-template-columns: 1fr; gap: 32px; } }
+
+    .hero-visual {
+      aspect-ratio: 1 / 1;
+      background: #0a0a0a;
+      color: #fff;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero-visual::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(600px 320px at 90% -10%, rgba(255,255,255,0.10), transparent),
+        radial-gradient(500px 320px at -10% 110%, rgba(255,255,255,0.06), transparent);
+      pointer-events: none;
+    }
+    .hero-visual > * { position: relative; z-index: 1; }
+    .hv-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+    .hero-visual .num {
+      font-size: clamp(44px, 7vw, 76px);
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -0.04em;
+    }
+    .hero-visual .num small {
+      font-size: 0.32em; vertical-align: super; opacity: 0.55; margin-left: 4px; letter-spacing: 0.02em;
+    }
+    .hero-visual .label {
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.55);
+    }
+    .hv-mini {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      grid-template-rows: repeat(2, 1fr);
+      gap: 8px;
+      min-height: 0;
+    }
+    .hv-cell {
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.02);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background .2s, border-color .2s, transform .2s;
+      text-decoration: none;
+      color: inherit;
+    }
+    .hv-cell:hover {
+      background: rgba(255,255,255,0.06);
+      border-color: rgba(255,255,255,0.25);
+      transform: translateY(-2px);
+    }
+    .hv-cell .ico { font-size: 22px; line-height: 1; }
+    .hv-cell .name {
+      font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;
+      color: rgba(255,255,255,0.7);
+    }
+    .hv-foot {
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding-top: 14px;
+      display: flex; flex-direction: column; gap: 4px;
+    }
+    .hv-foot .stack { font-size: 12px; opacity: 0.6; line-height: 1.5; }
+    @media (max-width: 480px) {
+      .hero-visual { padding: 22px; gap: 16px; }
+      .hv-cell .ico { font-size: 18px; }
+    }
+
+    .stats-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 0;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+      background: #fff;
+    }
+    .stats-bar .item {
+      padding: 32px 24px;
+      border-right: 1px solid var(--line);
+      text-align: center;
+    }
+    .stats-bar .item:last-child { border-right: none; }
+    .stats-bar .num {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+    }
+    .stats-bar .label {
+      font-size: 11px;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+      color: var(--ink-muted);
+      margin-top: 6px;
+    }
+    @media (max-width: 700px) {
+      .stats-bar { grid-template-columns: repeat(2, 1fr); }
+      .stats-bar .item:nth-child(2) { border-right: none; }
+      .stats-bar .item:nth-child(1), .stats-bar .item:nth-child(2) { border-bottom: 1px solid var(--line); }
+    }
+
+    /* Service cards: 각 카드 thumb 색상 다르게 */
+    .card[data-tone="board"]    .card-thumb { background: #fff5d1; }
+    .card[data-tone="balance"]  .card-thumb { background: #ffe1e1; }
+    .card[data-tone="salary"]   .card-thumb { background: #e1f0ff; }
+    .card[data-tone="refri"]    .card-thumb { background: #e6f5e6; }
+    .card[data-tone="refri-ai"] .card-thumb { background: #1a1a1a; color: #fff; }
+    .card[data-tone="skill"]    .card-thumb { background: #f0e6ff; }
+
+    .feature-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0;
+      border-top: 1px solid var(--line);
+      border-bottom: 1px solid var(--line);
+    }
+    .feature-row .item {
+      padding: 40px 32px;
+      border-right: 1px solid var(--line);
+    }
+    .feature-row .item:last-child { border-right: none; }
+    .feature-row .icon {
+      font-size: 32px; margin-bottom: 16px;
+    }
+    .feature-row h3 {
+      font-size: 18px; font-weight: 700; margin-bottom: 8px;
+    }
+    .feature-row p { font-size: 14px; color: var(--ink-muted); }
+    @media (max-width: 800px) {
+      .feature-row { grid-template-columns: 1fr; }
+      .feature-row .item { border-right: none; border-bottom: 1px solid var(--line); }
+      .feature-row .item:last-child { border-bottom: none; }
+    }
+
+    .cta-banner {
+      background: var(--ink);
+      color: #fff;
+      padding: 80px 0;
+      text-align: center;
+    }
+    .cta-banner h2 {
+      font-size: clamp(28px, 4vw, 44px);
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      margin-bottom: 12px;
+    }
+    .cta-banner p { color: rgba(255,255,255,0.7); font-size: 16px; margin-bottom: 32px; }
+    .cta-banner .btn {
+      background: #fff;
+      color: var(--ink);
+      border-color: #fff;
+    }
+    .cta-banner .btn:hover { background: transparent; color: #fff; }
+  </style>
+</head>
+<body>
+  <div data-quest-header></div>
+
+  <!-- ============================================================ -->
+  <!-- HERO                                                          -->
+  <!-- ============================================================ -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-grid">
+        <div>
+          <div class="hero-eyebrow">Week-4 · Quest All</div>
+          <h1>여섯 개의 미션,<br/>하나의 인터페이스.</h1>
+          <p>
+            익명 게시판부터 AI 레시피까지 — 4주차에 만든 6개의 독립 프로젝트를
+            절제된 미니멀 디자인으로 묶었습니다. 모바일에서도
+            데스크톱처럼 매끄럽게 사용할 수 있도록 처음부터 반응형으로 설계했습니다.
+          </p>
+          <div class="hero-actions">
+            <a href="#services" class="btn btn-lg">서비스 보기 →</a>
+            <a href="/pages/board.html" class="btn btn-lg btn-outline">바로 시작하기</a>
+          </div>
+        </div>
+        <div class="hero-visual">
+          <div class="hv-top">
+            <div>
+              <div class="label">Total Services</div>
+              <div class="num">06<small>EA</small></div>
+            </div>
+            <div class="label" style="text-align:right;">Live</div>
+          </div>
+
+          <div class="hv-mini">
+            <a href="/pages/board.html"        class="hv-cell"><span class="ico">💬</span><span class="name">Board</span></a>
+            <a href="/pages/balance.html"      class="hv-cell"><span class="ico">⚖️</span><span class="name">Balance</span></a>
+            <a href="/pages/salary.html"       class="hv-cell"><span class="ico">📊</span><span class="name">Salary</span></a>
+            <a href="/pages/refrigerator.html" class="hv-cell"><span class="ico">🥬</span><span class="name">Refri</span></a>
+            <a href="/pages/refri-ai.html"     class="hv-cell"><span class="ico">🤖</span><span class="name">AI Cook</span></a>
+            <a href="/pages/skill.html"        class="hv-cell"><span class="ico">📁</span><span class="name">Skill</span></a>
+          </div>
+
+          <div class="hv-foot">
+            <div class="label">Tech Stack</div>
+            <div class="stack">Express 5 · Postgres · OpenAI · Vanilla JS</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- STATS BAR                                                     -->
+  <!-- ============================================================ -->
+  <section style="background: #fafafa;">
+    <div class="container">
+      <div class="stats-bar">
+        <div class="item"><div class="num">6</div><div class="label">서비스</div></div>
+        <div class="item"><div class="num">5</div><div class="label">DB 테이블</div></div>
+        <div class="item"><div class="num">2</div><div class="label">AI 엔진</div></div>
+        <div class="item"><div class="num">100%</div><div class="label">반응형</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- SERVICES                                                      -->
+  <!-- ============================================================ -->
+  <section class="section" id="services">
+    <div class="container">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">Services</div>
+          <h2>모든 미션이<br/>한 자리에.</h2>
+        </div>
+        <p class="subtitle">각 서비스는 독립된 페이지에서 동작하며, 같은 디자인 언어와 같은 백엔드를 공유합니다. 카드를 클릭해 바로 이동하세요.</p>
+      </div>
+
+      <div class="card-grid">
+        <a href="/pages/board.html" class="card" data-tone="board">
+          <div class="card-thumb"><img src="/assets/img/cards/board.jpg" alt="익명 고민·칭찬 게시판" loading="lazy" /></div>
+          <div class="card-body">
+            <span class="card-tag">Community</span>
+            <h3 class="card-title">익명 고민·칭찬 게시판</h3>
+            <p class="card-desc">카테고리 별로 익명으로 글을 남기고 공감으로 응원하세요. 최신·공감순 정렬 지원.</p>
+            <div class="card-footer"><span>SHOP NOW</span><span class="card-arrow">→</span></div>
+          </div>
+        </a>
+
+        <a href="/pages/balance.html" class="card" data-tone="balance">
+          <div class="card-thumb"><img src="/assets/img/cards/balance.jpg" alt="Money Balance" loading="lazy" /></div>
+          <div class="card-body">
+            <span class="card-tag">Vote</span>
+            <h3 class="card-title">Money Balance</h3>
+            <p class="card-desc">A vs B 밸런스 질문을 만들고 실시간 투표 결과를 막대로 확인하는 게임형 서비스.</p>
+            <div class="card-footer"><span>PLAY</span><span class="card-arrow">→</span></div>
+          </div>
+        </a>
+
+        <a href="/pages/salary.html" class="card" data-tone="salary">
+          <div class="card-thumb"><img src="/assets/img/cards/salary.jpg" alt="너 얼마 벌고 얼마나 써?" loading="lazy" /></div>
+          <div class="card-body">
+            <span class="card-tag">Stats</span>
+            <h3 class="card-title">너 얼마 벌고 얼마나 써?</h3>
+            <p class="card-desc">익명으로 연봉·지출을 입력하고 직군·연차별 평균과 본인 백분위를 확인.</p>
+            <div class="card-footer"><span>EXPLORE</span><span class="card-arrow">→</span></div>
+          </div>
+        </a>
+
+        <a href="/pages/refrigerator.html" class="card" data-tone="refri">
+          <div class="card-thumb"><img src="/assets/img/cards/refrigerator.jpg" alt="냉장고 재료 & 레시피 관리" loading="lazy" /></div>
+          <div class="card-body">
+            <span class="card-tag">Kitchen</span>
+            <h3 class="card-title">냉장고 재료 & 레시피 관리</h3>
+            <p class="card-desc">유통기한이 임박한 재료를 한눈에. 나만의 레시피도 함께 저장 가능.</p>
+            <div class="card-footer"><span>MANAGE</span><span class="card-arrow">→</span></div>
+          </div>
+        </a>
+
+        <a href="/pages/refri-ai.html" class="card" data-tone="refri-ai">
+          <div class="card-thumb"><img src="/assets/img/cards/refri-ai.jpg" alt="AI 냉장고 파먹기" loading="lazy" /></div>
+          <div class="card-body">
+            <span class="card-tag">AI Powered</span>
+            <h3 class="card-title">AI 냉장고 파먹기</h3>
+            <p class="card-desc">테마(간단/다이어트/야식/술안주)에 맞춰 AI가 1인분 레시피를 생성·저장.</p>
+            <div class="card-footer"><span>GENERATE</span><span class="card-arrow">→</span></div>
+          </div>
+        </a>
+
+        <a href="/pages/skill.html" class="card" data-tone="skill">
+          <div class="card-thumb"><img src="/assets/img/cards/skill.jpg" alt="JSON 재료 → 레시피 Skill" loading="lazy" /></div>
+          <div class="card-body">
+            <span class="card-tag">Skill</span>
+            <h3 class="card-title">JSON 재료 → 레시피 Skill</h3>
+            <p class="card-desc">재료 1개 = JSON 파일 1개. 폴더에서 읽어 레시피를 만들어주는 슬래시 스킬.</p>
+            <div class="card-footer"><span>VIEW</span><span class="card-arrow">→</span></div>
+          </div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- FEATURE ROW                                                   -->
+  <!-- ============================================================ -->
+  <section style="background: #fafafa;">
+    <div class="container">
+      <div class="feature-row">
+        <div class="item">
+          <div class="icon">🎯</div>
+          <h3>모바일 최적화</h3>
+          <p>모든 페이지가 모바일·태블릿·데스크톱에서 완벽하게 동작하도록 처음부터 반응형으로 설계되었습니다.</p>
+        </div>
+        <div class="item">
+          <div class="icon">⚡</div>
+          <h3>단일 백엔드</h3>
+          <p>Express 5 한 대로 5개 서비스를 모두 운영합니다. Supabase Postgres와 OpenAI API에 통합 연결.</p>
+        </div>
+        <div class="item">
+          <div class="icon">🎨</div>
+          <h3>미니멀 디자인</h3>
+          <p>흑·백 미니멀, 큰 타이포, 절제된 그리드 — 모던한 디자인 언어를 충실히 구현했습니다.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ -->
+  <!-- CTA                                                           -->
+  <!-- ============================================================ -->
+  <section class="cta-banner">
+    <div class="container">
+      <h2>지금 바로 둘러보세요.</h2>
+      <p>회원가입 없이 모든 서비스를 즉시 체험할 수 있습니다.</p>
+      <a href="/pages/board.html" class="btn btn-lg">시작하기 →</a>
+    </div>
+  </section>
+
+  <div data-quest-footer></div>
+
+  <script src="/assets/js/common.js"></script>
+  <script>Quest.mount('home');</script>
+</body>
+</html>

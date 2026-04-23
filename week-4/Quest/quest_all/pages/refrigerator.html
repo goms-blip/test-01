@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>냉장고 재료 & 레시피 — QUEST</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link rel="stylesheet" href="/assets/css/common.css" />
+  <style>
+    .tabs {
+      display: flex; gap: 0; border-bottom: 2px solid var(--line); margin-bottom: 32px;
+    }
+    .tab {
+      padding: 14px 24px;
+      font-size: 14px; font-weight: 600; letter-spacing: 0.04em;
+      color: var(--ink-muted);
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      cursor: pointer;
+    }
+    .tab.active { color: var(--ink); border-color: var(--ink); }
+
+    .layout { display: grid; grid-template-columns: 380px 1fr; gap: 48px; align-items: flex-start; }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; gap: 32px; } }
+
+    .panel { border: 1px solid var(--line); padding: 24px; background: #fff; }
+    .panel h3 { font-size: 14px; letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 16px; color: var(--ink-muted); }
+
+    .ingredient {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      background: #fff;
+    }
+    .ingredient + .ingredient { margin-top: 8px; }
+    .ingredient .name { font-weight: 600; }
+    .ingredient .meta { font-size: 12px; color: var(--ink-muted); }
+    .badge {
+      display: inline-block; padding: 2px 8px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+      background: var(--bg-soft); color: var(--ink); margin-left: 8px;
+    }
+    .badge.warn { background: #fff5d1; color: #936c00; }
+    .badge.danger { background: #ffe0e0; color: #b91c1c; }
+    .icon-btn {
+      padding: 6px 10px;
+      border: 1px solid var(--line); background: #fff;
+      font-size: 12px; cursor: pointer;
+    }
+    .icon-btn:hover { border-color: var(--ink); }
+
+    .recipe-card {
+      border: 1px solid var(--line);
+      padding: 20px;
+      background: #fff;
+    }
+    .recipe-card + .recipe-card { margin-top: 16px; }
+    .recipe-card h4 { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+    .recipe-tags { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 12px; }
+    .recipe-tags .tag { font-size: 11px; padding: 3px 8px; background: var(--bg-soft); border: 1px solid var(--line); }
+    .recipe-steps { font-size: 14px; line-height: 1.7; white-space: pre-wrap; color: var(--ink); }
+
+    .ai-result {
+      border: 1px solid var(--ink); background: #fafafa;
+      padding: 24px; margin-top: 16px;
+    }
+    .ai-result h3 { font-size: 20px; font-weight: 800; margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+  <div data-quest-header></div>
+
+  <section class="page-head">
+    <div class="container">
+      <div class="crumb">Kitchen · 04</div>
+      <h1>냉장고 재료 & 레시피</h1>
+      <p>식재료를 등록하고 유통기한이 임박한 순으로 확인. 나만의 레시피도 함께 저장하고, AI에게 추천을 받아보세요.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="tabs">
+        <button class="tab active" data-tab="ing">재료</button>
+        <button class="tab" data-tab="rcp">레시피</button>
+      </div>
+
+      <!-- INGREDIENTS TAB -->
+      <div id="tab-ing" class="layout">
+        <aside>
+          <div class="panel">
+            <h3>재료 추가</h3>
+            <form id="ingForm">
+              <div class="form-group">
+                <label class="label" for="ingName">이름</label>
+                <input id="ingName" class="input" placeholder="예: 두부" required />
+              </div>
+              <div class="form-group">
+                <label class="label">카테고리</label>
+                <div class="chips" id="catChips"></div>
+              </div>
+              <div class="form-group">
+                <label class="label" for="expiry">유통기한 (선택)</label>
+                <input id="expiry" class="input" type="date" />
+              </div>
+              <button type="submit" class="btn btn-block" id="ingBtn">추가</button>
+            </form>
+          </div>
+
+          <div class="panel" style="margin-top: 16px;">
+            <h3>AI 레시피 추천</h3>
+            <p style="font-size: 13px; color: var(--ink-muted); margin-bottom: 12px;">유통기한이 임박한 재료로 1인분 15분 레시피를 받아보세요.</p>
+            <button id="aiBtn" class="btn btn-outline btn-block">레시피 추천 받기</button>
+            <div id="aiResult"></div>
+          </div>
+        </aside>
+
+        <div>
+          <div class="row" style="margin-bottom: 16px;">
+            <input id="ingSearch" class="input" placeholder="재료 검색…" />
+            <select id="ingCatFilter" class="select" style="max-width: 200px;"><option value="">전체 카테고리</option></select>
+          </div>
+          <div id="ingList"></div>
+        </div>
+      </div>
+
+      <!-- RECIPES TAB -->
+      <div id="tab-rcp" class="layout" style="display:none;">
+        <aside>
+          <div class="panel">
+            <h3>레시피 저장</h3>
+            <form id="rcpForm">
+              <div class="form-group">
+                <label class="label" for="rcpTitle">요리명</label>
+                <input id="rcpTitle" class="input" placeholder="예: 두부 김치찌개" required />
+              </div>
+              <div class="form-group">
+                <label class="label" for="rcpIng">필요 재료 (쉼표로 구분)</label>
+                <input id="rcpIng" class="input" placeholder="두부, 김치, 대파" />
+              </div>
+              <div class="form-group">
+                <label class="label" for="rcpSteps">조리법</label>
+                <textarea id="rcpSteps" class="textarea" placeholder="1. 김치를 볶는다&#10;2. 물을 붓는다…"></textarea>
+              </div>
+              <button type="submit" class="btn btn-block" id="rcpBtn">저장</button>
+            </form>
+          </div>
+        </aside>
+
+        <div>
+          <input id="rcpSearch" class="input" placeholder="레시피 검색…" style="margin-bottom: 16px;" />
+          <div id="rcpList"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div data-quest-footer></div>
+
+  <script src="/assets/js/common.js"></script>
+  <script>
+    Quest.mount('refrigerator');
+
+    const state = { meta: null, selectedCat: '', ingFilterCat: '' };
+
+    const $tabs = document.querySelectorAll('.tab');
+    $tabs.forEach(t => t.onclick = () => {
+      $tabs.forEach(x => x.classList.toggle('active', x === t));
+      document.getElementById('tab-ing').style.display = t.dataset.tab === 'ing' ? '' : 'none';
+      document.getElementById('tab-rcp').style.display = t.dataset.tab === 'rcp' ? '' : 'none';
+      if (t.dataset.tab === 'rcp') loadRecipes();
+    });
+
+    const $catChips = document.getElementById('catChips');
+    const $ingForm = document.getElementById('ingForm');
+    const $ingName = document.getElementById('ingName');
+    const $expiry = document.getElementById('expiry');
+    const $ingBtn = document.getElementById('ingBtn');
+    const $ingList = document.getElementById('ingList');
+    const $ingSearch = document.getElementById('ingSearch');
+    const $ingCatFilter = document.getElementById('ingCatFilter');
+    const $aiBtn = document.getElementById('aiBtn');
+    const $aiResult = document.getElementById('aiResult');
+
+    const $rcpForm = document.getElementById('rcpForm');
+    const $rcpTitle = document.getElementById('rcpTitle');
+    const $rcpIng = document.getElementById('rcpIng');
+    const $rcpSteps = document.getElementById('rcpSteps');
+    const $rcpBtn = document.getElementById('rcpBtn');
+    const $rcpList = document.getElementById('rcpList');
+    const $rcpSearch = document.getElementById('rcpSearch');
+
+    async function loadMeta() {
+      const meta = await Quest.api('/api/refri/meta');
+      state.meta = meta;
+      $catChips.innerHTML = meta.categories.map(c =>
+        `<button type="button" class="chip" data-cat="${Quest.escapeHtml(c)}">${Quest.escapeHtml(c)}</button>`
+      ).join('');
+      $catChips.querySelectorAll('.chip').forEach(b => {
+        b.onclick = () => {
+          state.selectedCat = b.dataset.cat;
+          $catChips.querySelectorAll('.chip').forEach(x => x.classList.toggle('active', x === b));
+        };
+      });
+      $ingCatFilter.innerHTML = '<option value="">전체 카테고리</option>' +
+        meta.categories.map(c => `<option value="${Quest.escapeHtml(c)}">${Quest.escapeHtml(c)}</option>`).join('');
+    }
+
+    function dDay(date) {
+      if (!date) return null;
+      const today = new Date(); today.setHours(0,0,0,0);
+      const e = new Date(date); e.setHours(0,0,0,0);
+      const diff = Math.round((e - today) / 86400000);
+      return diff;
+    }
+
+    async function loadIngredients() {
+      const params = new URLSearchParams();
+      if ($ingSearch.value.trim()) params.set('q', $ingSearch.value.trim());
+      if (state.ingFilterCat) params.set('category', state.ingFilterCat);
+      $ingList.innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+      try {
+        const data = await Quest.api(`/api/refri/ingredients${params.toString() ? '?' + params : ''}`);
+        if (!data.length) { $ingList.innerHTML = '<div class="empty">재료가 없어요. 왼쪽에서 추가해보세요.</div>'; return; }
+        $ingList.innerHTML = data.map(it => {
+          const d = dDay(it.expiry_date);
+          let badge = '';
+          if (d !== null) {
+            if (d < 0) badge = `<span class="badge danger">유통기한 ${-d}일 경과</span>`;
+            else if (d <= 3) badge = `<span class="badge danger">D-${d}</span>`;
+            else if (d <= 7) badge = `<span class="badge warn">D-${d}</span>`;
+            else badge = `<span class="badge">D-${d}</span>`;
+          }
+          return `
+            <div class="ingredient">
+              <div>
+                <span class="name">${Quest.escapeHtml(it.name)}</span>
+                ${it.category ? `<span class="badge">${Quest.escapeHtml(it.category)}</span>` : ''}
+                ${badge}
+              </div>
+              <button class="icon-btn" data-id="${it.id}">삭제</button>
+            </div>
+          `;
+        }).join('');
+        $ingList.querySelectorAll('.icon-btn').forEach(b => {
+          b.onclick = () => deleteIng(b.dataset.id);
+        });
+      } catch (e) { $ingList.innerHTML = `<div class="empty">${Quest.escapeHtml(e.message)}</div>`; }
+    }
+
+    async function deleteIng(id) {
+      try { await Quest.api(`/api/refri/ingredients/${id}`, { method: 'DELETE' }); Quest.toast('삭제됨'); loadIngredients(); }
+      catch (e) { Quest.toast(e.message, 'error'); }
+    }
+
+    $ingSearch.addEventListener('input', () => { clearTimeout(window._t); window._t = setTimeout(loadIngredients, 250); });
+    $ingCatFilter.addEventListener('change', () => { state.ingFilterCat = $ingCatFilter.value; loadIngredients(); });
+
+    $ingForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      const name = $ingName.value.trim(); if (!name) return;
+      $ingBtn.disabled = true; $ingBtn.textContent = '추가 중…';
+      try {
+        await Quest.api('/api/refri/ingredients', { method: 'POST', body: { name, category: state.selectedCat || null, expiry_date: $expiry.value || null } });
+        $ingName.value = ''; $expiry.value = '';
+        Quest.toast('추가됨');
+        loadIngredients();
+      } catch (e) { Quest.toast(e.message, 'error'); }
+      finally { $ingBtn.disabled = false; $ingBtn.textContent = '추가'; }
+    });
+
+    $aiBtn.addEventListener('click', async () => {
+      $aiBtn.disabled = true; $aiBtn.innerHTML = '<span class="spinner"></span> 생각 중…';
+      $aiResult.innerHTML = '';
+      try {
+        const r = await Quest.api('/api/refri/recipes/suggest', { method: 'POST', body: { days_within: 7 } });
+        $aiResult.innerHTML = `
+          <div class="ai-result">
+            <h3>${Quest.escapeHtml(r.title || '레시피')}</h3>
+            <div class="recipe-tags">${(r.ingredients || []).map(i => `<span class="tag">${Quest.escapeHtml(i)}</span>`).join('')}</div>
+            <div class="recipe-steps">${Quest.escapeHtml(r.steps || '')}</div>
+            <button class="btn btn-sm" id="saveAi" style="margin-top: 16px;">레시피로 저장</button>
+          </div>
+        `;
+        document.getElementById('saveAi').onclick = async () => {
+          try {
+            await Quest.api('/api/refri/recipes', { method: 'POST', body: { title: r.title, ingredients: r.ingredients || [], steps: r.steps || '' } });
+            Quest.toast('레시피 저장됨');
+          } catch (e) { Quest.toast(e.message, 'error'); }
+        };
+      } catch (e) { Quest.toast(e.message, 'error'); }
+      finally { $aiBtn.disabled = false; $aiBtn.textContent = '레시피 추천 받기'; }
+    });
+
+    // Recipes
+    async function loadRecipes() {
+      const q = $rcpSearch.value.trim();
+      $rcpList.innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+      try {
+        const data = await Quest.api(`/api/refri/recipes${q ? '?q=' + encodeURIComponent(q) : ''}`);
+        if (!data.length) { $rcpList.innerHTML = '<div class="empty">레시피가 없습니다.</div>'; return; }
+        $rcpList.innerHTML = data.map(r => `
+          <article class="recipe-card">
+            <h4>${Quest.escapeHtml(r.title)}</h4>
+            <div class="recipe-tags">${(r.ingredients || []).map(i => `<span class="tag">${Quest.escapeHtml(i)}</span>`).join('')}</div>
+            <div class="recipe-steps">${Quest.escapeHtml(r.steps || '')}</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-top: 12px;">
+              <span class="muted" style="font-size: 12px;">${Quest.fmtTime(r.created_at)}</span>
+              <button class="icon-btn" data-id="${r.id}">삭제</button>
+            </div>
+          </article>
+        `).join('');
+        $rcpList.querySelectorAll('.icon-btn').forEach(b => b.onclick = async () => {
+          try { await Quest.api(`/api/refri/recipes/${b.dataset.id}`, { method: 'DELETE' }); Quest.toast('삭제됨'); loadRecipes(); }
+          catch (e) { Quest.toast(e.message, 'error'); }
+        });
+      } catch (e) { $rcpList.innerHTML = `<div class="empty">${Quest.escapeHtml(e.message)}</div>`; }
+    }
+
+    $rcpSearch.addEventListener('input', () => { clearTimeout(window._rt); window._rt = setTimeout(loadRecipes, 250); });
+
+    $rcpForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      const title = $rcpTitle.value.trim(); if (!title) return;
+      const ingredients = $rcpIng.value.split(',').map(s => s.trim()).filter(Boolean);
+      $rcpBtn.disabled = true;
+      try {
+        await Quest.api('/api/refri/recipes', { method: 'POST', body: { title, ingredients, steps: $rcpSteps.value } });
+        $rcpTitle.value = ''; $rcpIng.value = ''; $rcpSteps.value = '';
+        Quest.toast('레시피 저장됨');
+        loadRecipes();
+      } catch (e) { Quest.toast(e.message, 'error'); }
+      finally { $rcpBtn.disabled = false; $rcpBtn.textContent = '저장'; }
+    });
+
+    (async () => { await loadMeta(); loadIngredients(); })();
+  </script>
+</body>
+</html>

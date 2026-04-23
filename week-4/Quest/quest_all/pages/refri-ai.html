@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>AI 냉장고 파먹기 — QUEST</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link rel="stylesheet" href="/assets/css/common.css" />
+  <style>
+    .layout { display: grid; grid-template-columns: 380px 1fr; gap: 48px; align-items: flex-start; }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; gap: 32px; } }
+    .panel { border: 1px solid var(--line); padding: 24px; background: #fff; }
+    .panel h3 { font-size: 14px; letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 16px; color: var(--ink-muted); }
+
+    .ing-row { display: flex; gap: 8px; margin-bottom: 12px; }
+    .ing-row > input { flex: 1; }
+    .ing-row > input:nth-child(2) { max-width: 100px; }
+
+    .ing-list { display: flex; flex-wrap: wrap; gap: 6px; }
+    .ing-tag { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--line); background: #fff; font-size: 13px; }
+    .ing-tag button { font-size: 14px; line-height: 1; color: var(--ink-muted); }
+    .ing-tag button:hover { color: var(--danger); }
+
+    .gen-banner {
+      background: var(--ink); color: #fff;
+      padding: 32px;
+      margin-bottom: 24px;
+    }
+    .gen-banner h2 { font-size: 24px; font-weight: 800; margin-bottom: 8px; }
+    .gen-banner p { color: rgba(255,255,255,0.7); font-size: 14px; margin-bottom: 16px; }
+    .gen-banner .btn { background: #fff; color: var(--ink); border-color: #fff; }
+    .gen-banner .btn:hover { background: transparent; color: #fff; }
+
+    .recipe-card {
+      border: 1px solid var(--line);
+      padding: 24px;
+      background: #fff;
+      position: relative;
+    }
+    .recipe-card + .recipe-card { margin-top: 16px; }
+    .recipe-card.fav { border-color: var(--ink); }
+    .recipe-card h4 { font-size: 20px; font-weight: 800; margin-bottom: 8px; padding-right: 60px; }
+    .recipe-meta { display: flex; gap: 12px; margin-bottom: 12px; font-size: 12px; color: var(--ink-muted); flex-wrap: wrap; }
+    .recipe-meta .badge { padding: 3px 8px; border: 1px solid var(--line); }
+    .badge.diff-쉬움 { background: #e6f5e6; color: #166534; border-color: #c5e8c5; }
+    .badge.diff-보통 { background: #fef3c7; color: #92400e; border-color: #fbe2a3; }
+    .badge.diff-어려움 { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+
+    .recipe-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .recipe-tags .tag { font-size: 11px; padding: 3px 8px; background: var(--bg-soft); border: 1px solid var(--line); }
+
+    .recipe-content { font-size: 14px; line-height: 1.7; white-space: pre-wrap; color: var(--ink); }
+
+    .fav-btn {
+      position: absolute; top: 20px; right: 20px;
+      width: 36px; height: 36px;
+      border: 1px solid var(--line); background: #fff;
+      cursor: pointer; font-size: 18px;
+    }
+    .fav-btn.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+    .filter-bar { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+  <div data-quest-header></div>
+
+  <section class="page-head">
+    <div class="container">
+      <div class="crumb">AI Powered · 05</div>
+      <h1>AI 냉장고 파먹기</h1>
+      <p>테마(간단/다이어트/야식/술안주)를 골라 AI에게 1인분 레시피를 받아보세요. 마음에 드는 레시피는 즐겨찾기로 저장할 수 있습니다.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="layout">
+        <aside>
+          <div class="panel">
+            <h3>재료 등록</h3>
+            <form id="ingForm">
+              <div class="ing-row">
+                <input id="ingName" class="input" placeholder="재료명" required />
+                <input id="ingQty" class="input" placeholder="수량" />
+              </div>
+              <button type="submit" class="btn btn-block btn-sm" id="ingBtn">+ 재료 추가</button>
+            </form>
+            <div style="margin-top: 16px;" id="ingList"></div>
+          </div>
+
+          <div class="panel" style="margin-top: 16px;">
+            <h3>저장 레시피 필터</h3>
+            <div class="form-group">
+              <label class="label">테마</label>
+              <select id="fCategory" class="select"><option value="">전체</option></select>
+            </div>
+            <div class="form-group">
+              <label class="label">난이도</label>
+              <select id="fDifficulty" class="select"><option value="">전체</option></select>
+            </div>
+            <div class="form-group">
+              <label class="label" for="fMaxTime">최대 조리 시간 (분)</label>
+              <input id="fMaxTime" class="input" type="number" min="1" placeholder="예: 30" />
+            </div>
+            <div class="form-group">
+              <label style="display:flex; align-items:center; gap:8px; font-size:14px;">
+                <input id="fFav" type="checkbox" />즐겨찾기만 보기
+              </label>
+            </div>
+            <button id="applyFilter" class="btn btn-outline btn-block btn-sm">적용</button>
+          </div>
+        </aside>
+
+        <div>
+          <div class="gen-banner">
+            <h2>AI에게 레시피 요청</h2>
+            <p>등록된 재료로 테마에 맞는 1인분 레시피를 생성합니다.</p>
+            <div class="filter-bar" id="themeChips"></div>
+            <button id="genBtn" class="btn">레시피 생성</button>
+          </div>
+
+          <div id="genResult"></div>
+
+          <h3 style="font-size: 14px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-muted); margin: 24px 0 12px;">저장된 레시피</h3>
+          <div id="rcpList"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div data-quest-footer></div>
+
+  <script src="/assets/js/common.js"></script>
+  <script>
+    Quest.mount('refri-ai');
+
+    const state = { meta: null, theme: '간단', filters: { category: '', difficulty: '', maxTime: null, fav: false } };
+
+    const $ingForm = document.getElementById('ingForm');
+    const $ingName = document.getElementById('ingName');
+    const $ingQty = document.getElementById('ingQty');
+    const $ingBtn = document.getElementById('ingBtn');
+    const $ingList = document.getElementById('ingList');
+    const $themeChips = document.getElementById('themeChips');
+    const $genBtn = document.getElementById('genBtn');
+    const $genResult = document.getElementById('genResult');
+    const $rcpList = document.getElementById('rcpList');
+    const $fCategory = document.getElementById('fCategory');
+    const $fDifficulty = document.getElementById('fDifficulty');
+    const $fMaxTime = document.getElementById('fMaxTime');
+    const $fFav = document.getElementById('fFav');
+    const $applyFilter = document.getElementById('applyFilter');
+
+    async function loadMeta() {
+      const meta = await Quest.api('/api/refri-ai/meta');
+      state.meta = meta;
+      $themeChips.innerHTML = meta.themes.map(t =>
+        `<button type="button" class="chip ${t === state.theme ? 'active' : ''}" data-theme="${Quest.escapeHtml(t)}">${Quest.escapeHtml(t)}</button>`
+      ).join('');
+      $themeChips.querySelectorAll('.chip').forEach(b => {
+        b.onclick = () => {
+          state.theme = b.dataset.theme;
+          $themeChips.querySelectorAll('.chip').forEach(x => x.classList.toggle('active', x === b));
+        };
+      });
+      $fCategory.innerHTML = '<option value="">전체</option>' + meta.themes.map(t => `<option value="${Quest.escapeHtml(t)}">${Quest.escapeHtml(t)}</option>`).join('');
+      $fDifficulty.innerHTML = '<option value="">전체</option>' + meta.difficulties.map(d => `<option value="${Quest.escapeHtml(d)}">${Quest.escapeHtml(d)}</option>`).join('');
+    }
+
+    async function loadIngredients() {
+      try {
+        const data = await Quest.api('/api/refri-ai/ingredients');
+        if (!data.length) { $ingList.innerHTML = '<p class="muted" style="font-size:13px;">아직 재료가 없습니다.</p>'; return; }
+        $ingList.innerHTML = `<div class="ing-list">${data.map(it => `
+          <span class="ing-tag">
+            ${Quest.escapeHtml(it.name)}${it.quantity ? ` <small style="color:var(--ink-muted)">(${Quest.escapeHtml(it.quantity)})</small>` : ''}
+            <button data-id="${it.id}" title="삭제">×</button>
+          </span>
+        `).join('')}</div>`;
+        $ingList.querySelectorAll('button').forEach(b => b.onclick = async () => {
+          try { await Quest.api(`/api/refri-ai/ingredients/${b.dataset.id}`, { method: 'DELETE' }); loadIngredients(); }
+          catch (e) { Quest.toast(e.message, 'error'); }
+        });
+      } catch (e) { $ingList.innerHTML = `<p class="muted">${Quest.escapeHtml(e.message)}</p>`; }
+    }
+
+    $ingForm.addEventListener('submit', async e => {
+      e.preventDefault();
+      const name = $ingName.value.trim(); if (!name) return;
+      $ingBtn.disabled = true;
+      try {
+        await Quest.api('/api/refri-ai/ingredients', { method: 'POST', body: { name, quantity: $ingQty.value.trim() || null } });
+        $ingName.value = ''; $ingQty.value = '';
+        loadIngredients();
+      } catch (e) { Quest.toast(e.message, 'error'); }
+      finally { $ingBtn.disabled = false; $ingBtn.textContent = '+ 재료 추가'; }
+    });
+
+    $genBtn.addEventListener('click', async () => {
+      $genBtn.disabled = true; $genBtn.innerHTML = '<span class="spinner"></span> 생성 중…';
+      $genResult.innerHTML = '';
+      try {
+        const r = await Quest.api('/api/refri-ai/generate', { method: 'POST', body: { theme: state.theme } });
+        $genResult.innerHTML = `
+          <article class="recipe-card" style="border-color: var(--ink);">
+            <h4>${Quest.escapeHtml(r.title || '레시피')}</h4>
+            <div class="recipe-meta">
+              <span class="badge diff-${Quest.escapeHtml(r.difficulty || '보통')}">난이도: ${Quest.escapeHtml(r.difficulty || '-')}</span>
+              <span class="badge">⏱ ${r.cooking_time ?? '-'}분</span>
+              <span class="badge">${Quest.escapeHtml(r.category || '-')}</span>
+            </div>
+            <div class="recipe-tags">${(r.ingredients_used || []).map(x => `<span class="tag">${Quest.escapeHtml(x)}</span>`).join('')}</div>
+            <div class="recipe-content">${Quest.escapeHtml(r.content || '')}</div>
+            <button class="btn btn-sm" id="saveAi" style="margin-top: 16px;">레시피 저장</button>
+          </article>
+        `;
+        document.getElementById('saveAi').onclick = async () => {
+          try {
+            await Quest.api('/api/refri-ai/recipes', { method: 'POST', body: r });
+            Quest.toast('저장되었습니다');
+            loadRecipes();
+          } catch (e) { Quest.toast(e.message, 'error'); }
+        };
+      } catch (e) { Quest.toast(e.message, 'error'); }
+      finally { $genBtn.disabled = false; $genBtn.textContent = '레시피 생성'; }
+    });
+
+    function renderRecipe(r) {
+      return `
+        <article class="recipe-card ${r.is_favorite ? 'fav' : ''}" data-id="${r.id}">
+          <button class="fav-btn ${r.is_favorite ? 'on' : ''}" data-fav="${r.id}" title="즐겨찾기">${r.is_favorite ? '★' : '☆'}</button>
+          <h4>${Quest.escapeHtml(r.title)}</h4>
+          <div class="recipe-meta">
+            ${r.difficulty ? `<span class="badge diff-${Quest.escapeHtml(r.difficulty)}">${Quest.escapeHtml(r.difficulty)}</span>` : ''}
+            ${r.cooking_time ? `<span class="badge">⏱ ${r.cooking_time}분</span>` : ''}
+            ${r.category ? `<span class="badge">${Quest.escapeHtml(r.category)}</span>` : ''}
+            <span style="margin-left:auto;">${Quest.fmtTime(r.created_at)}</span>
+          </div>
+          <div class="recipe-tags">${(r.ingredients_used || []).map(x => `<span class="tag">${Quest.escapeHtml(x)}</span>`).join('')}</div>
+          <div class="recipe-content">${Quest.escapeHtml(r.content || '')}</div>
+          <div style="margin-top: 12px; text-align: right;">
+            <button class="icon-btn" data-del="${r.id}" style="padding:6px 10px; border:1px solid var(--line); background:#fff; font-size:12px;">삭제</button>
+          </div>
+        </article>
+      `;
+    }
+
+    async function loadRecipes() {
+      const params = new URLSearchParams();
+      if (state.filters.category) params.set('category', state.filters.category);
+      if (state.filters.difficulty) params.set('difficulty', state.filters.difficulty);
+      if (state.filters.maxTime) params.set('max_cooking_time', state.filters.maxTime);
+      if (state.filters.fav) params.set('is_favorite', '1');
+      $rcpList.innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+      try {
+        const data = await Quest.api(`/api/refri-ai/recipes${params.toString() ? '?' + params : ''}`);
+        if (!data.length) { $rcpList.innerHTML = '<div class="empty">저장된 레시피가 없습니다.</div>'; return; }
+        $rcpList.innerHTML = data.map(renderRecipe).join('');
+        $rcpList.querySelectorAll('[data-fav]').forEach(b => b.onclick = async () => {
+          const article = b.closest('.recipe-card');
+          const isFav = b.classList.contains('on');
+          try {
+            await Quest.api(`/api/refri-ai/recipes/${b.dataset.fav}`, { method: 'PATCH', body: { is_favorite: !isFav } });
+            loadRecipes();
+          } catch (e) { Quest.toast(e.message, 'error'); }
+        });
+        $rcpList.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
+          try { await Quest.api(`/api/refri-ai/recipes/${b.dataset.del}`, { method: 'DELETE' }); Quest.toast('삭제됨'); loadRecipes(); }
+          catch (e) { Quest.toast(e.message, 'error'); }
+        });
+      } catch (e) { $rcpList.innerHTML = `<div class="empty">${Quest.escapeHtml(e.message)}</div>`; }
+    }
+
+    $applyFilter.addEventListener('click', () => {
+      state.filters = {
+        category: $fCategory.value,
+        difficulty: $fDifficulty.value,
+        maxTime: $fMaxTime.value === '' ? null : Number($fMaxTime.value),
+        fav: $fFav.checked,
+      };
+      loadRecipes();
+    });
+
+    (async () => { await loadMeta(); await Promise.all([loadIngredients(), loadRecipes()]); })();
+  </script>
+</body>
+</html>
