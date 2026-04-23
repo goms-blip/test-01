@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Money Balance — QUEST</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link rel="stylesheet" href="/assets/css/common.css" />
+  <style>
+    .layout { display: grid; grid-template-columns: 1fr 380px; gap: 48px; align-items: flex-start; }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; gap: 32px; } }
+    .sidebar { position: sticky; top: 88px; border: 1px solid var(--line); padding: 24px; background: #fff; }
+    @media (max-width: 900px) { .sidebar { position: static; } }
+    .sidebar h3 { font-size: 14px; letter-spacing: 0.16em; text-transform: uppercase; margin-bottom: 16px; color: var(--ink-muted); }
+
+    .question {
+      border: 1px solid var(--line);
+      padding: 28px;
+      background: #fff;
+      transition: border-color .15s;
+    }
+    .question + .question { margin-top: 20px; }
+    .question:hover { border-color: var(--ink); }
+    .q-meta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .q-cat {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase;
+      padding: 4px 10px; background: var(--ink); color: #fff;
+    }
+    .q-time { font-size: 12px; color: var(--ink-faint); }
+
+    .options { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 600px) { .options { grid-template-columns: 1fr; } }
+    .option {
+      position: relative;
+      padding: 20px;
+      border: 1px solid var(--line);
+      background: #fff;
+      cursor: pointer;
+      overflow: hidden;
+      text-align: left;
+      transition: border-color .15s;
+    }
+    .option:hover { border-color: var(--ink); }
+    .option .label { font-size: 11px; font-weight: 700; letter-spacing: 0.16em; color: var(--ink-muted); margin-bottom: 6px; }
+    .option .text { font-size: 15px; font-weight: 600; line-height: 1.5; }
+    .option .bar {
+      position: absolute; left: 0; top: 0; bottom: 0;
+      background: rgba(0,0,0,0.04);
+      width: 0;
+      transition: width .6s ease;
+      z-index: 0;
+    }
+    .option .label, .option .text, .option .pct { position: relative; z-index: 1; }
+    .option.voted-mine { border-color: var(--ink); }
+    .option.voted-mine .bar { background: rgba(0,0,0,0.10); }
+    .option .pct {
+      display: block; margin-top: 8px;
+      font-size: 12px; font-weight: 700; letter-spacing: 0.04em; color: var(--ink);
+    }
+
+    .q-foot { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; font-size: 13px; color: var(--ink-muted); }
+
+    .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+  <div data-quest-header></div>
+
+  <section class="page-head">
+    <div class="container">
+      <div class="crumb">Community · 02</div>
+      <h1>Money Balance</h1>
+      <p>A vs B 둘 중 하나를 선택해보세요. 실시간 투표 결과가 막대로 표시됩니다. 직접 질문도 만들 수 있어요.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="layout">
+        <div>
+          <div class="toolbar">
+            <div class="filter-group chips" id="catFilter"></div>
+            <div class="filter-group chips" id="sortFilter">
+              <button class="chip active" data-sort="recent">최신순</button>
+              <button class="chip" data-sort="popular">인기순</button>
+            </div>
+          </div>
+          <div id="list"></div>
+        </div>
+
+        <aside class="sidebar">
+          <h3>새 질문 만들기</h3>
+          <form id="createForm">
+            <div class="form-group">
+              <label class="label" for="optA">선택지 A</label>
+              <input type="text" id="optA" class="input" placeholder="예: 월 500 주7일" maxlength="160" required />
+            </div>
+            <div class="form-group">
+              <label class="label" for="optB">선택지 B</label>
+              <input type="text" id="optB" class="input" placeholder="예: 월 300 주4일" maxlength="160" required />
+            </div>
+            <div class="form-group">
+              <label class="label">카테고리</label>
+              <div class="chips" id="catChips"></div>
+            </div>
+            <button type="submit" class="btn btn-block" id="createBtn">질문 등록</button>
+          </form>
+        </aside>
+      </div>
+    </div>
+  </section>
+
+  <div data-quest-footer></div>
+
+  <script src="/assets/js/common.js"></script>
+  <script>
+    Quest.mount('balance');
+
+    const state = { sort: 'recent', category: '', selectedCat: '', categories: [] };
+    const $list = document.getElementById('list');
+    const $catFilter = document.getElementById('catFilter');
+    const $catChips = document.getElementById('catChips');
+    const $sortFilter = document.getElementById('sortFilter');
+    const $form = document.getElementById('createForm');
+    const $optA = document.getElementById('optA');
+    const $optB = document.getElementById('optB');
+    const $createBtn = document.getElementById('createBtn');
+
+    function getVotedMap() {
+      try { return JSON.parse(localStorage.getItem('balance_voted') || '{}'); }
+      catch { return {}; }
+    }
+    function saveVote(qid, choice) {
+      const m = getVotedMap(); m[qid] = choice;
+      localStorage.setItem('balance_voted', JSON.stringify(m));
+    }
+
+    async function loadMeta() {
+      try {
+        const meta = await Quest.api('/api/balance/meta');
+        state.categories = meta.categories;
+        renderCatFilter();
+        renderCatChips();
+      } catch (e) { Quest.toast(e.message, 'error'); }
+    }
+
+    function renderCatFilter() {
+      $catFilter.innerHTML = `<button class="chip ${state.category === '' ? 'active' : ''}" data-cat="">전체</button>` +
+        state.categories.map(c =>
+          `<button class="chip ${state.category === c ? 'active' : ''}" data-cat="${Quest.escapeHtml(c)}">${Quest.escapeHtml(c)}</button>`
+        ).join('');
+      $catFilter.querySelectorAll('.chip').forEach(b => {
+        b.onclick = () => { state.category = b.dataset.cat; renderCatFilter(); load(); };
+      });
+    }
+
+    function renderCatChips() {
+      $catChips.innerHTML = state.categories.map(c =>
+        `<button type="button" class="chip ${state.selectedCat === c ? 'active' : ''}" data-cat="${Quest.escapeHtml(c)}">${Quest.escapeHtml(c)}</button>`
+      ).join('');
+      $catChips.querySelectorAll('.chip').forEach(b => {
+        b.onclick = () => { state.selectedCat = b.dataset.cat; renderCatChips(); };
+      });
+    }
+
+    $sortFilter.addEventListener('click', e => {
+      const btn = e.target.closest('[data-sort]'); if (!btn) return;
+      state.sort = btn.dataset.sort;
+      $sortFilter.querySelectorAll('.chip').forEach(b => b.classList.toggle('active', b === btn));
+      load();
+    });
+
+    function renderQuestion(q) {
+      const voted = getVotedMap()[q.id];
+      const total = q.total_votes || 0;
+      const pa = total ? Math.round((q.votes_a / total) * 100) : 0;
+      const pb = total ? 100 - pa : 0;
+      return `
+        <article class="question" data-id="${q.id}">
+          <div class="q-meta">
+            <span class="q-cat">${Quest.escapeHtml(q.category)}</span>
+            <span class="q-time">${Quest.fmtTime(q.created_at)}</span>
+          </div>
+          <div class="options">
+            <button class="option ${voted === 'A' ? 'voted-mine' : ''}" data-choice="A" ${voted ? 'disabled' : ''}>
+              <span class="bar" style="width:${voted ? pa : 0}%"></span>
+              <span class="label">A</span>
+              <span class="text">${Quest.escapeHtml(q.option_a)}</span>
+              ${voted ? `<span class="pct">${pa}% · ${q.votes_a}표</span>` : ''}
+            </button>
+            <button class="option ${voted === 'B' ? 'voted-mine' : ''}" data-choice="B" ${voted ? 'disabled' : ''}>
+              <span class="bar" style="width:${voted ? pb : 0}%"></span>
+              <span class="label">B</span>
+              <span class="text">${Quest.escapeHtml(q.option_b)}</span>
+              ${voted ? `<span class="pct">${pb}% · ${q.votes_b}표</span>` : ''}
+            </button>
+          </div>
+          <div class="q-foot">
+            <span>총 ${total}표</span>
+            ${voted ? `<span>당신의 선택: <strong>${voted}</strong></span>` : `<span>탭하여 투표</span>`}
+          </div>
+        </article>
+      `;
+    }
+
+    async function load() {
+      $list.innerHTML = '<div class="empty"><span class="spinner"></span> 불러오는 중…</div>';
+      try {
+        const url = `/api/balance/questions?sort=${state.sort}${state.category ? `&category=${encodeURIComponent(state.category)}` : ''}`;
+        const data = await Quest.api(url);
+        if (!data.length) { $list.innerHTML = '<div class="empty">아직 질문이 없어요. 첫 질문을 만들어보세요!</div>'; return; }
+        $list.innerHTML = data.map(renderQuestion).join('');
+        $list.querySelectorAll('.option').forEach(b => {
+          if (b.disabled) return;
+          b.onclick = () => vote(b.closest('.question').dataset.id, b.dataset.choice);
+        });
+      } catch (e) { $list.innerHTML = `<div class="empty">불러오기 실패: ${Quest.escapeHtml(e.message)}</div>`; }
+    }
+
+    async function vote(id, choice) {
+      if (getVotedMap()[id]) { Quest.toast('이미 투표하셨어요'); return; }
+      try {
+        const updated = await Quest.api(`/api/balance/questions/${id}/vote`, { method: 'POST', body: { choice } });
+        saveVote(id, choice);
+        const article = document.querySelector(`[data-id="${id}"]`);
+        if (article) article.outerHTML = renderQuestion(updated);
+      } catch (e) { Quest.toast(e.message, 'error'); }
+    }
+
+    $form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const a = $optA.value.trim(), b = $optB.value.trim();
+      if (!a || !b) { Quest.toast('두 선택지를 모두 입력해주세요', 'error'); return; }
+      if (!state.selectedCat) { Quest.toast('카테고리를 선택해주세요', 'error'); return; }
+      $createBtn.disabled = true; $createBtn.textContent = '등록 중…';
+      try {
+        await Quest.api('/api/balance/questions', { method: 'POST', body: { option_a: a, option_b: b, category: state.selectedCat } });
+        $optA.value = ''; $optB.value = '';
+        Quest.toast('질문이 등록되었습니다');
+        load();
+      } catch (e) { Quest.toast(e.message, 'error'); }
+      finally { $createBtn.disabled = false; $createBtn.textContent = '질문 등록'; }
+    });
+
+    (async () => { await loadMeta(); load(); })();
+  </script>
+</body>
+</html>

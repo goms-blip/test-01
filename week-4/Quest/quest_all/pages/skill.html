@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>JSON 재료 → 레시피 Skill — QUEST</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+  <link rel="stylesheet" href="/assets/css/common.css" />
+  <style>
+    .layout { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: flex-start; }
+    @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+    .ing-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    @media (max-width: 600px) { .ing-grid { grid-template-columns: 1fr; } }
+
+    .ing-card {
+      border: 1px solid var(--line);
+      padding: 18px;
+      background: #fff;
+    }
+    .ing-card .name { font-weight: 700; font-size: 16px; margin-bottom: 4px; }
+    .ing-card .qty { font-size: 13px; color: var(--ink-muted); }
+    .ing-card .file { font-family: 'SF Mono', Menlo, monospace; font-size: 11px; color: var(--ink-faint); margin-top: 8px; }
+    .ing-card .badge { display: inline-block; padding: 2px 8px; font-size: 11px; background: var(--bg-soft); margin-top: 8px; }
+
+    pre.code {
+      background: #0a0a0a; color: #e5e5e5;
+      padding: 20px; overflow-x: auto;
+      font-family: 'SF Mono', Menlo, monospace; font-size: 13px;
+      line-height: 1.6;
+    }
+    .step {
+      display: flex; gap: 16px; padding: 20px 0; border-bottom: 1px solid var(--line);
+    }
+    .step:last-child { border-bottom: none; }
+    .step .num {
+      flex-shrink: 0; width: 36px; height: 36px;
+      background: var(--ink); color: #fff;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 14px;
+    }
+    .step h4 { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+    .step p { font-size: 14px; color: var(--ink-muted); line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <div data-quest-header></div>
+
+  <section class="page-head">
+    <div class="container">
+      <div class="crumb">Skill · 06</div>
+      <h1>JSON 재료 → 레시피 Skill</h1>
+      <p>재료 1개 = JSON 파일 1개. 폴더에서 읽어 자취생 1인분 15분 레시피를 만들어주는 Claude Code 슬래시 명령. 아래는 현재 Quest 폴더에 등록된 재료들입니다.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container">
+      <div class="layout">
+        <div>
+          <h3 style="font-size: 14px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-muted); margin-bottom: 16px;">현재 등록된 재료 (ingredients/*.json)</h3>
+          <div id="list"></div>
+        </div>
+
+        <div>
+          <h3 style="font-size: 14px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-muted); margin-bottom: 16px;">사용 흐름</h3>
+          <div class="step">
+            <div class="num">1</div>
+            <div>
+              <h4>재료 JSON 파일 작성</h4>
+              <p><code>ingredients/egg.json</code> 처럼 재료 1개당 파일 1개. <code>{ "name", "quantity", "category" }</code> 구조.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="num">2</div>
+            <div>
+              <h4>슬래시 명령 실행</h4>
+              <p>Claude Code에서 <code>/recipe</code> 입력. 폴더 전체를 스캔합니다.</p>
+            </div>
+          </div>
+          <div class="step">
+            <div class="num">3</div>
+            <div>
+              <h4>레시피 마크다운 출력</h4>
+              <p>1인분, 15분 이내, 자취생 난이도 레시피가 마크다운 파일로 저장됩니다.</p>
+            </div>
+          </div>
+
+          <h3 style="font-size: 14px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink-muted); margin: 32px 0 16px;">JSON 예시</h3>
+          <pre class="code">{
+  "name": "계란",
+  "quantity": "6개",
+  "category": "냉장"
+}</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div data-quest-footer></div>
+
+  <script src="/assets/js/common.js"></script>
+  <script>
+    Quest.mount('skill');
+
+    const $list = document.getElementById('list');
+    (async () => {
+      $list.innerHTML = '<div class="empty"><span class="spinner"></span> 불러오는 중…</div>';
+      try {
+        const data = await Quest.api('/api/skill/ingredients');
+        if (!data.length) { $list.innerHTML = '<div class="empty">등록된 재료 JSON 파일이 없습니다.</div>'; return; }
+        $list.innerHTML = `<div class="ing-grid">${data.map(it => `
+          <div class="ing-card">
+            <div class="name">${Quest.escapeHtml(it.name || it.file)}</div>
+            ${it.quantity ? `<div class="qty">${Quest.escapeHtml(it.quantity)}</div>` : ''}
+            ${it.category ? `<span class="badge">${Quest.escapeHtml(it.category)}</span>` : ''}
+            <div class="file">${Quest.escapeHtml(it.file)}</div>
+          </div>
+        `).join('')}</div>`;
+      } catch (e) { $list.innerHTML = `<div class="empty">${Quest.escapeHtml(e.message)}</div>`; }
+    })();
+  </script>
+</body>
+</html>
