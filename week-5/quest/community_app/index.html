@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>광장 · PLAZA — Auth 커뮤니티</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" as="style" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Pretendard Variable"', 'Pretendard', 'Inter', 'system-ui', 'sans-serif'],
+            display: ['"Pretendard Variable"', 'Pretendard', 'Inter', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            page: '#fafaf7',
+            ink: '#111111',
+            sub: '#5b5b5b',
+            line: '#e5e5e0',
+            neon: '#d4ff00',
+          },
+        },
+      },
+    };
+  </script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+  <script src="/env.js"></script>
+  <style>
+    html, body { background: #fafaf7; color: #111; }
+    body {
+      min-height: 100vh;
+      font-family: 'Pretendard Variable', Pretendard, 'Inter', system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .display {
+      font-family: 'Pretendard Variable', Pretendard, 'Inter', system-ui, sans-serif;
+      font-weight: 800;
+      letter-spacing: -0.035em;
+    }
+    .fade-in { animation: fadeIn 0.2s ease-out; }
+    @keyframes fadeIn { from {opacity:0; transform: translateY(2px);} to {opacity:1; transform: translateY(0);} }
+
+    .hl-top    { border-top: 1px solid #e5e5e0; }
+    .hl-bottom { border-bottom: 1px solid #e5e5e0; }
+
+    .in {
+      background: transparent;
+      border: 1px solid #e5e5e0;
+      padding: 10px 12px;
+      font-size: 14px;
+      color: #111;
+      outline: none;
+      transition: border-color .15s ease;
+      width: 100%;
+    }
+    .in:focus { border-color: #111; }
+    .in::placeholder { color: #b2b2ab; }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 13px; letter-spacing: 0.04em; font-weight: 600;
+      padding: 12px 20px; border: 1px solid #111; background: #111; color: #fafaf7;
+      transition: background .15s ease, color .15s ease, transform .08s ease;
+      cursor: pointer;
+    }
+    .btn:hover:not(:disabled) { background: #fafaf7; color: #111; }
+    .btn:active:not(:disabled) { transform: translateY(1px); }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-accent {
+      background: #d4ff00; color: #111; border-color: #111;
+    }
+    .btn-accent:hover:not(:disabled) { background: #111; color: #d4ff00; }
+    .btn-ghost {
+      background: transparent; color: #111; border-color: #e5e5e0;
+    }
+    .btn-ghost:hover:not(:disabled) { background: #111; color: #fafaf7; border-color: #111; }
+    .btn-sm { padding: 7px 12px; font-size: 12px; letter-spacing: 0.02em; }
+
+    .chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 12px; font-size: 12px; font-weight: 500;
+      border: 1px solid #e5e5e0; background: transparent; color: #111;
+      cursor: pointer; transition: all .15s ease;
+    }
+    .chip:hover { border-color: #111; }
+    .chip[aria-pressed="true"] {
+      background: #111; color: #fafaf7; border-color: #111;
+    }
+
+    .num-mono { font-variant-numeric: tabular-nums; }
+
+    .toast {
+      position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%);
+      background: #111; color: #d4ff00;
+      padding: 10px 18px; font-size: 13px; font-weight: 600;
+      letter-spacing: 0.04em;
+      box-shadow: 0 8px 30px -10px rgba(0,0,0,.35);
+      z-index: 60; animation: fadeIn .2s ease-out;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" data-presets="react">
+    const { useState, useEffect, useMemo, useCallback, useRef, createContext, useContext } = React;
+
+    // ─────── Supabase 클라이언트 ───────
+    const ENV = window.__ENV || {};
+    const sb = (ENV.SUPABASE_URL && ENV.SUPABASE_ANON_KEY
+                && !ENV.SUPABASE_URL.includes('YOUR-PROJECT-REF'))
+      ? supabase.createClient(ENV.SUPABASE_URL, ENV.SUPABASE_ANON_KEY)
+      : null;
+
+    // ─────── localStorage fallback (PostgREST 503 대비) ───────
+    const LS_KEY = 'community_posts_fallback_v1';
+    const LS_MODE_KEY = 'community_app_mode'; // 'live' | 'local'
+    const lsLoad = () => {
+      try { return JSON.parse(localStorage.getItem(LS_KEY) || '[]'); } catch { return []; }
+    };
+    const lsSave = (rows) => {
+      try { localStorage.setItem(LS_KEY, JSON.stringify(rows)); } catch {}
+    };
+    const isCacheError = (e) => {
+      const msg = String(e?.message || e?.code || '');
+      return /PGRST002|schema cache|503|fetch|Failed to fetch|NetworkError/i.test(msg);
+    };
+    const newId = () => 'local_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+
+    // 통합 데이터 레이어 — Supabase 우선, 실패 시 localStorage
+    const Data = {
+      mode: 'unknown', // 'live' or 'local' — 마지막 호출 결과 기준
+      async list() {
+        if (sb) {
+          try {
+            const { data, error } = await sb
+              .from('community_posts')
+              .select('id, created_at, title, content, user_id, author_email')
+              .order('created_at', { ascending: false });
+            if (error) throw error;
+            this.mode = 'live';
+            // live 모드면 local 데이터도 머지해서 보여줌 (사용자가 잃은 느낌 방지)
+            const local = lsLoad();
+            return [...local, ...(data || [])].sort((a, b) =>
+              new Date(b.created_at) - new Date(a.created_at));
+          } catch (e) {
+            if (!isCacheError(e)) throw e;
+          }
+        }
+        this.mode = 'local';
+        return lsLoad().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      },
+      async insert({ title, content, user_id, author_email }) {
+        if (sb) {
+          try {
+            const { data, error } = await sb
+              .from('community_posts')
+              .insert({ title, content, user_id, author_email })
+              .select().single();
+            if (error) throw error;
+            this.mode = 'live';
+            return data;
+          } catch (e) {
+            if (!isCacheError(e)) throw e;
+          }
+        }
+        const row = {
+          id: newId(),
+          created_at: new Date().toISOString(),
+          title, content, user_id, author_email,
+          _local: true,
+        };
+        const rows = lsLoad(); rows.unshift(row); lsSave(rows);
+        this.mode = 'local';
+        return row;
+      },
+      async update(id, patch) {
+        // local id면 localStorage만
+        if (String(id).startsWith('local_')) {
+          const rows = lsLoad();
+          const i = rows.findIndex(r => r.id === id);
+          if (i < 0) throw new Error('찾을 수 없음');
+          rows[i] = { ...rows[i], ...patch };
+          lsSave(rows);
+          return rows[i];
+        }
+        if (sb) {
+          try {
+            const { data, error } = await sb
+              .from('community_posts').update(patch).eq('id', id).select().single();
+            if (error) throw error;
+            this.mode = 'live';
+            return data;
+          } catch (e) { if (!isCacheError(e)) throw e; }
+        }
+        throw new Error('Supabase 회복 후 다시 시도해 주세요');
+      },
+      async remove(id) {
+        if (String(id).startsWith('local_')) {
+          lsSave(lsLoad().filter(r => r.id !== id));
+          return;
+        }
+        if (sb) {
+          try {
+            const { error } = await sb.from('community_posts').delete().eq('id', id);
+            if (error) throw error;
+            this.mode = 'live';
+            return;
+          } catch (e) { if (!isCacheError(e)) throw e; }
+        }
+        throw new Error('Supabase 회복 후 다시 시도해 주세요');
+      },
+    };
+
+    // ─────── 유틸 ───────
+    const pad = (n, w = 2) => String(n).padStart(w, '0');
+
+    function timeAgo(iso) {
+      if (!iso) return '';
+      const t = new Date(iso).getTime();
+      const diff = Math.max(0, Date.now() - t);
+      const m = Math.floor(diff / 60000);
+      if (m < 1)  return '방금 전';
+      if (m < 60) return `${m}분 전`;
+      const h = Math.floor(m / 60);
+      if (h < 24) return `${h}시간 전`;
+      const d = Math.floor(h / 24);
+      if (d < 7)  return `${d}일 전`;
+      const dt = new Date(iso);
+      return `${dt.getFullYear()}.${pad(dt.getMonth()+1)}.${pad(dt.getDate())}`;
+    }
+
+    function nameOf(email = '') {
+      const at = email.indexOf('@');
+      // +community 같은 namespace suffix 는 화면에서 떼고 표시
+      const local = at > 0 ? email.slice(0, at) : email;
+      const cleaned = local.replace(/\+community$/, '');
+      return cleaned || '익명';
+    }
+
+    // ─────── 토스트 ───────
+    const ToastCtx = createContext(() => {});
+    const useToast = () => useContext(ToastCtx);
+
+    function ToastProvider({ children }) {
+      const [msg, setMsg] = useState(null);
+      const timer = useRef(null);
+      const push = useCallback((text) => {
+        setMsg(text);
+        clearTimeout(timer.current);
+        timer.current = setTimeout(() => setMsg(null), 2200);
+      }, []);
+      return (
+        <ToastCtx.Provider value={push}>
+          {children}
+          {msg && <div className="toast">{msg}</div>}
+        </ToastCtx.Provider>
+      );
+    }
+
+    // ─────── Auth 화면 ───────
+    function AuthScreen() {
+      const [mode, setMode] = useState('login');
+      const [email, setEmail] = useState('');
+      const [password, setPassword] = useState('');
+      const [busy, setBusy] = useState(false);
+      const [error, setError] = useState(null);
+      const [info, setInfo] = useState(null);
+
+      // Auth 분리 — 같은 Supabase 프로젝트 공유 시 user pool 격리용
+      // 사용자가 입력한 kim@gmail.com → DB 에는 kim+community@gmail.com 로 저장
+      const APP_NS = 'community';
+      const nsEmail = (raw) => {
+        const e = raw.trim().toLowerCase();
+        const at = e.lastIndexOf('@');
+        if (at < 0) return e;
+        const local = e.slice(0, at), domain = e.slice(at + 1);
+        if (local.endsWith('+' + APP_NS)) return e;
+        return `${local}+${APP_NS}@${domain}`;
+      };
+
+      const submit = async () => {
+        setError(null); setInfo(null);
+        if (!email.trim()) { setError('이메일을 입력해 주세요.'); return; }
+        if (mode !== 'reset') {
+          if (!password) { setError('비밀번호를 입력해 주세요.'); return; }
+          if (password.length < 6) { setError('비밀번호는 6자 이상이어야 해요.'); return; }
+        }
+        setBusy(true);
+        try {
+          const e = nsEmail(email);
+          if (mode === 'signup') {
+            const { data, error } = await sb.auth.signUp({
+              email: e,
+              password,
+              options: { emailRedirectTo: window.location.origin + '/' },
+            });
+            if (error) throw error;
+            if (!data.session) {
+              setInfo('가입 메일을 확인해 주세요. 인증이 끝나면 로그인할 수 있어요.');
+            }
+          } else if (mode === 'reset') {
+            const { error } = await sb.auth.resetPasswordForEmail(e, {
+              redirectTo: window.location.origin + '/',
+            });
+            if (error) throw error;
+            setInfo('재설정 링크를 메일로 보냈어요. 메일을 확인해 주세요.');
+          } else {
+            const { error } = await sb.auth.signInWithPassword({ email: e, password });
+            if (error) throw error;
+          }
+        } catch (err) {
+          setError(err.message || '요청 실패');
+        } finally {
+          setBusy(false);
+        }
+      };
+
+      return (
+        <main className="max-w-md mx-auto px-6 py-16 fade-in">
+          <div className="text-xs tracking-[0.22em] text-sub uppercase">Sign in · Sign up</div>
+          <h1 className="display mt-4 text-4xl sm:text-5xl leading-[1.0]">
+            먼저, 당신의<br/>이름을 알려주세요
+          </h1>
+          <p className="mt-5 text-[14px] text-sub leading-relaxed">
+            이메일로 가입하면 본인이 쓴 글만 수정·삭제할 수 있어요.<br/>
+            모든 글은 누구나 읽을 수 있습니다.
+          </p>
+
+          <div className="mt-8 border border-line bg-white">
+            <div className="flex hl-bottom">
+              {[
+                { key: 'login',  label: '로그인' },
+                { key: 'signup', label: '회원가입' },
+                { key: 'reset',  label: '비밀번호 찾기' },
+              ].map(t => (
+                <button
+                  key={t.key}
+                  onClick={() => { setMode(t.key); setError(null); setInfo(null); }}
+                  aria-pressed={mode === t.key}
+                  className={`flex-1 py-3 text-sm font-semibold tracking-wide transition ${
+                    mode === t.key ? 'bg-ink text-page' : 'text-sub hover:text-ink'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="p-5 space-y-3">
+              <div>
+                <label className="block text-[11px] tracking-wider uppercase text-sub mb-1.5">Email</label>
+                <input
+                  className="in"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                />
+              </div>
+              {mode !== 'reset' && (
+                <div>
+                  <label className="block text-[11px] tracking-wider uppercase text-sub mb-1.5">Password</label>
+                  <input
+                    className="in"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="6자 이상"
+                    autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                    onKeyDown={(e) => e.key === 'Enter' && submit()}
+                  />
+                </div>
+              )}
+
+              {error && <div className="text-xs text-red-600">⚠ {error}</div>}
+              {info  && <div className="text-xs text-ink bg-neon px-2 py-1.5 inline-block">✦ {info}</div>}
+
+              <button
+                className="btn btn-accent w-full mt-2"
+                onClick={submit}
+                disabled={busy}
+              >
+                {busy ? '처리 중…'
+                  : mode === 'signup' ? '가입하고 시작하기 →'
+                  : mode === 'reset'  ? '재설정 메일 보내기 →'
+                  : '로그인 →'}
+              </button>
+            </div>
+          </div>
+        </main>
+      );
+    }
+
+    // ─────── Composer (글 작성) ───────
+    function Composer({ user, onCreated }) {
+      const [title, setTitle] = useState('');
+      const [content, setContent] = useState('');
+      const [saving, setSaving] = useState(false);
+      const [error, setError] = useState(null);
+      const taRef = useRef(null);
+      const toast = useToast();
+
+      const len = content.length;
+      const over = len > 2000;
+
+      const submit = async () => {
+        setError(null);
+        const t = title.trim(), c = content.trim();
+        if (!t) { setError('제목을 입력해 주세요'); return; }
+        if (!c) { setError('내용을 입력해 주세요'); return; }
+        setSaving(true);
+        try {
+          const data = await Data.insert({
+            title: t,
+            content: c,
+            user_id: user.id,
+            author_email: user.email,
+          });
+          onCreated(data);
+          setTitle(''); setContent('');
+          taRef.current?.focus();
+          toast('게시했어요');
+        } catch (e) {
+          setError(e.message || '등록 실패');
+        } finally {
+          setSaving(false);
+        }
+      };
+
+      return (
+        <section id="write" className="mb-12 fade-in">
+          <div className="flex items-end justify-between mb-4">
+            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight">
+              오늘, 한 줄을 남겨보세요
+            </h2>
+            <span className="text-xs text-sub hidden sm:inline">
+              {nameOf(user.email)} 님으로 작성
+            </span>
+          </div>
+
+          <div className="border border-line bg-white">
+            <input
+              className="in border-0 border-b border-line text-base font-semibold !px-5 !py-4"
+              type="text"
+              maxLength={120}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="제목"
+              aria-label="제목"
+            />
+            <textarea
+              ref={taRef}
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="조금 더 길게 — 생각, 메모, 짧은 글… 무엇이든 좋아요."
+              rows={6}
+              className="w-full px-5 py-4 bg-transparent resize-y focus:outline-none text-[15px] leading-relaxed placeholder:text-[#b2b2ab]"
+              aria-label="내용"
+            />
+            <div className="px-5 py-3 hl-top flex items-center justify-between gap-3">
+              <div className="text-xs text-sub">
+                <span className={over ? 'text-red-600 font-semibold' : ''}>
+                  {len.toLocaleString()}
+                </span>
+                <span className="text-[#b2b2ab]"> / 2,000</span>
+              </div>
+              <div className="flex items-center gap-3">
+                {error && <span className="text-xs text-red-600">⚠ {error}</span>}
+                <button
+                  className="btn btn-accent"
+                  onClick={submit}
+                  disabled={saving || over || !content.trim() || !title.trim()}
+                >
+                  {saving ? '등록 중…' : '게시하기 →'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    // ─────── PostCard ───────
+    function PostCard({ post, index, currentUserId, onUpdated, onDeleted }) {
+      const isMine = currentUserId && post.user_id === currentUserId;
+      const [editing, setEditing] = useState(false);
+      const [title, setTitle] = useState(post.title);
+      const [content, setContent] = useState(post.content);
+      const [busy, setBusy] = useState(false);
+      const toast = useToast();
+
+      const cancel = () => {
+        setEditing(false);
+        setTitle(post.title);
+        setContent(post.content);
+      };
+
+      const save = async () => {
+        const t = title.trim(), c = content.trim();
+        if (!t || !c) { toast('빈 칸이 있어요'); return; }
+        setBusy(true);
+        try {
+          const data = await Data.update(post.id, { title: t, content: c });
+          onUpdated(data);
+          setEditing(false);
+          toast('수정했어요');
+        } catch (e) {
+          toast('수정 실패: ' + (e.message || ''));
+        } finally {
+          setBusy(false);
+        }
+      };
+
+      const remove = async () => {
+        if (!window.confirm('이 게시글을 삭제할까요? 되돌릴 수 없어요.')) return;
+        try {
+          await Data.remove(post.id);
+          onDeleted(post.id);
+          toast('삭제했어요');
+        } catch (e) {
+          toast('삭제 실패: ' + (e.message || ''));
+        }
+      };
+
+      return (
+        <article className="fade-in group relative bg-white border border-line p-5 sm:p-6 hover:border-ink transition flex flex-col">
+          <header className="flex items-center justify-between text-xs text-sub">
+            <div className="flex items-center gap-3">
+              <span className="num-mono text-[#b2b2ab]">N° {pad(index + 1, 3)}</span>
+              {isMine && (
+                <span className="inline-flex items-center gap-1 text-[10.5px] tracking-wider uppercase font-semibold text-ink">
+                  <span className="inline-block w-1.5 h-1.5 bg-neon" style={{outline:'1px solid #111'}}></span>
+                  내 글
+                </span>
+              )}
+            </div>
+            <span className="num-mono">{timeAgo(post.created_at)}</span>
+          </header>
+
+          {editing ? (
+            <div className="mt-4 space-y-2">
+              <input
+                className="in font-semibold text-base"
+                maxLength={120}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="제목"
+              />
+              <textarea
+                className="in"
+                rows={5}
+                value={content}
+                onChange={(e) => setContent(e.target.value)}
+                placeholder="내용"
+              />
+              <div className="flex justify-end gap-2 pt-1">
+                <button onClick={cancel} className="btn btn-ghost btn-sm">취소</button>
+                <button onClick={save} disabled={busy} className="btn btn-accent btn-sm">
+                  {busy ? '저장 중…' : '저장'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <h3 className="mt-3 text-lg sm:text-xl font-bold tracking-tight text-ink leading-snug">
+                {post.title}
+              </h3>
+              <p className="mt-2 whitespace-pre-wrap break-words text-[14.5px] leading-relaxed text-ink/90">
+                {post.content}
+              </p>
+            </>
+          )}
+
+          <footer className="mt-5 pt-4 hl-top flex items-center justify-between text-xs">
+            <span className="text-sub">
+              by <span className="font-semibold text-ink">{nameOf(post.author_email)}</span>
+            </span>
+            {isMine && !editing && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => setEditing(true)}
+                  className="btn btn-ghost btn-sm"
+                  aria-label="수정"
+                >
+                  수정
+                </button>
+                <button
+                  onClick={remove}
+                  className="btn btn-ghost btn-sm hover:!bg-red-600 hover:!text-white hover:!border-red-600"
+                  aria-label="삭제"
+                >
+                  삭제
+                </button>
+              </div>
+            )}
+          </footer>
+        </article>
+      );
+    }
+
+    // ─────── Board (목록) ───────
+    function Board({ user, onModeChange }) {
+      const [items, setItems]   = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [error, setError]   = useState(null);
+      const [filter, setFilter] = useState('all'); // all | mine
+
+      const fetchPosts = useCallback(async () => {
+        setLoading(true);
+        try {
+          const data = await Data.list();
+          setItems(data || []);
+          setError(null);
+          onModeChange?.(Data.mode);
+        } catch (e) {
+          setError(e.message || '불러오기 실패');
+        } finally {
+          setLoading(false);
+        }
+      }, [onModeChange]);
+
+      useEffect(() => { fetchPosts(); }, [fetchPosts]);
+
+      const handleCreated = (post) => setItems(prev => [post, ...prev]);
+      const handleUpdated = (post) => setItems(prev => prev.map(p => p.id === post.id ? post : p));
+      const handleDeleted = (id)   => setItems(prev => prev.filter(p => p.id !== id));
+
+      const visible = useMemo(() => {
+        if (filter === 'mine' && user) return items.filter(p => p.user_id === user.id);
+        return items;
+      }, [items, filter, user]);
+
+      const stats = useMemo(() => {
+        const total = items.length;
+        const mine  = user ? items.filter(p => p.user_id === user.id).length : 0;
+        return { total, mine };
+      }, [items, user]);
+
+      return (
+        <div id="feed">
+          {user && <Composer user={user} onCreated={handleCreated} />}
+
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-5 hl-bottom pb-4">
+            <div>
+              <h2 className="text-2xl font-bold tracking-tight">게시판</h2>
+              <p className="text-xs text-sub mt-1">
+                전체 <span className="num-mono font-medium text-ink">{stats.total.toLocaleString()}</span>건
+                {user && <> · 내 글 <span className="num-mono font-medium text-ink">{stats.mine.toLocaleString()}</span></>}
+              </p>
+            </div>
+            {user && (
+              <div className="flex flex-wrap gap-2 items-center">
+                <button
+                  onClick={() => setFilter('all')}
+                  aria-pressed={filter === 'all'}
+                  className="chip"
+                >
+                  전체
+                </button>
+                <button
+                  onClick={() => setFilter('mine')}
+                  aria-pressed={filter === 'mine'}
+                  className="chip"
+                >
+                  내 글만
+                  {stats.mine > 0 && <span className="num-mono opacity-70 ml-1">{stats.mine}</span>}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {error && (
+            <div className="mb-5 px-4 py-3 border border-red-300 bg-red-50 text-sm text-red-700 flex items-start gap-3">
+              <span className="shrink-0">⚠</span>
+              <span>{error}</span>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="py-16 text-center text-sm text-sub">불러오는 중…</div>
+          ) : visible.length === 0 ? (
+            <div className="py-20 text-center border border-line bg-white">
+              <div className="text-3xl font-bold tracking-tight text-ink">
+                {filter === 'mine' ? '아직 쓴 글이 없어요' : '아직 아무 글도 없어요'}
+              </div>
+              <p className="mt-3 text-sm text-sub">
+                {user ? '위 입력창에서 첫 글을 남겨보세요.' : '로그인하고 첫 글을 남겨보세요.'}
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {visible.map((p, i) => (
+                <PostCard
+                  key={p.id}
+                  post={p}
+                  index={i}
+                  currentUserId={user?.id}
+                  onUpdated={handleUpdated}
+                  onDeleted={handleDeleted}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // ─────── App ───────
+    function App() {
+      const [session, setSession] = useState(undefined); // undefined = loading
+      const [dataMode, setDataMode] = useState('unknown'); // 'live' | 'local'
+      const now = new Date();
+      const stamp = `${now.getFullYear()}.${pad(now.getMonth()+1)}.${pad(now.getDate())}`;
+
+      useEffect(() => {
+        // URL hash 가 #logout 이면 진입 즉시 모든 세션 비우고 정리
+        if (window.location.hash === '#logout') {
+          try { sb && sb.auth.signOut({ scope: 'local' }); } catch (_) {}
+          Object.keys(localStorage).forEach((k) => {
+            if (k.startsWith('sb-') || k.includes('supabase')) localStorage.removeItem(k);
+          });
+          history.replaceState(null, '', window.location.pathname);
+          window.location.reload();
+          return;
+        }
+        if (!sb) { setSession(null); return; }
+        sb.auth.getSession().then(({ data }) => setSession(data.session || null));
+        const { data: sub } = sb.auth.onAuthStateChange(async (evt, s) => {
+          setSession(s || null);
+          if (evt === 'PASSWORD_RECOVERY') {
+            const np = window.prompt('새 비밀번호를 입력해 주세요 (6자 이상)');
+            if (np && np.length >= 6) {
+              const { error } = await sb.auth.updateUser({ password: np });
+              if (error) alert('재설정 실패: ' + error.message);
+              else {
+                alert('비밀번호가 재설정됐어요. 자동으로 로그인됩니다.');
+                history.replaceState(null, '', window.location.pathname);
+              }
+            }
+          }
+        });
+        return () => sub.subscription.unsubscribe();
+      }, []);
+
+      const user = session?.user || null;
+
+      const logout = async () => {
+        try { await sb.auth.signOut({ scope: 'local' }); } catch (_) {}
+        // 강제: 어떤 이유로든 SDK signOut 이 실패해도 토큰은 반드시 제거
+        Object.keys(localStorage).forEach((k) => {
+          if (k.startsWith('sb-') || k.includes('supabase')) localStorage.removeItem(k);
+        });
+        window.location.reload();
+      };
+
+      if (!sb) {
+        return (
+          <div className="max-w-xl mx-auto p-10">
+            <h1 className="display text-3xl">환경 설정이 필요해요</h1>
+            <p className="text-sub text-sm mt-3">
+              <code>.env</code>에 <code>SUPABASE_URL</code>과 <code>SUPABASE_ANON_KEY</code>를 입력한 뒤 서버를 재시작해 주세요.
+            </p>
+          </div>
+        );
+      }
+
+      return (
+        <ToastProvider>
+          <div className="min-h-screen">
+            {/* Topbar */}
+            <div className="hl-bottom bg-page sticky top-0 z-40 backdrop-blur supports-[backdrop-filter]:bg-page/90">
+              <div className="max-w-5xl mx-auto px-6 py-3 flex items-center justify-between text-[11px] text-sub">
+                <span className="font-semibold tracking-wider text-ink">PLAZA / 광장</span>
+                <span className="hidden sm:inline">Auth · Posts · 본인 글만 수정/삭제</span>
+                <div className="flex items-center gap-3">
+                  {user ? (
+                    <>
+                      <span className="num-mono hidden sm:inline">{nameOf(user.email)}</span>
+                      <button onClick={logout} className="btn btn-ghost btn-sm">로그아웃</button>
+                    </>
+                  ) : (
+                    <span className="num-mono">{stamp}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Mode banner — local fallback일 때만 노출 */}
+            {dataMode === 'local' && (
+              <div style={{ background: '#fff3cd', borderBottom: '1px solid #f0d36a' }}>
+                <div className="max-w-5xl mx-auto px-6 py-2 text-[12px] text-ink flex items-center justify-between gap-3 flex-wrap">
+                  <span><b>임시 로컬 모드</b> — Supabase API가 깨어나는 중이라 글이 이 브라우저에만 저장돼요. 회복되면 자동으로 진짜 DB로 전환됩니다.</span>
+                  <button
+                    onClick={() => location.reload()}
+                    className="btn btn-ghost btn-sm"
+                  >다시 시도</button>
+                </div>
+              </div>
+            )}
+
+            {/* Masthead */}
+            <header className="max-w-5xl mx-auto px-6 pt-14 pb-12">
+              <div className="flex items-start justify-between flex-wrap gap-8">
+                <div className="max-w-xl">
+                  <div className="text-xs tracking-[0.22em] text-sub uppercase">
+                    Auth · Community · Posts
+                  </div>
+                  <h1 className="display mt-5 text-5xl sm:text-6xl md:text-7xl leading-[0.98]">
+                    이름이 있는<br/>
+                    한 줄의 광장
+                  </h1>
+                  <p className="mt-6 text-[15px] text-sub leading-relaxed">
+                    누구나 읽고, 가입한 사람만 씁니다.<br className="hidden sm:inline"/>
+                    내가 쓴 글만 내가 고치고, 내가 지웁니다.
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-x-10 gap-y-3 border border-line p-5 bg-white">
+                  <div>
+                    <div className="text-[10.5px] tracking-wider uppercase text-sub">Stack</div>
+                    <div className="text-sm mt-1">React · Express 5</div>
+                  </div>
+                  <div>
+                    <div className="text-[10.5px] tracking-wider uppercase text-sub">Auth</div>
+                    <div className="text-sm mt-1">Supabase · RLS</div>
+                  </div>
+                  <div>
+                    <div className="text-[10.5px] tracking-wider uppercase text-sub">Build</div>
+                    <div className="text-sm mt-1">v1 · 2026.04</div>
+                  </div>
+                  <div>
+                    <div className="text-[10.5px] tracking-wider uppercase text-sub">Access</div>
+                    <div className="text-sm mt-1">{user ? 'Signed in' : 'Public read'}</div>
+                  </div>
+                </div>
+              </div>
+            </header>
+
+            <main className="max-w-5xl mx-auto px-6 pb-16">
+              {session === undefined ? (
+                <div className="py-16 text-center text-sm text-sub">세션 확인 중…</div>
+              ) : user ? (
+                <Board user={user} onModeChange={setDataMode} />
+              ) : (
+                <>
+                  <AuthScreen />
+                  <div className="mt-12">
+                    <Board user={null} onModeChange={setDataMode} />
+                  </div>
+                </>
+              )}
+            </main>
+
+            <footer className="hl-top">
+              <div className="max-w-5xl mx-auto px-6 py-6 flex items-center justify-between text-[11px] text-sub flex-wrap gap-3">
+                <span>© PLAZA — Auth Community / 2026</span>
+                <span>로그인은 Supabase Auth, 권한은 Postgres RLS로 보호됩니다.</span>
+              </div>
+            </footer>
+          </div>
+        </ToastProvider>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

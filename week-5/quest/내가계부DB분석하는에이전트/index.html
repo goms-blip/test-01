@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>가계부 DB 분석 에이전트</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <style>
+    :root{
+      --bg:#0f1115; --panel:#161a22; --panel-2:#1b2230; --line:#262d3b;
+      --txt:#e7ecf3; --mute:#8a93a6; --accent:#6ee7b7; --accent-2:#60a5fa;
+      --user:#2563eb22; --user-border:#3b82f6;
+      --agent:#161a22; --code:#0c1018;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0; min-height:100vh; background:radial-gradient(1200px 600px at 80% -10%, #1d2540 0%, #0f1115 60%) #0f1115;
+      color:var(--txt); font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif;
+      display:grid; grid-template-columns: 320px 1fr; gap:0; min-height:100vh;
+    }
+    @media (max-width: 900px){ body{ grid-template-columns: 1fr; } aside{ display:none } }
+
+    /* ───── Sidebar ───── */
+    aside{
+      background:var(--panel); border-right:1px solid var(--line); padding:20px; overflow-y:auto;
+    }
+    .brand{ display:flex; align-items:center; gap:10px; margin-bottom:18px; }
+    .brand .logo{
+      width:36px; height:36px; border-radius:10px;
+      background:linear-gradient(135deg, var(--accent), var(--accent-2));
+      display:grid; place-items:center; color:#0f1115; font-weight:800;
+    }
+    .brand h1{ font-size:16px; margin:0; letter-spacing:-.2px }
+    .brand p{ margin:2px 0 0; color:var(--mute); font-size:12px }
+
+    .stat-card{
+      background:var(--panel-2); border:1px solid var(--line); border-radius:12px;
+      padding:14px; margin-bottom:10px;
+    }
+    .stat-card .label{ color:var(--mute); font-size:11px; letter-spacing:.04em; text-transform:uppercase; margin-bottom:6px }
+    .stat-card .value{ font-size:18px; font-weight:700 }
+    .stat-card .sub{ color:var(--mute); font-size:12px; margin-top:4px }
+
+    .section-title{ color:var(--mute); font-size:11px; letter-spacing:.06em;
+      text-transform:uppercase; margin:18px 0 8px; }
+    .quick{
+      width:100%; text-align:left; padding:10px 12px; margin-bottom:6px;
+      background:transparent; color:var(--txt); border:1px solid var(--line);
+      border-radius:10px; cursor:pointer; font-size:13px; transition:.15s;
+    }
+    .quick:hover{ border-color:var(--accent); background:#1a2330 }
+
+    .footer-note{ color:var(--mute); font-size:11px; margin-top:18px; line-height:1.5 }
+
+    /* ───── Main chat ───── */
+    main{ display:flex; flex-direction:column; height:100vh; }
+    .header{
+      padding:14px 24px; border-bottom:1px solid var(--line);
+      display:flex; align-items:center; justify-content:space-between; background:var(--bg);
+    }
+    .header .title{ font-weight:600 }
+    .header .badge{
+      font-size:11px; color:var(--accent); border:1px solid var(--accent);
+      padding:3px 8px; border-radius:999px;
+    }
+    .messages{ flex:1; overflow-y:auto; padding:24px; }
+    .msg-row{ display:flex; margin-bottom:18px; gap:10px; }
+    .msg-row.user{ justify-content:flex-end; }
+    .avatar{
+      width:30px; height:30px; border-radius:8px; flex:0 0 30px;
+      display:grid; place-items:center; font-size:12px; font-weight:700;
+    }
+    .avatar.bot{ background:linear-gradient(135deg, var(--accent), var(--accent-2)); color:#0f1115; }
+    .avatar.you{ background:#2c3344; color:#e7ecf3; }
+    .bubble{
+      max-width:780px; padding:14px 16px; border-radius:14px;
+      background:var(--agent); border:1px solid var(--line); line-height:1.6; font-size:14px;
+    }
+    .msg-row.user .bubble{ background:var(--user); border-color:var(--user-border) }
+    .bubble strong{ color:#fff }
+    .advice-box{
+      margin-top:12px; padding:12px 14px; border-radius:12px;
+      background:linear-gradient(135deg, rgba(110,231,183,.08), rgba(96,165,250,.08));
+      border:1px solid rgba(110,231,183,.25);
+      color:#dde7f3; font-size:13.5px; line-height:1.65;
+    }
+    .advice-box .label{
+      display:block; font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+      color:var(--accent); margin-bottom:4px; font-weight:700;
+    }
+    details.sql-toggle{ margin-top:10px; }
+    details.sql-toggle summary{
+      cursor:pointer; color:var(--mute); font-size:12px; user-select:none;
+      list-style:none; display:inline-block; padding:2px 0;
+    }
+    details.sql-toggle summary::-webkit-details-marker{ display:none }
+    details.sql-toggle summary:hover{ color:var(--accent) }
+    details.sql-toggle pre{
+      margin:8px 0 0; background:var(--code); border:1px solid var(--line); border-radius:10px;
+      padding:10px 12px; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px;
+      color:#cbd5e1; white-space:pre-wrap; overflow-x:auto;
+    }
+    .table-wrap{ margin-top:10px; overflow-x:auto; border:1px solid var(--line); border-radius:10px; }
+    table{ width:100%; border-collapse:collapse; font-size:12px }
+    th,td{ padding:8px 10px; border-bottom:1px solid var(--line); text-align:left; white-space:nowrap }
+    th{ color:var(--mute); font-weight:600; background:#0d1219 }
+    tr:last-child td{ border-bottom:none }
+    .chart-wrap{ margin-top:12px; background:var(--code); border:1px solid var(--line);
+      border-radius:10px; padding:10px; height:240px }
+
+    /* ───── Composer ───── */
+    .composer{
+      border-top:1px solid var(--line); padding:14px 24px; background:var(--bg);
+      display:flex; gap:8px; align-items:flex-end;
+    }
+    .composer textarea{
+      flex:1; resize:none; min-height:42px; max-height:120px; padding:10px 12px;
+      background:var(--panel-2); color:var(--txt); border:1px solid var(--line);
+      border-radius:10px; font-size:14px; font-family:inherit; outline:none;
+    }
+    .composer textarea:focus{ border-color:var(--accent) }
+    .composer button{
+      padding:10px 16px; background:linear-gradient(135deg, var(--accent), var(--accent-2));
+      color:#0f1115; border:none; border-radius:10px; font-weight:700; cursor:pointer;
+    }
+    .composer button:disabled{ opacity:.5; cursor:not-allowed }
+    .composer .hint{ font-size:11px; color:var(--mute); margin-top:6px }
+    .typing{ display:inline-block; color:var(--mute); font-style:italic; }
+  </style>
+</head>
+<body>
+  <aside>
+    <div class="brand">
+      <div class="logo">₩</div>
+      <div>
+        <h1>가계부 비서</h1>
+        <p>가계부와 함께, 생활을 들여다보다</p>
+      </div>
+    </div>
+
+    <div class="stat-card">
+      <div class="label">총 수입</div>
+      <div class="value" id="stat-income">—</div>
+      <div class="sub" id="stat-income-sub">로딩 중</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">총 지출</div>
+      <div class="value" id="stat-expense">—</div>
+      <div class="sub" id="stat-expense-sub">로딩 중</div>
+    </div>
+    <div class="stat-card">
+      <div class="label">현재 잔액</div>
+      <div class="value" id="stat-balance">—</div>
+      <div class="sub" id="stat-balance-sub">기준 2026-04-29</div>
+    </div>
+
+    <div class="section-title">추천 질문</div>
+    <button class="quick">이번 달 총 지출은 얼마야?</button>
+    <button class="quick">카테고리별 지출 분석해줘</button>
+    <button class="quick">이번 달 식비가 가장 컸던 날은?</button>
+    <button class="quick">주말이랑 주중 중 어디에 더 많이 써?</button>
+    <button class="quick">현재 속도로 쓰면 이번 달 얼마 쓸까?</button>
+    <button class="quick">100만원 예산 중 남은 금액은?</button>
+    <button class="quick">절약할 수 있는 항목 추천해줘</button>
+    <button class="quick">지난달이랑 이번 달 비교해줘</button>
+    <button class="quick">최근 5건 보여줘</button>
+
+    <div class="footer-note">
+      ⚙️ 데모 데이터: <code>data.js</code> (오프라인)<br/>
+      🔌 실제 연결: Supabase MCP →
+      <code>schema.sql</code> + <code>seed.sql</code> 실행 후
+      <code>SETUP.md</code> 참고
+    </div>
+  </aside>
+
+  <main>
+    <div class="header">
+      <div class="title">💬 가계부와 함께, 생활의 분석</div>
+      <div class="badge">DEMO · offline</div>
+    </div>
+
+    <div id="messages" class="messages"></div>
+
+    <div class="composer">
+      <textarea id="input" placeholder="예: '이번 달 식비 얼마 썼어?' 또는 '절약 추천해줘'" rows="1"></textarea>
+      <button id="send">전송</button>
+    </div>
+  </main>
+
+  <script src="data.js"></script>
+  <script src="agent.js"></script>
+  <script>
+    // ============================ UI ============================
+    const $msgs = document.getElementById('messages');
+    const $input = document.getElementById('input');
+    const $send  = document.getElementById('send');
+
+    // 좌측 통계
+    function refreshStats(){
+      const rows = window.LEDGER_SEED;
+      const inc = rows.filter(r=>r.type==='income').reduce((s,r)=>s+r.amount,0);
+      const exp = rows.filter(r=>r.type==='expense').reduce((s,r)=>s+r.amount,0);
+      document.getElementById('stat-income').textContent  = LedgerAgent.fmtKRW(inc);
+      document.getElementById('stat-expense').textContent = LedgerAgent.fmtKRW(exp);
+      document.getElementById('stat-balance').textContent = LedgerAgent.fmtKRW(inc - exp);
+      document.getElementById('stat-income-sub').textContent  = `수입 ${rows.filter(r=>r.type==='income').length}건`;
+      document.getElementById('stat-expense-sub').textContent = `지출 ${rows.filter(r=>r.type==='expense').length}건`;
+    }
+
+    // HTML escape — &, <, >, ", ' 모두 치환. innerHTML 박을 때 사용.
+    function escapeHtml(s) {
+      return String(s ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    // 마크다운(아주 단순) — **bold**, \n → <br>
+    function md(text){
+      return String(text)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\n/g, '<br/>');
+    }
+
+    function appendMessage(role, html){
+      const row = document.createElement('div');
+      row.className = 'msg-row ' + role;
+      const avatar = role === 'user'
+        ? '<div class="avatar you">YOU</div>'
+        : '<div class="avatar bot">AI</div>';
+      const bubble = `<div class="bubble">${html}</div>`;
+      row.innerHTML = role === 'user' ? bubble + avatar : avatar + bubble;
+      $msgs.appendChild(row);
+      $msgs.scrollTop = $msgs.scrollHeight;
+      return row;
+    }
+
+    function renderTable(data){
+      if (!data || !data.length) return '';
+      const cols = Object.keys(data[0]);
+      const head = cols.map(c=>`<th>${escapeHtml(c)}</th>`).join('');
+      const body = data.map(r =>
+        `<tr>${cols.map(c=>`<td>${escapeHtml(r[c])}</td>`).join('')}</tr>`
+      ).join('');
+      return `<div class="table-wrap"><table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table></div>`;
+    }
+
+    function renderResponse(res){
+      let html = md(res.text);
+      if (res.advice) {
+        html += `<div class="advice-box"><span class="label">💡 비서의 한마디</span>${md(res.advice)}</div>`;
+      }
+      if (res.table) html += renderTable(res.table);
+      if (res.chart) {
+        const id = 'chart_' + Math.random().toString(36).slice(2,8);
+        html += `<div class="chart-wrap"><canvas id="${id}"></canvas></div>`;
+        // 렌더는 다음 tick
+        setTimeout(()=>{
+          const ctx = document.getElementById(id);
+          if (!ctx) return;
+          new Chart(ctx, {
+            type: res.chart.type || 'bar',
+            data: {
+              labels: res.chart.labels,
+              datasets: [{
+                label: '금액(원)',
+                data: res.chart.values,
+                backgroundColor: 'rgba(110,231,183,0.5)',
+                borderColor: 'rgba(110,231,183,1)',
+                borderWidth: 1,
+              }]
+            },
+            options: {
+              maintainAspectRatio: false,
+              plugins: { legend: { labels:{ color:'#cbd5e1'} } },
+              scales: {
+                x: { ticks:{ color:'#cbd5e1' }, grid:{ color:'rgba(255,255,255,.05)' } },
+                y: { ticks:{ color:'#cbd5e1', callback: v=> Number(v).toLocaleString('ko-KR') },
+                     grid:{ color:'rgba(255,255,255,.05)' } }
+              }
+            }
+          });
+        }, 30);
+      }
+      if (res.sql) {
+        html += `<details class="sql-toggle"><summary>🔧 사용한 SQL 보기</summary><pre>${res.sql.replace(/</g,'&lt;')}</pre></details>`;
+      }
+      return html;
+    }
+
+    function ask(question){
+      appendMessage('user', md(question));
+      const typing = appendMessage('agent', '<span class="typing">분석 중…</span>');
+      // 인지 부하용 살짝 지연 (UX)
+      setTimeout(()=>{
+        try{
+          const res = LedgerAgent.ask(question);
+          typing.querySelector('.bubble').innerHTML = renderResponse(res);
+        }catch(e){
+          typing.querySelector('.bubble').innerHTML =
+            `<span class="pill">오류</span> 분석 중 문제가 발생했어요. 질문을 조금 다르게 해보시겠어요?<br/><code>${escapeHtml(e.message)}</code>`;
+        }
+      }, 280);
+    }
+
+    // 이벤트
+    $send.addEventListener('click', ()=>{
+      const q = $input.value.trim();
+      if (!q) return;
+      $input.value = '';
+      ask(q);
+    });
+    $input.addEventListener('keydown', e=>{
+      if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); $send.click(); }
+    });
+    document.querySelectorAll('.quick').forEach(b=>{
+      b.addEventListener('click', ()=> ask(b.textContent));
+    });
+
+    // 초기 인사
+    refreshStats();
+    appendMessage('agent', renderResponse({
+      text:
+        '안녕하세요 🪴 가계부를 같이 들여다보면서, **돈의 흐름 뒤에 있는 생활**을 짚어드리는 비서예요.\n\n' +
+        '"이번 달 어디에 많이 썼지?", "주말마다 왜 이렇게 카드값이 늘지?", "다음 달엔 뭘 조심하면 좋을까?" 같은 질문도 좋아요.\n\n' +
+        '왼쪽 추천 질문을 눌러도 되고, 아래 입력창에 평소 말투 그대로 적어주셔도 됩니다.',
+      advice:
+        '오늘은 **2026-04-29(수)**, 4월 마지막 주예요. 4월을 마무리하면서 한 달 돌아보기 → 5월 예산 세우기 흐름으로 이어가시면 좋아요. 먼저 *"이번 달 카테고리별 분석해줘"* 부터 시작해보시는 걸 추천드려요.'
+    }));
+  </script>
+</body>
+</html>

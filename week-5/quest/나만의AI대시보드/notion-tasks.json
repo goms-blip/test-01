@@ -1,0 +1,175 @@
+{
+  "source": "Notion · 주간, 월간 일정관리 DB",
+  "databaseUrl": "https://app.notion.com/p/c7a8cb04319447f78199aefd01aac44f",
+  "dataSourceId": "d97755ef-0242-4a7e-b873-d75ca9bde5d1",
+  "syncedAt": "2026-05-01T11:30:00+09:00",
+  "syncedBy": "claude-code · mcp__notion__notion-fetch (manual sync)",
+  "tasks": [
+    {
+      "id": "34d280a7-bc7d-80aa-89d0-f948cfd079f2",
+      "title": "현장답사",
+      "category": "업무",
+      "status": "완료",
+      "location": "웨스틴 서울 파르나스",
+      "memo": "실측",
+      "startUtc": "2026-04-27T00:30:00.000Z",
+      "endUtc": "2026-04-27T01:30:00.000Z",
+      "url": "https://app.notion.com/p/34d280a7bc7d80aa89d0f948cfd079f2"
+    },
+    {
+      "id": "34e280a7-bc7d-81fb-96d8-e39f308822a6",
+      "title": "sky31 답사",
+      "category": "업무",
+      "status": "완료",
+      "location": "sky31",
+      "memo": "답사",
+      "startUtc": "2026-04-27T02:00:00.000Z",
+      "endUtc": "2026-04-27T03:00:00.000Z",
+      "url": "https://app.notion.com/p/34e280a7bc7d81fb96d8e39f308822a6"
+    },
+    {
+      "id": "34e280a7-bc7d-8142-ba20-fc2f8be3f0aa",
+      "title": "폴만 이스트폴 답사",
+      "category": "업무",
+      "status": "완료",
+      "location": "폴만 이스트폴",
+      "memo": "답사",
+      "startUtc": "2026-04-27T05:00:00.000Z",
+      "endUtc": "2026-04-27T06:00:00.000Z",
+      "url": "https://app.notion.com/p/34e280a7bc7d8142ba20fc2f8be3f0aa"
+    },
+    {
+      "id": "34e280a7-bc7d-81d4-b540-fa713b825d5d",
+      "title": "GMEG 미팅",
+      "category": "업무",
+      "status": "완료",
+      "location": "GMEG 본사",
+      "memo": "행사마무리미팅",
+      "startUtc": "2026-04-28T01:00:00.000Z",
+      "endUtc": "2026-04-28T02:00:00.000Z",
+      "url": "https://app.notion.com/p/34e280a7bc7d81d4b540fa713b825d5d"
+    },
+    {
+      "id": "34e280a7-bc7d-81bb-a551-eb414f4bd5e4",
+      "title": "에픽게임즈 미팅",
+      "category": "업무",
+      "status": "완료",
+      "location": "에픽게임즈 본사",
+      "memo": "정기미팅",
+      "startUtc": "2026-04-28T05:00:00.000Z",
+      "endUtc": "2026-04-28T06:00:00.000Z",
+      "url": "https://app.notion.com/p/34e280a7bc7d81bba551eb414f4bd5e4"
+    },
+    {
+      "id": "34e280a7-bc7d-815c-b64b-f9f3a51aa296",
+      "title": "시작해요 언리얼 리허설",
+      "category": "업무",
+      "status": "완료",
+      "location": "성수동 스튜디오",
+      "memo": "",
+      "startUtc": "2026-04-29T04:00:00.000Z",
+      "endUtc": "2026-04-29T06:00:00.000Z",
+      "url": "https://app.notion.com/p/34e280a7bc7d815cb64bf9f3a51aa296"
+    },
+    {
+      "id": "34e280a7-bc7d-8182-8146-c6d6ea944468",
+      "title": "시작해요 언리얼 라이브",
+      "category": "업무",
+      "status": "완료",
+      "location": "성수동 스튜디오",
+      "memo": "",
+      "startUtc": "2026-04-30T04:00:00.000Z",
+      "endUtc": "2026-04-30T07:00:00.000Z",
+      "url": "https://app.notion.com/p/34e280a7bc7d81828146c6d6ea944468"
+    },
+    {
+      "id": "34e280a7-bc7d-8189-a464-faa6dcd542d2",
+      "title": "저녁식사",
+      "category": "약속",
+      "status": "완료",
+      "location": "성수 일미락",
+      "memo": "",
+      "startUtc": "2026-04-30T08:30:00.000Z",
+      "endUtc": null,
+      "url": "https://app.notion.com/p/34e280a7bc7d8189a464faa6dcd542d2"
+    },
+    {
+      "id": "353280a7-bc7d-81ae-b0df-e1001a314618",
+      "title": "신내동",
+      "category": "업무",
+      "status": "시작 전",
+      "location": "",
+      "memo": "",
+      "startUtc": "2026-05-03T00:00:00.000Z",
+      "endUtc": "2026-05-03T01:00:00.000Z",
+      "url": "https://app.notion.com/p/353280a7bc7d81aeb0dfe1001a314618"
+    },
+    {
+      "id": "353280a7-bc7d-81a0-b3a4-f5b3016292f4",
+      "title": "그리프 주간회의",
+      "category": "업무",
+      "status": "시작 전",
+      "location": "",
+      "memo": "",
+      "startUtc": "2026-05-04T01:30:00.000Z",
+      "endUtc": "2026-05-04T02:20:00.000Z",
+      "url": "https://app.notion.com/p/353280a7bc7d81a0b3a4f5b3016292f4"
+    },
+    {
+      "id": "353280a7-bc7d-810f-9af3-e9b9e43ec85e",
+      "title": "하남사무실 정리기간",
+      "category": "업무",
+      "status": "시작 전",
+      "location": "",
+      "memo": "",
+      "startUtc": "2026-05-06T00:00:00.000Z",
+      "endUtc": "2026-05-09T00:00:00.000Z",
+      "url": "https://app.notion.com/p/353280a7bc7d810f9af3e9b9e43ec85e",
+      "allDay": true
+    },
+    {
+      "id": "353280a7-bc7d-811a-a7a2-f8e423c59841",
+      "title": "그리프 주간 미팅",
+      "category": "업무",
+      "status": "시작 전",
+      "location": "Seoul-2nd-Unreal (Zoom 링크)",
+      "memo": "",
+      "startUtc": "2026-05-12T05:00:00.000Z",
+      "endUtc": "2026-05-12T06:00:00.000Z",
+      "url": "https://app.notion.com/p/353280a7bc7d811aa7a2f8e423c59841"
+    },
+    {
+      "id": "353280a7-bc7d-811a-aa12-d3e309eaec73",
+      "title": "월별 정산회의 (1/2)",
+      "category": "업무",
+      "status": "시작 전",
+      "location": "",
+      "memo": "",
+      "startUtc": "2026-05-14T07:00:00.000Z",
+      "endUtc": "2026-05-14T07:50:00.000Z",
+      "url": "https://app.notion.com/p/353280a7bc7d811aaa12d3e309eaec73"
+    },
+    {
+      "id": "353280a7-bc7d-815c-8263-e830198c9578",
+      "title": "교육",
+      "category": "업무",
+      "status": "시작 전",
+      "location": "",
+      "memo": "",
+      "startUtc": "2026-05-16T05:00:00.000Z",
+      "endUtc": "2026-05-16T08:00:00.000Z",
+      "url": "https://app.notion.com/p/353280a7bc7d815c8263e830198c9578"
+    },
+    {
+      "id": "353280a7-bc7d-8138-af02-e98696f87ce2",
+      "title": "월별 정산회의 (2/2)",
+      "category": "업무",
+      "status": "시작 전",
+      "location": "",
+      "memo": "",
+      "startUtc": "2026-05-28T07:00:00.000Z",
+      "endUtc": "2026-05-28T07:50:00.000Z",
+      "url": "https://app.notion.com/p/353280a7bc7d8138af02e98696f87ce2"
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "name": "community-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Auth 기반 커뮤니티 앱 — Supabase Auth + Posts CRUD (Gamma 스타일 캐릭터 UI)",
+  "scripts": {
+    "start": "node --env-file=.env server.js",
+    "dev": "node --env-file=.env --watch server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

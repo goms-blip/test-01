@@ -1,0 +1,44 @@
+{
+  "source": "Mock Supabase REST API · expenses table",
+  "tableUrl": "/rest/v1/expenses",
+  "syncedAt": "2026-05-01T00:00:00+09:00",
+  "currency": "KRW",
+  "budget": 50000,
+  "data": [
+    {
+      "id": "exp-1",
+      "category": "식비",
+      "label": "샐러드 + 닭가슴살",
+      "amount": 12500,
+      "createdAt": "2026-05-01T03:30:00.000Z"
+    },
+    {
+      "id": "exp-2",
+      "category": "교통",
+      "label": "지하철 왕복",
+      "amount": 2900,
+      "createdAt": "2026-05-01T00:10:00.000Z"
+    },
+    {
+      "id": "exp-3",
+      "category": "카페",
+      "label": "아메리카노",
+      "amount": 4500,
+      "createdAt": "2026-05-01T01:15:00.000Z"
+    },
+    {
+      "id": "exp-4",
+      "category": "식비",
+      "label": "편의점 간식",
+      "amount": 3800,
+      "createdAt": "2026-05-01T05:40:00.000Z"
+    },
+    {
+      "id": "exp-5",
+      "category": "기타",
+      "label": "사무용품",
+      "amount": 8300,
+      "createdAt": "2026-04-30T08:00:00.000Z"
+    }
+  ]
+}
