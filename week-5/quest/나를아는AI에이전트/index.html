@@ -766,6 +766,7 @@
     }
 
     function ask(question){
+      state.lastQuestion = question;
       const turn = appendTurn(question);
       const $a = turn.querySelector('.turn-a');
       setTimeout(()=>{
@@ -791,8 +792,16 @@
         ? '사용자 정체성(.md) + DB 결합'
         : '일반 LLM 모드 — 사용자 정보 없음';
     }
-    $ctxBtn.addEventListener('click', ()=>{ state.contextOn = !state.contextOn; syncToggles(); });
-    $cmpBox.addEventListener('change', e => { state.compareMode = e.target.checked; });
+    $ctxBtn.addEventListener('click', ()=>{
+      state.contextOn = !state.contextOn;
+      syncToggles();
+      // 토글 변경 시 마지막 질문을 즉시 재실행 → 새 모드의 답으로 덮어씀
+      if (state.lastQuestion) ask(state.lastQuestion);
+    });
+    $cmpBox.addEventListener('change', e => {
+      state.compareMode = e.target.checked;
+      if (state.lastQuestion) ask(state.lastQuestion);
+    });
 
     /* ============================ Wire up ============================ */
     $send.addEventListener('click', ()=>{
