@@ -438,20 +438,136 @@ ${lines.join('\n')}
   // ============================================================
   //  Router
   // ============================================================
-  function route(question) {
-    const t = question.trim();
+  // 매 호출마다 다른 답을 위해 random pick
+  const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
+  const shuffle = (arr) => {
+    const a = arr.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [a[i], a[j]] = [a[j], a[i]];
+    }
+    return a;
+  };
 
-    if (/도움말|어떻게|뭐\s*물어|help/i.test(t)) return intentHelp();
+  function intentRelax(question) {
+    const beforeOpenings = [
+      '"마음 편안한 여행지" 라면 일반적으로는 휴양지를 떠올리게 돼요.',
+      '편안한 여행이라면 일반론으로는 따뜻하고 인파 적은 곳이 답이죠.',
+      '마음을 내려놓는 여행이라면 보통 이런 곳들이 후보예요.',
+    ];
+    const beforeBuckets = shuffle([
+      '· 🇲🇻 몰디브 — 수상가옥, 관리된 휴양',
+      '· 🇮🇩 발리 우붓 — 정글·요가·스파',
+      '· 🇰🇷 제주 서귀포 — 가까움 + 자연',
+      '· 🇹🇭 코사무이 — 인파 적은 섬',
+      '· 🇯🇵 오키나와 — 청량한 바다 + 조용함',
+      '· 🇮🇹 토스카나 시골 — 와이너리·풍경',
+      '· 🇨🇭 그린델발트 — 알프스 정적',
+    ]).slice(0, 4).join('\n');
+
+    const before = {
+      text: `${pick(beforeOpenings)}\n\n${beforeBuckets}\n\n다만 사람마다 "편안하다"의 정의가 달라서, 동행자·예산·계절 알려주시면 더 좁힐 수 있어요.`,
+    };
+
+    // 컨텍스트 ON — DB의 "쉼" 카테고리 + 만족도 9+ 데이터 기반
+    const restRecords = [
+      '오타루 료칸 노천탕 9.6/10',
+      '다이이치 다키모토칸 료칸 9.8/10',
+      '홋카이도식 가이세키 9.5/10',
+      '대관령 펜션 — 시원함 7.8/10',
+    ];
+    const afterOpenings = [
+      '"마음 편안" 이라는 단어를 데이터에 비춰보면 답이 정해져 있어요.',
+      '본인 데이터에서 "쉼" 카테고리 만족도가 압도적인 곳이 있어요.',
+      '편안함의 정의를 본인 기록으로 바꿔보면 명확해져요.',
+    ];
+    const afterClosings = [
+      '결국 \"늘 편안한 곳\"은 한 곳입니다 — **홋카이도 료칸형 여행**. 노보리베츠/오타루/유후인 모두 같은 패턴으로 9.5↑ 나올 거예요.',
+      '결론: 본인에게 \"편안\"은 = **료칸 + 노천탕 + 가이세키 + 인파 없는 골목**. 홋카이도가 가장 정직한 답이에요.',
+      '\"편안\"의 좌표는 데이터상 **눈 + 료칸 + 정적**. 다음 후보는 **유후인·구로카와 온천**도 같은 패턴이라 추천드릴 만해요.',
+    ];
+
+    const after = {
+      text: `${pick(afterOpenings)}\n\n📂 **\"쉼\" 카테고리 Top 기록**:\n${shuffle(restRecords).slice(0, 3).map(s => '· ' + s).join('\n')}\n\n💡 **패턴**: 료칸 노천탕 + 고요함 + 인파 없는 골목길에서 만족도가 9.5+ 로 압도적이에요. 동남아 풀빌라(다낭 6.0) 와 비교하면 차이가 분명합니다.\n\n${pick(afterClosings)}`,
+    };
+    return { before, after };
+  }
+
+  function intentCompanion(question) {
+    const t = question || '';
+    let label = '커플';
+    let beforeRec = '';
+    if (/가족|부모|아이|자녀|아기|애기/i.test(t)) {
+      label = '가족';
+      beforeRec = '· 🇯🇵 일본 오사카·교토 (아이 친화 + 음식 안전)\n· 🇰🇷 제주도 (직항 짧고 동선 쉬움)\n· 🇸🇬 싱가포르 (영어·치안·테마파크)\n· 🇹🇭 푸켓 리조트 (수영장 종일)';
+    } else if (/친구|동료/i.test(t)) {
+      label = '친구';
+      beforeRec = '· 🇹🇼 대만 타이베이 (가성비 + 야시장)\n· 🇯🇵 후쿠오카 (단거리 + 라멘·이자카야)\n· 🇻🇳 호이안·다낭 (저렴 + 액티비티)\n· 🇪🇸 바르셀로나 (밤문화·건축)';
+    } else if (/혼자|혼행|솔로/i.test(t)) {
+      label = '혼자';
+      beforeRec = '· 🇯🇵 교토 (혼밥·숙소 친화)\n· 🇹🇭 치앙마이 (디지털 노마드)\n· 🇮🇸 아이슬란드 (오로라·자연)\n· 🇵🇹 리스본 (친절·물가)';
+    } else {
+      label = '커플';
+      beforeRec = '· 🇮🇩 발리 (풀빌라·일몰)\n· 🇫🇷 파리 (낭만 클래식)\n· 🇲🇻 몰디브 (수상가옥)\n· 🇯🇵 교토 (료칸·정원)';
+    }
+
+    const before = {
+      text: `${label} 여행지로 일반적으로 추천되는 곳은:\n\n${beforeRec}\n\n예산·여행 시기·취향에 따라 달라지니까 좀 더 좁혀서 알려주시면 추천을 다듬을 수 있어요.`,
+    };
+
+    const after = {
+      text: `솔직히 말씀드릴게요. 컨텍스트와 DB 65건엔 **동행자 정보가 따로 기록되어 있지 않아요**. 그래서 "${label} 여행지"만 근거로 추천을 만드는 건 정확하지 않습니다.\n\n📂 **다만 당신의 패턴은 분명해요**:\n· **료칸 노천탕 9.6/10, 가이세키 9.5/10** → 휴양·고요함 선호\n· 인파 명소 회피, 럭셔리 숙소형 만족도 압도적\n· **다이이치 다키모토칸 료칸 9.8/10** — 인생 숙소 후보\n\n💡 **${label}이라면 이 패턴 그대로**:\n1. **홋카이도 노보리베츠/정선 료칸** — 9.8/10 료칸 경험을 ${label}와 공유\n2. **교토 정원·온천 료칸** — 분주한 명소는 빼고 료칸 중심\n3. (${label === '커플' || label === '친구' ? '아니라면' : '대안'}) **강원도 평창 풀빌라** — 휴양 패턴 (T03 7.5/10) 재현\n\n동행자 데이터가 있으면 더 정밀하게 답할 수 있어요. 다음 여행 기록할 때 \`동행자\` 칼럼을 추가해보세요.`,
+    };
+    return { before, after };
+  }
+
+  function intentFallback(question) {
+    const q = (question || '').trim();
+    const samples = shuffle([
+      '여지껏 다녀온 여행지 중에 가장 좋았던 곳은?',
+      '다음 여행 어디로 갈까?',
+      '이번 겨울에 어디 갈까?',
+      '교토 다시 가도 될까?',
+      '동남아 추천해줘',
+      '여태 먹은 음식 중 가장 좋았던 건?',
+      '늘 마음 편안한 여행지는?',
+      '커플이 가기 좋은 곳은?',
+    ]).slice(0, 4).map((s) => `· ${s}`).join('\n');
+
+    const beforeMessages = [
+      `\"${q}\" 에 대해 일반적으로 답을 드리기는 좀 막연해요. 여행 일반론이라면 동남아나 일본이 무난하다고 답하겠지만, 그게 진짜 도움이 되는 답은 아니죠.\n\n조금 더 구체적인 질문이면 답을 다듬어볼 수 있어요.`,
+      `\"${q}\" — 솔직히 일반 LLM 입장에선 답이 너무 광범위해요. 보통은 \"인기 여행지 TOP10\" 같은 답을 내놓겠지만, 그게 본인 취향과 맞을 확률은 반반이에요.\n\n계절·예산·동행자 같은 단서를 하나만 더 주셔도 답 품질이 확 달라져요.`,
+      `\"${q}\" 라고 물으시면 일반론은 \"개인 취향이라서 다르다\"는 답이 가장 정직해요. 의미 있는 답을 드리려면 좀 더 구체화가 필요해요.\n\n예를 들어 \"겨울에\", \"가족이랑\", \"100만원 안에서\" 같은 단서가 붙으면 답이 좁혀져요.`,
+    ];
+    const afterMessages = [
+      `📂 컨텍스트(.md) + DB 65건 기록을 훑어봤지만, 이 질문에 정확히 매칭되는 패턴을 못 찾았어요. 아무 답이나 만드는 대신 솔직히 말씀드릴게요.\n\n데이터 기반의 정밀한 답을 받으시려면 아래 중 하나를 시도해보세요:\n\n${samples}\n\n또는 위쪽 Quick Question 버튼 아무거나 누르셔도 됩니다.`,
+      `📂 컨텍스트와 65건 기록에서 이 질문 키워드와 직접 연결되는 패턴이 안 보여요. 데이터 없이 \"느낌\"으로 답을 만들면 일반 LLM과 다를 게 없어서, 이 자리에선 솔직히 모른다고 말씀드릴게요.\n\n같은 의도로 다음 질문을 시도해보세요:\n\n${samples}`,
+      `📂 본인 여행 DB에서 이 질문에 매핑되는 행동 데이터가 부족해요. 추천할 수는 있지만, 그건 컨텍스트 기반이 아니라 그냥 일반론이 돼버려요.\n\n대신 데이터가 있는 영역에선 매우 정밀한 답이 가능해요:\n\n${samples}`,
+    ];
+
+    return {
+      before: { text: pick(beforeMessages) },
+      after:  { text: pick(afterMessages) },
+    };
+  }
+
+  function route(question) {
+    const t = (question || '').trim();
+    if (!t) return intentFallback('');
+
+    if (/도움말|어떻게|뭐\s*물어|help|샘플|예시/i.test(t)) return intentHelp();
+    if (/(편안|힐링|쉬|쉴|조용|여유|마음|평온|쉼|휴양)/i.test(t)) return intentRelax(t);
+    if (/(커플|연인|부부|남친|여친|남자친구|여자친구|가족|부모|아이|자녀|아기|애기|친구|동료|혼자|혼행|솔로)/i.test(t)) return intentCompanion(t);
     if (/(다시|재방문|또\s*가|또갈)/i.test(t))   return intentRevisit(t) || intentRecommend(t);
     if (/(겨울|눈|2월|12월|1월)/i.test(t))         return intentWinter();
-    if (/(동남아|태국|베트남|발리|푸켓|보라카이)/i.test(t)) return intentSoutheastAsia();
+    if (/(동남아|태국|베트남|발리|푸켓|보라카이|다낭|호이안)/i.test(t)) return intentSoutheastAsia();
     if (/(가장|제일|최고).*(좋|행복|만족).*(여행|곳|도시|지역|국가)/i.test(t)) return intentBest();
     if (/(좋았던|좋은).*(여행|곳|도시|국가|지역)/i.test(t)) return intentBest();
-    if (/(음식|먹|맛집|식당|라멘|스시)/i.test(t)) return intentFood();
-    if (/(다음|이번|어디.*갈|추천|어디로)/i.test(t)) return intentRecommend(t);
+    if (/(음식|먹|맛집|식당|라멘|스시|라면|밥|디저트)/i.test(t)) return intentFood();
+    if (/(다음|이번|어디.*갈|추천|어디로|아무|대중|제안)/i.test(t)) return intentRecommend(t);
 
-    // 기본 — 가장 좋았던 여행지
-    return intentBest();
+    // 매칭 안 되는 질문 → 솔직한 fallback (이전엔 무조건 intentBest 로 떨어졌음)
+    return intentFallback(t);
   }
 
   // ============================================================
