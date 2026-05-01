@@ -2,27 +2,23 @@
 
 [] 잘 부탁드립니다. 
 
+### [MCP+Notion] 내 노션 AI 비서 만들기
+- 폴더안에 readme.md파일에 링크 있습니다. 
 
+### [MCP+Chrome] 관심 분야 자동 리서치 에이전트
+- 폴더안에 readme.md파일에 링크 있습니다. 
 
-## 4주차 과제물 링크 입니다. 
+### [Server+DB] 가계부 앱
 
-0.전체 통합 허브 페이지
-https://questall.vercel.app/
+### [Agent+DB] 내 가계부 DB를 분석하는 에이전트
 
-1.스킬은 별도의 외부링크 없음
-.claude/skills/recipe/SKILL.md
+### [Auth] 커뮤니티 앱
+https://communityapp-gray.vercel.app/
 
-2.냉장고 재료 기반 레시피 제작 스킬
-https://refri-ai-app.vercel.app
+### [Auth + DB] 쇼핑몰 (결제 기능제외)
+https://shoppingmall-pearl.vercel.app/
 
-3.냉장고 재료 관리
-https://refri-manager-bice.vercel.app
+### [Context+Agent+DB] 나를 아는 AI 에이전트
 
-4.익명 게시판(고민/칭찬)
-https://anonymous-board-three.vercel.app
-
-5.머니 밸런스 게임
-https://money-balance-blush.vercel.app
-
-6.익명 연봉, 지출 웹진
-https://salary-comparision.vercel.app
+### [Auth+MCP+DB+App] 나만의 AI 대시보드
+https://personal-ai-dashboard-seven.vercel.app/

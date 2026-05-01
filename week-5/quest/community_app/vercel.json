@@ -1,0 +1,11 @@
+{
+  "framework": null,
+  "buildCommand": null,
+  "installCommand": null,
+  "outputDirectory": null,
+  "rewrites": [
+    { "source": "/env.js", "destination": "/api/env" }
+  ],
+  "cleanUrls": true,
+  "trailingSlash": false
+}
