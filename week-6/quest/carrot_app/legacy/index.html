@@ -1,0 +1,938 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <title>🥕 당근마켓 클론</title>
+  <link rel="icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><text y='52' font-size='52'>🥕</text></svg>" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    :root {
+      --carrot: #ff7e36;
+      --carrot-dark: #f96b1a;
+      --carrot-soft: #fff3ec;
+      --ink: #111827;
+      --ink-2: #4b5563;
+      --line: #ececec;
+      --bg: #fafafa;
+    }
+    html, body, #root { height: 100%; }
+    body {
+      background: var(--bg);
+      color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Pretendard", "Noto Sans KR", system-ui, sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    .btn-carrot { background: linear-gradient(180deg, #ff8a48 0%, var(--carrot) 100%); color: white; box-shadow: 0 1px 0 rgba(0,0,0,0.04); }
+    .btn-carrot:hover { background: var(--carrot-dark); }
+    .btn-carrot:active { transform: translateY(1px); }
+    .text-carrot { color: var(--carrot); }
+    .bg-carrot { background: var(--carrot); }
+    .bg-carrot-soft { background: var(--carrot-soft); }
+    .ring-carrot { --tw-ring-color: rgba(255, 126, 54, 0.5); }
+    .card { background: #fff; border-radius: 18px; box-shadow: 0 1px 2px rgba(17, 24, 39, 0.04), 0 4px 16px -8px rgba(17, 24, 39, 0.06); }
+    .pressable { transition: transform .08s ease, background-color .12s ease; }
+    .pressable:active { transform: scale(0.985); }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { scrollbar-width: none; }
+    .skeleton { background: linear-gradient(90deg, #eef0f2 25%, #f6f7f8 50%, #eef0f2 75%); background-size: 200% 100%; animation: skel 1.2s infinite; }
+    @keyframes skel { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    /* status badge */
+    .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; }
+    .badge-on    { background: #fff3ec; color: #c95a17; }
+    .badge-rsv   { background: #eff6ff; color: #1d4ed8; }
+    .badge-sold  { background: #f3f4f6; color: #6b7280; }
+    /* tap highlight off */
+    button, a { -webkit-tap-highlight-color: transparent; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel" data-presets="env,react">
+    const { useState, useEffect, useMemo, useRef, useCallback } = React;
+
+    // ───── 공용 유틸 ─────
+    const TOKEN_KEY = 'carrot.token';
+    const ME_KEY = 'carrot.me';
+
+    const fmtPrice = (n) => (Number(n) || 0).toLocaleString('ko-KR') + '원';
+    const fmtTime = (iso) => {
+      if (!iso) return '';
+      const d = new Date(iso);
+      const diff = (Date.now() - d.getTime()) / 1000;
+      if (diff < 60) return '방금 전';
+      if (diff < 3600) return `${Math.floor(diff/60)}분 전`;
+      if (diff < 86400) return `${Math.floor(diff/3600)}시간 전`;
+      if (diff < 86400 * 7) return `${Math.floor(diff/86400)}일 전`;
+      return d.toLocaleDateString('ko-KR');
+    };
+    const statusLabel = (s) => ({ on_sale: '판매중', reserved: '예약중', sold: '거래완료' }[s] || s);
+
+    function api(path, opts = {}) {
+      const token = localStorage.getItem(TOKEN_KEY);
+      const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+      if (token) headers.Authorization = `Bearer ${token}`;
+      if (opts.body && typeof opts.body !== 'string' && !(opts.body instanceof FormData)) {
+        opts.body = JSON.stringify(opts.body);
+      }
+      if (opts.body instanceof FormData) delete headers['Content-Type'];
+      return fetch(path, { ...opts, headers }).then(async (r) => {
+        const json = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(json.error || `HTTP ${r.status}`);
+        return json;
+      });
+    }
+
+    function useHashRoute() {
+      const [hash, setHash] = useState(window.location.hash || '#/');
+      useEffect(() => {
+        const h = () => setHash(window.location.hash || '#/');
+        window.addEventListener('hashchange', h);
+        return () => window.removeEventListener('hashchange', h);
+      }, []);
+      const route = hash.replace(/^#/, '') || '/';
+      const [pathname, search] = route.split('?');
+      const params = new URLSearchParams(search || '');
+      return { pathname, params, navigate: (to) => { window.location.hash = to.startsWith('#') ? to : `#${to}`; } };
+    }
+
+    // ───── 상위 앱 ─────
+    function App() {
+      const { pathname, params, navigate } = useHashRoute();
+      const [me, setMe] = useState(() => {
+        try { return JSON.parse(localStorage.getItem(ME_KEY) || 'null'); } catch { return null; }
+      });
+      const [meta, setMeta] = useState({ categories: [] });
+
+      useEffect(() => { api('/api/meta').then(setMeta).catch(() => {}); }, []);
+
+      // 토큰이 있는데 me 없으면 동기화
+      useEffect(() => {
+        const token = localStorage.getItem(TOKEN_KEY);
+        if (token && !me) {
+          api('/api/auth/me').then(({ user }) => {
+            setMe(user); localStorage.setItem(ME_KEY, JSON.stringify(user));
+          }).catch(() => {
+            localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(ME_KEY);
+          });
+        }
+      }, []);
+
+      const setSession = (token, user) => {
+        localStorage.setItem(TOKEN_KEY, token);
+        localStorage.setItem(ME_KEY, JSON.stringify(user));
+        setMe(user);
+      };
+      const logout = async () => {
+        try { await api('/api/auth/logout', { method: 'POST' }); } catch {}
+        localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(ME_KEY);
+        setMe(null); navigate('/login');
+      };
+
+      const requireAuth = (Page) => (props) => me ? <Page {...props} me={me} setMe={setMe} /> : <LoginPage onLogin={setSession} navigate={navigate} />;
+
+      let content;
+      if (pathname === '/' || pathname === '/home') content = <HomePage me={me} meta={meta} navigate={navigate} initialQ={params.get('q') || ''} initialCat={params.get('c') || '전체'} />;
+      else if (pathname === '/login') content = <LoginPage onLogin={setSession} navigate={navigate} />;
+      else if (pathname === '/signup') content = <SignupPage onSignup={setSession} navigate={navigate} />;
+      else if (pathname === '/post') content = requireAuth(PostPage)({ navigate, meta });
+      else if (pathname.startsWith('/product/')) content = <DetailPage id={Number(pathname.split('/')[2])} me={me} navigate={navigate} />;
+      else if (pathname === '/edit') content = requireAuth(EditPage)({ navigate, meta, id: Number(params.get('id')) });
+      else if (pathname === '/chats') content = requireAuth(ChatListPage)({ navigate });
+      else if (pathname.startsWith('/chat/')) content = requireAuth(ChatRoomPage)({ navigate, id: Number(pathname.split('/')[2]) });
+      else if (pathname === '/me') content = requireAuth(MyPage)({ navigate, logout });
+      else content = <NotFound navigate={navigate} />;
+
+      return (
+        <div className="min-h-full pb-20">
+          <TopBar me={me} navigate={navigate} />
+          <main className="max-w-3xl mx-auto px-4 pt-3">{content}</main>
+          <BottomNav navigate={navigate} pathname={pathname} me={me} />
+        </div>
+      );
+    }
+
+    // ───── 공통 컴포넌트 ─────
+    function TopBar({ me, navigate }) {
+      const region = me?.region || '';
+      return (
+        <header className="sticky top-0 z-20 backdrop-blur bg-white/90 border-b border-[color:var(--line)]">
+          <div className="max-w-3xl mx-auto px-4 h-14 flex items-center gap-2">
+            <button onClick={() => navigate('/')} className="text-xl font-extrabold tracking-tight pressable">
+              🥕 <span className="text-carrot">당근</span>
+            </button>
+            <button
+              onClick={() => navigate('/me')}
+              className="ml-1 inline-flex items-center gap-1 px-2.5 h-8 rounded-full bg-carrot-soft text-[13px] font-semibold text-carrot pressable max-w-[55%] truncate"
+              title="내 동네 변경"
+            >
+              <span className="text-[12px]">📍</span>
+              <span className="truncate">{region || '동네 설정하기'}</span>
+              <span className="opacity-60 text-[11px]">▾</span>
+            </button>
+            <div className="flex-1" />
+            {me ? (
+              <button onClick={() => navigate('/me')} className="w-9 h-9 rounded-full bg-orange-100 text-carrot font-bold flex items-center justify-center pressable">
+                {me.nickname?.[0] || '🥕'}
+              </button>
+            ) : (
+              <button onClick={() => navigate('/login')} className="text-sm font-semibold text-carrot px-3 py-1.5 rounded-full bg-carrot-soft pressable">로그인</button>
+            )}
+          </div>
+        </header>
+      );
+    }
+
+    function BottomNav({ navigate, pathname, me }) {
+      const tab = (icon, label, to, active) => (
+        <button
+          onClick={() => navigate(to)}
+          className={`flex-1 flex flex-col items-center justify-center py-2.5 pressable ${active ? 'text-carrot' : 'text-gray-400'}`}
+        >
+          <span className={`text-[20px] leading-none ${active ? 'scale-110' : ''} transition-transform`}>{icon}</span>
+          <span className={`text-[11px] mt-1 ${active ? 'font-semibold' : ''}`}>{label}</span>
+        </button>
+      );
+      const showFab = me && !pathname.startsWith('/chat/') && !pathname.startsWith('/post');
+      return (
+        <>
+          {showFab && (
+            <button
+              onClick={() => navigate('/post')}
+              className="fixed bottom-20 right-4 z-30 btn-carrot rounded-full w-14 h-14 shadow-xl text-3xl flex items-center justify-center pressable"
+              title="상품 등록"
+              style={{ boxShadow: '0 10px 22px -6px rgba(255, 126, 54, 0.55)' }}
+            >＋</button>
+          )}
+          <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur border-t border-[color:var(--line)] z-20" style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
+            <div className="max-w-3xl mx-auto flex">
+              {tab('🏠', '홈', '/', pathname === '/' || pathname === '/home')}
+              {tab('💬', '채팅', '/chats', pathname.startsWith('/chat'))}
+              {tab('👤', '나의 당근', '/me', pathname === '/me')}
+            </div>
+          </nav>
+        </>
+      );
+    }
+
+    // ───── 인증 ─────
+    function LoginPage({ onLogin, navigate }) {
+      const [email, setEmail] = useState('alice@test.com');
+      const [password, setPassword] = useState('1234');
+      const [err, setErr] = useState('');
+      const submit = async (e) => {
+        e.preventDefault(); setErr('');
+        try {
+          const { token, user } = await api('/api/auth/login', { method: 'POST', body: { email, password } });
+          onLogin(token, user); navigate('/');
+        } catch (e) { setErr(e.message); }
+      };
+      return (
+        <div className="mt-8 card p-7">
+          <div className="text-5xl mb-3 text-center">🥕</div>
+          <h1 className="text-2xl font-extrabold tracking-tight text-center">당근에 오신 걸 환영해요</h1>
+          <p className="text-sm text-gray-500 mt-1.5 mb-7 text-center">데모: alice / bob / carol @test.com · pw 1234</p>
+          <form onSubmit={submit} className="space-y-2.5">
+            <input className="w-full border border-[color:var(--line)] rounded-xl px-4 py-3 focus:outline-none focus:ring-2 ring-carrot" placeholder="이메일" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <input className="w-full border border-[color:var(--line)] rounded-xl px-4 py-3 focus:outline-none focus:ring-2 ring-carrot" type="password" placeholder="비밀번호" value={password} onChange={(e) => setPassword(e.target.value)} />
+            {err && <div className="text-sm text-red-500 px-1">{err}</div>}
+            <button className="w-full btn-carrot rounded-xl py-3 font-semibold mt-1">로그인</button>
+          </form>
+          <button onClick={() => navigate('/signup')} className="w-full mt-4 text-sm text-gray-500">계정이 없으신가요? <span className="font-semibold text-carrot">회원가입</span></button>
+        </div>
+      );
+    }
+
+    function SignupPage({ onSignup, navigate }) {
+      const [form, setForm] = useState({ email: '', password: '', nickname: '', region: '' });
+      const [err, setErr] = useState('');
+      const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+      const submit = async (e) => {
+        e.preventDefault(); setErr('');
+        try {
+          const { token, user } = await api('/api/auth/signup', { method: 'POST', body: form });
+          onSignup(token, user); navigate('/');
+        } catch (e) { setErr(e.message); }
+      };
+      const detect = () => {
+        if (!navigator.geolocation) return setForm({ ...form, region: '강남구 역삼동' });
+        navigator.geolocation.getCurrentPosition(
+          () => setForm({ ...form, region: '강남구 역삼동 (위치인증)' }),
+          () => setForm({ ...form, region: '강남구 역삼동' })
+        );
+      };
+      return (
+        <div className="mt-8 card p-7">
+          <h1 className="text-2xl font-extrabold tracking-tight">회원가입</h1>
+          <p className="text-sm text-gray-500 mt-1 mb-6">동네를 설정하면 근처 이웃과 거래할 수 있어요</p>
+          <form onSubmit={submit} className="space-y-2.5">
+            <input className="w-full border border-[color:var(--line)] rounded-xl px-4 py-3 focus:outline-none focus:ring-2 ring-carrot" placeholder="이메일" value={form.email} onChange={set('email')} />
+            <input className="w-full border border-[color:var(--line)] rounded-xl px-4 py-3 focus:outline-none focus:ring-2 ring-carrot" type="password" placeholder="비밀번호" value={form.password} onChange={set('password')} />
+            <input className="w-full border border-[color:var(--line)] rounded-xl px-4 py-3 focus:outline-none focus:ring-2 ring-carrot" placeholder="닉네임" value={form.nickname} onChange={set('nickname')} />
+            <div className="flex gap-2">
+              <input className="flex-1 border border-[color:var(--line)] rounded-xl px-4 py-3 focus:outline-none focus:ring-2 ring-carrot" placeholder="동네 (예: 강남구 역삼동)" value={form.region} onChange={set('region')} />
+              <button type="button" onClick={detect} className="px-3.5 rounded-xl border border-[color:var(--line)] text-sm bg-carrot-soft text-carrot font-semibold pressable">📍 인증</button>
+            </div>
+            {err && <div className="text-sm text-red-500 px-1">{err}</div>}
+            <button className="w-full btn-carrot rounded-xl py-3 font-semibold mt-2">가입하기</button>
+          </form>
+          <button onClick={() => navigate('/login')} className="w-full mt-4 text-sm text-gray-500">이미 계정이 있나요? <span className="font-semibold text-carrot">로그인</span></button>
+        </div>
+      );
+    }
+
+    // ───── 홈 / 목록 ─────
+    function HomePage({ me, meta, navigate, initialQ, initialCat }) {
+      const [q, setQ] = useState(initialQ);
+      const [cat, setCat] = useState(initialCat);
+      // 위치 기반: 로그인 + 동네 있으면 기본 = 내 동네만
+      const [scope, setScope] = useState(() => (me?.region ? 'mine' : 'all'));
+      const [items, setItems] = useState([]);
+      const [loading, setLoading] = useState(true);
+
+      // me가 늦게 도착한 경우 scope 보정
+      useEffect(() => {
+        if (me?.region && scope === 'all' && !initialQ && !initialCat) setScope('mine');
+      }, [me?.region]);
+
+      const load = useCallback(() => {
+        setLoading(true);
+        const sp = new URLSearchParams();
+        if (q) sp.set('q', q);
+        if (cat && cat !== '전체') sp.set('category', cat);
+        if (scope === 'mine' && me?.region) {
+          // 동네에서 핵심 키워드만 추출 (예: "강남구 역삼동" → "역삼동")
+          const tokens = me.region.split(/\s+/).filter(Boolean);
+          sp.set('region', tokens[tokens.length - 1] || me.region);
+        }
+        api(`/api/products?${sp.toString()}`).then((r) => setItems(r.items)).finally(() => setLoading(false));
+      }, [q, cat, scope, me?.region]);
+
+      useEffect(() => { load(); }, [load]);
+
+      const cats = ['전체', ...(meta.categories || [])];
+
+      return (
+        <div className="pb-2">
+          <div className="sticky top-14 z-10 bg-[color:var(--bg)] -mx-4 px-4 pt-3 pb-3">
+            <div className="relative mb-2.5">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">🔍</span>
+              <input
+                className="w-full bg-white border border-[color:var(--line)] rounded-full pl-10 pr-10 py-2.5 text-sm focus:outline-none focus:ring-2 ring-carrot"
+                placeholder={me?.region ? `${me.region.split(/\s+/).slice(-1)[0]}에서 무엇을 찾으세요?` : '어떤 상품을 찾으세요?'}
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+              {q && <button onClick={() => setQ('')} className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-gray-200 text-gray-600 text-xs">×</button>}
+            </div>
+
+            {me?.region && (
+              <div className="flex gap-1.5 mb-2">
+                <button
+                  onClick={() => setScope('mine')}
+                  className={`px-3 h-8 rounded-full text-[13px] font-semibold pressable ${scope === 'mine' ? 'bg-carrot text-white' : 'bg-white border border-[color:var(--line)] text-gray-700'}`}
+                >📍 내 동네</button>
+                <button
+                  onClick={() => setScope('all')}
+                  className={`px-3 h-8 rounded-full text-[13px] font-semibold pressable ${scope === 'all' ? 'bg-carrot text-white' : 'bg-white border border-[color:var(--line)] text-gray-700'}`}
+                >전체 동네</button>
+              </div>
+            )}
+
+            <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-4 px-4">
+              {cats.map((c) => (
+                <button
+                  key={c}
+                  onClick={() => setCat(c)}
+                  className={`shrink-0 px-3.5 h-8 rounded-full text-[13px] pressable ${cat === c ? 'bg-gray-900 text-white' : 'bg-white border border-[color:var(--line)] text-gray-600'}`}
+                >{c}</button>
+              ))}
+            </div>
+          </div>
+
+          <div className="px-1 pt-1 pb-1 text-xs text-gray-400 flex items-center gap-2">
+            <span>{loading ? '...' : `${items.length}개 상품`}</span>
+            {scope === 'mine' && me?.region && <span>· 📍 {me.region}</span>}
+          </div>
+
+          {loading ? (
+            <ul className="card divide-y divide-[color:var(--line)] overflow-hidden">
+              {[0,1,2].map((i) => <li key={i} className="p-3 flex gap-3">
+                <div className="skeleton w-24 h-24 rounded-xl" />
+                <div className="flex-1 space-y-2 py-1">
+                  <div className="skeleton h-4 w-3/4 rounded" />
+                  <div className="skeleton h-3 w-1/2 rounded" />
+                  <div className="skeleton h-4 w-1/3 rounded" />
+                </div>
+              </li>)}
+            </ul>
+          ) : items.length === 0 ? (
+            <EmptyState
+              emoji="🥕"
+              title="아직 상품이 없어요"
+              desc={scope === 'mine' && me?.region ? `${me.region}에 등록된 상품이 없어요. 전체 동네를 둘러보거나 첫 상품을 올려보세요.` : '조건에 맞는 상품이 없어요'}
+              action={me ? { label: '+ 상품 등록하기', onClick: () => navigate('/post') } : null}
+              secondary={scope === 'mine' ? { label: '전체 동네 보기', onClick: () => setScope('all') } : null}
+            />
+          ) : (
+            <ul className="card divide-y divide-[color:var(--line)] overflow-hidden">
+              {items.map((p) => <ProductRow key={p.id} p={p} onClick={() => navigate(`/product/${p.id}`)} />)}
+            </ul>
+          )}
+        </div>
+      );
+    }
+
+    function ProductRow({ p, onClick }) {
+      const img = p.images?.[0];
+      return (
+        <li>
+          <button onClick={onClick} className="w-full text-left flex gap-3 p-3 hover:bg-gray-50 pressable">
+            <div className="relative w-24 h-24 rounded-xl bg-gradient-to-br from-orange-50 to-orange-100 overflow-hidden shrink-0 flex items-center justify-center text-3xl">
+              {img ? <img src={img} className="w-full h-full object-cover" /> : '🥕'}
+              {p.status === 'sold' && (
+                <div className="absolute inset-0 bg-black/55 flex items-center justify-center text-white text-xs font-semibold tracking-wide">거래완료</div>
+              )}
+              {p.status === 'reserved' && (
+                <div className="absolute top-1.5 left-1.5 badge badge-rsv">예약중</div>
+              )}
+            </div>
+            <div className="min-w-0 flex-1 py-0.5">
+              <div className="font-medium truncate text-[15px] leading-snug">{p.title}</div>
+              <div className="text-[12px] text-gray-500 mt-1 truncate">
+                <span>{p.region || '동네 미정'}</span>
+                <span className="mx-1">·</span>
+                <span>{fmtTime(p.created_at)}</span>
+              </div>
+              <div className="font-extrabold text-[15px] mt-1.5">{fmtPrice(p.price)}</div>
+              <div className="flex items-center gap-3 mt-1.5 text-[11px] text-gray-400">
+                {(p.fav_count || 0) > 0 && <span>💗 {p.fav_count}</span>}
+              </div>
+            </div>
+          </button>
+        </li>
+      );
+    }
+
+    function EmptyState({ emoji = '🥕', title, desc, action, secondary }) {
+      return (
+        <div className="card mt-3 px-6 py-12 text-center">
+          <div className="text-5xl mb-3">{emoji}</div>
+          <div className="font-bold text-lg">{title}</div>
+          {desc && <div className="text-sm text-gray-500 mt-1.5 leading-relaxed">{desc}</div>}
+          <div className="flex justify-center gap-2 mt-5">
+            {action && <button onClick={action.onClick} className="btn-carrot rounded-xl px-5 py-2.5 text-sm font-semibold">{action.label}</button>}
+            {secondary && <button onClick={secondary.onClick} className="rounded-xl px-5 py-2.5 text-sm font-semibold border border-[color:var(--line)] text-gray-700">{secondary.label}</button>}
+          </div>
+        </div>
+      );
+    }
+
+    // ───── 상품 등록 ─────
+    function PostPage({ navigate, meta, me }) {
+      return <ProductForm mode="create" navigate={navigate} meta={meta} me={me} />;
+    }
+    function EditPage({ navigate, meta, me, id }) {
+      const [initial, setInitial] = useState(null);
+      useEffect(() => {
+        api(`/api/products/${id}`).then(({ item }) => {
+          if (item.seller_id !== me.id) { alert('수정 권한이 없습니다'); navigate('/'); return; }
+          setInitial(item);
+        }).catch(() => navigate('/'));
+      }, [id]);
+      if (!initial) return <div className="py-10 text-center text-gray-400">불러오는 중…</div>;
+      return <ProductForm mode="edit" navigate={navigate} meta={meta} me={me} initial={initial} />;
+    }
+
+    function ProductForm({ mode, navigate, meta, me, initial }) {
+      const [form, setForm] = useState(() => initial || { title: '', price: '', description: '', category: meta.categories?.[0] || '디지털기기', images: [] });
+      const [busy, setBusy] = useState(false);
+      const [err, setErr] = useState('');
+      const set = (k) => (e) => setForm({ ...form, [k]: e.target.value });
+
+      const onPickFiles = async (e) => {
+        const files = Array.from(e.target.files || []).slice(0, 3 - (form.images || []).length);
+        if (!files.length) return;
+        const fd = new FormData();
+        files.forEach((f) => fd.append('images', f));
+        setBusy(true); setErr('');
+        try {
+          const { urls } = await api('/api/upload', { method: 'POST', body: fd });
+          setForm({ ...form, images: [...(form.images || []), ...urls].slice(0, 3) });
+        } catch (e) { setErr(e.message); }
+        finally { setBusy(false); e.target.value = ''; }
+      };
+      const removeImg = (i) => setForm({ ...form, images: form.images.filter((_, idx) => idx !== i) });
+
+      const submit = async (e) => {
+        e.preventDefault(); setErr('');
+        if (!form.title.trim() || form.price === '') return setErr('제목과 가격은 필수입니다.');
+        try {
+          if (mode === 'create') {
+            const { item } = await api('/api/products', { method: 'POST', body: { ...form, price: Number(form.price) } });
+            navigate(`/product/${item.id}`);
+          } else {
+            const { item } = await api(`/api/products/${initial.id}`, { method: 'PATCH', body: { ...form, price: Number(form.price) } });
+            navigate(`/product/${item.id}`);
+          }
+        } catch (e) { setErr(e.message); }
+      };
+
+      const categories = meta.categories || [];
+
+      const inputCls = "w-full border border-[color:var(--line)] rounded-xl px-4 py-3 focus:outline-none focus:ring-2 ring-carrot bg-white";
+
+      return (
+        <div className="card p-5 mt-3">
+          <h1 className="text-xl font-extrabold mb-1">{mode === 'create' ? '내 물건 팔기' : '상품 수정'}</h1>
+          <p className="text-sm text-gray-500 mb-5">사진과 정보를 정확히 적을수록 빠르게 팔려요</p>
+          <form onSubmit={submit} className="space-y-4">
+            <div className="flex gap-2 flex-wrap">
+              {(form.images?.length || 0) < 3 && (
+                <label className="w-22 h-22 w-[88px] h-[88px] rounded-2xl border-2 border-dashed border-gray-300 hover:border-carrot flex flex-col items-center justify-center text-xs text-gray-400 cursor-pointer pressable bg-gray-50">
+                  <span className="text-2xl">📷</span>
+                  <span className="mt-1 font-semibold">{(form.images?.length || 0)}<span className="text-gray-300">/3</span></span>
+                  <input type="file" accept="image/*" multiple className="hidden" onChange={onPickFiles} />
+                </label>
+              )}
+              {(form.images || []).map((src, i) => (
+                <div key={i} className="relative w-[88px] h-[88px] rounded-2xl overflow-hidden border border-[color:var(--line)]">
+                  <img src={src} className="w-full h-full object-cover" />
+                  {i === 0 && <div className="absolute bottom-0 inset-x-0 bg-black/60 text-white text-[10px] text-center py-0.5">대표</div>}
+                  <button type="button" onClick={() => removeImg(i)} className="absolute -top-1 -right-1 bg-gray-700 text-white text-xs w-5 h-5 rounded-full">×</button>
+                </div>
+              ))}
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-500">제목</label>
+              <input className={inputCls + ' mt-1'} placeholder="제목" value={form.title} onChange={set('title')} />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-500">카테고리</label>
+              <select className={inputCls + ' mt-1'} value={form.category} onChange={set('category')}>
+                {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-500">가격</label>
+              <div className="relative mt-1">
+                <input className={inputCls + ' pl-9'} placeholder="0" type="number" value={form.price} onChange={set('price')} />
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">₩</span>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-gray-500">상품 설명</label>
+              <textarea className={inputCls + ' mt-1 min-h-[160px]'} placeholder="상품 상태, 거래 방식 등을 자세히 적어주세요." value={form.description} onChange={set('description')} />
+            </div>
+            {err && <div className="text-sm text-red-500 px-1">{err}</div>}
+            <button disabled={busy} className="w-full btn-carrot rounded-xl py-3 font-semibold disabled:opacity-60">
+              {busy ? '업로드 중…' : (mode === 'create' ? '등록 완료' : '수정 완료')}
+            </button>
+          </form>
+        </div>
+      );
+    }
+
+    // ───── 상세 ─────
+    function DetailPage({ id, me, navigate }) {
+      const [item, setItem] = useState(null);
+      const [err, setErr] = useState('');
+      const [favBusy, setFavBusy] = useState(false);
+      const [favorited, setFavorited] = useState(false);
+      const [imgIdx, setImgIdx] = useState(0);
+
+      const reload = () => api(`/api/products/${id}`).then(({ item }) => setItem(item)).catch((e) => setErr(e.message));
+      useEffect(() => { reload(); }, [id]);
+      useEffect(() => {
+        if (!me) return;
+        api('/api/me/favorites').then(({ items }) => setFavorited(items.some((p) => p.id === id))).catch(() => {});
+      }, [me, id]);
+
+      if (err) return <div className="py-10 text-center text-red-500">{err}</div>;
+      if (!item) return <div className="py-10 text-center text-gray-400">불러오는 중…</div>;
+
+      const isOwner = me && me.id === item.seller_id;
+      const imgs = item.images?.length ? item.images : null;
+
+      const toggleFav = async () => {
+        if (!me) return navigate('/login');
+        setFavBusy(true);
+        try {
+          const r = await api(`/api/products/${id}/favorite`, { method: 'POST' });
+          setFavorited(r.favorited); reload();
+        } finally { setFavBusy(false); }
+      };
+      const startChat = async () => {
+        if (!me) return navigate('/login');
+        if (isOwner) return alert('본인 상품과는 채팅할 수 없어요');
+        const { room } = await api('/api/chat/rooms', { method: 'POST', body: { product_id: id } });
+        navigate(`/chat/${room.id}`);
+      };
+      const remove = async () => {
+        if (!confirm('정말 삭제할까요?')) return;
+        await api(`/api/products/${id}`, { method: 'DELETE' });
+        navigate('/');
+      };
+      const setStatus = async (status) => {
+        await api(`/api/products/${id}`, { method: 'PATCH', body: { status } });
+        reload();
+      };
+
+      const statusBadgeClass = item.status === 'reserved' ? 'badge badge-rsv' : item.status === 'sold' ? 'badge badge-sold' : 'badge badge-on';
+
+      return (
+        <div className="-mx-4 sm:mx-0 card overflow-hidden mt-2">
+          <div className="aspect-square bg-gradient-to-br from-orange-50 to-orange-100 relative flex items-center justify-center text-6xl">
+            {imgs ? (
+              <>
+                <img src={imgs[imgIdx]} className="w-full h-full object-cover" />
+                {imgs.length > 1 && (
+                  <>
+                    <button onClick={() => setImgIdx((imgIdx - 1 + imgs.length) % imgs.length)} className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/45 hover:bg-black/60 text-white w-9 h-9 rounded-full text-lg">‹</button>
+                    <button onClick={() => setImgIdx((imgIdx + 1) % imgs.length)} className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/45 hover:bg-black/60 text-white w-9 h-9 rounded-full text-lg">›</button>
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                      {imgs.map((_, i) => (
+                        <span key={i} className={`w-1.5 h-1.5 rounded-full ${i === imgIdx ? 'bg-white' : 'bg-white/50'}`} />
+                      ))}
+                    </div>
+                  </>
+                )}
+                {item.status !== 'on_sale' && (
+                  <div className="absolute inset-0 bg-black/45 flex items-center justify-center">
+                    <span className="text-white text-2xl font-bold tracking-wider">{statusLabel(item.status)}</span>
+                  </div>
+                )}
+              </>
+            ) : '🥕'}
+          </div>
+          <div className="p-5">
+            <button onClick={() => alert('판매자 프로필 (데모)')} className="flex items-center gap-3 pb-4 border-b border-[color:var(--line)] w-full">
+              <div className="w-11 h-11 rounded-full bg-orange-100 text-carrot font-bold flex items-center justify-center">{item.seller?.nickname?.[0] || '🥕'}</div>
+              <div className="text-left">
+                <div className="font-semibold">{item.seller?.nickname || '알 수 없음'}</div>
+                <div className="text-xs text-gray-500">📍 {item.seller?.region || '-'}</div>
+              </div>
+              <div className="ml-auto text-right">
+                <div className="text-[10px] text-gray-400">매너온도</div>
+                <div className="text-sm font-bold text-emerald-500">36.5°C</div>
+              </div>
+            </button>
+
+            <div className="flex items-center gap-1.5 mt-4">
+              <span className={statusBadgeClass}>{statusLabel(item.status)}</span>
+              <span className="text-[12px] text-gray-400">{item.category}</span>
+            </div>
+            <h1 className="text-[22px] font-extrabold mt-1.5 leading-snug">{item.title}</h1>
+            <div className="text-[12px] text-gray-400 mt-1">{fmtTime(item.created_at)}</div>
+            <div className="text-2xl font-extrabold mt-3">{fmtPrice(item.price)}</div>
+            <div className="mt-4 whitespace-pre-wrap text-[15px] leading-relaxed text-gray-800">{item.description || ' '}</div>
+            <div className="text-xs text-gray-400 mt-5 flex items-center gap-3">
+              <span>💗 관심 {item.fav_count || 0}</span>
+              <span>·</span>
+              <span>👀 조회 {Math.max(item.fav_count || 0, 1) * 7}</span>
+            </div>
+          </div>
+
+          <div className="sticky bottom-[60px] bg-white/95 backdrop-blur border-t border-[color:var(--line)] px-4 py-3 flex items-center gap-3" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 0.75rem)' }}>
+            <button onClick={toggleFav} disabled={favBusy} className="text-2xl pressable" title={favorited ? '관심 해제' : '관심'}>
+              {favorited ? '💖' : '🤍'}
+            </button>
+            <div className="h-7 w-px bg-gray-200" />
+            <div className="flex-1 min-w-0">
+              <div className="text-[11px] text-gray-400">{favorited ? '관심 등록됨' : '가격'}</div>
+              <div className="font-extrabold truncate">{fmtPrice(item.price)}</div>
+            </div>
+            {isOwner ? (
+              <div className="flex gap-1.5">
+                <select value={item.status} onChange={(e) => setStatus(e.target.value)} className="border border-[color:var(--line)] rounded-xl px-2 py-2 text-sm bg-white">
+                  <option value="on_sale">판매중</option>
+                  <option value="reserved">예약중</option>
+                  <option value="sold">거래완료</option>
+                </select>
+                <button onClick={() => navigate(`/edit?id=${id}`)} className="px-3 py-2 rounded-xl border border-[color:var(--line)] text-sm font-semibold">수정</button>
+                <button onClick={remove} className="px-3 py-2 rounded-xl border border-red-200 text-red-500 text-sm font-semibold">삭제</button>
+              </div>
+            ) : (
+              <button onClick={startChat} className="btn-carrot rounded-xl px-5 py-3 font-semibold">채팅하기</button>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    // ───── 채팅 목록 ─────
+    function ChatListPage({ navigate, me }) {
+      const [items, setItems] = useState([]);
+      const [loading, setLoading] = useState(true);
+      useEffect(() => {
+        api('/api/chat/rooms').then((r) => setItems(r.items)).finally(() => setLoading(false));
+      }, []);
+      if (loading) return <div className="py-10 text-center text-gray-400">불러오는 중…</div>;
+      if (!items.length) return <EmptyState emoji="💬" title="아직 채팅이 없어요" desc="상품 상세 페이지에서 '채팅하기' 버튼으로 대화를 시작해보세요" action={{ label: '상품 둘러보기', onClick: () => navigate('/') }} />;
+      return (
+        <div>
+          <h1 className="px-1 pt-3 pb-2 text-lg font-extrabold">채팅</h1>
+          <ul className="card divide-y divide-[color:var(--line)] overflow-hidden">
+            {items.map((r) => {
+              const partner = r.buyer.id === me.id ? r.seller : r.buyer;
+              return (
+                <li key={r.id}>
+                  <button onClick={() => navigate(`/chat/${r.id}`)} className="w-full flex gap-3 p-3.5 text-left hover:bg-gray-50 pressable">
+                    <div className="w-12 h-12 rounded-full bg-orange-100 text-carrot font-bold flex items-center justify-center">{partner.nickname?.[0] || '🥕'}</div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-semibold truncate">{partner.nickname}</span>
+                        <span className="text-[11px] text-gray-400">· {partner.region?.split(/\s+/).slice(-1)[0]}</span>
+                        <span className="text-[11px] text-gray-400 ml-auto pl-2">{fmtTime(r.last_at)}</span>
+                      </div>
+                      <div className="text-sm text-gray-500 truncate mt-0.5">{r.last_message || '대화를 시작해보세요'}</div>
+                    </div>
+                    {r.product?.images?.[0] ? (
+                      <img src={r.product.images[0]} className="w-12 h-12 object-cover rounded-lg" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center text-xl">🥕</div>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      );
+    }
+
+    // ───── 채팅방 (polling) ─────
+    function ChatRoomPage({ id, me, navigate }) {
+      const [room, setRoom] = useState(null);
+      const [messages, setMessages] = useState([]);
+      const [text, setText] = useState('');
+      const [err, setErr] = useState('');
+      const sinceRef = useRef(0);
+      const scrollRef = useRef(null);
+
+      const fetchMsgs = useCallback(async () => {
+        try {
+          const r = await api(`/api/chat/rooms/${id}/messages?since=${sinceRef.current}`);
+          setRoom(r.room);
+          if (r.messages.length) {
+            sinceRef.current = r.messages[r.messages.length - 1].id;
+            setMessages((prev) => [...prev, ...r.messages]);
+          }
+        } catch (e) { setErr(e.message); }
+      }, [id]);
+
+      useEffect(() => {
+        fetchMsgs();
+        const t = setInterval(fetchMsgs, 2000); // 2초 polling = 실시간 시뮬레이션
+        return () => clearInterval(t);
+      }, [fetchMsgs]);
+
+      useEffect(() => {
+        if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+      }, [messages]);
+
+      const send = async (e) => {
+        e.preventDefault();
+        const t = text.trim(); if (!t) return;
+        setText('');
+        try {
+          const { message } = await api(`/api/chat/rooms/${id}/messages`, { method: 'POST', body: { text: t } });
+          sinceRef.current = message.id;
+          setMessages((prev) => [...prev, message]);
+        } catch (e) { setErr(e.message); setText(t); }
+      };
+
+      if (err) return <div className="py-10 text-center text-red-500">{err}</div>;
+      if (!room) return <div className="py-10 text-center text-gray-400">불러오는 중…</div>;
+
+      const partner = room.buyer.id === me.id ? room.seller : room.buyer;
+
+      return (
+        <div className="flex flex-col h-[calc(100vh-9rem)] -mx-4">
+          <div className="bg-white border-b border-[color:var(--line)] px-3 py-3 flex items-center gap-3">
+            <button onClick={() => navigate('/chats')} className="text-2xl text-gray-600 pressable px-1">←</button>
+            <div className="w-9 h-9 rounded-full bg-orange-100 text-carrot font-bold flex items-center justify-center">{partner.nickname?.[0]}</div>
+            <div className="min-w-0">
+              <div className="font-semibold leading-tight">{partner.nickname}</div>
+              <div className="text-[11px] text-gray-400">📍 {partner.region}</div>
+            </div>
+            <button onClick={() => navigate(`/product/${room.product?.id}`)} className="ml-auto flex items-center gap-2 bg-gray-50 hover:bg-gray-100 rounded-xl p-1.5 pr-3 max-w-[55%] pressable">
+              {room.product?.images?.[0] ? (
+                <img src={room.product.images[0]} className="w-10 h-10 rounded-lg object-cover" />
+              ) : (
+                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-orange-50 to-orange-100 flex items-center justify-center text-lg">🥕</div>
+              )}
+              <div className="text-left min-w-0">
+                <div className="text-[12px] text-gray-500 truncate">{room.product?.title}</div>
+                <div className="text-[12px] font-bold">{fmtPrice(room.product?.price)}</div>
+              </div>
+            </button>
+          </div>
+
+          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-1.5 bg-[color:var(--bg)]">
+            {messages.map((m, i) => {
+              const mine = m.sender_id === me.id;
+              const prev = messages[i - 1];
+              const sameSender = prev && prev.sender_id === m.sender_id;
+              return (
+                <div key={m.id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[78%] px-3.5 py-2 text-[14px] leading-relaxed shadow-sm ${
+                    mine
+                      ? `bg-carrot text-white ${sameSender ? 'rounded-2xl rounded-tr-md' : 'rounded-2xl rounded-tr-sm'}`
+                      : `bg-white text-gray-900 ${sameSender ? 'rounded-2xl rounded-tl-md' : 'rounded-2xl rounded-tl-sm'}`
+                  }`}>
+                    {m.text}
+                    <div className={`text-[10px] mt-1 ${mine ? 'text-white/75' : 'text-gray-400'}`}>{fmtTime(m.created_at)}</div>
+                  </div>
+                </div>
+              );
+            })}
+            {!messages.length && (
+              <div className="text-center text-sm text-gray-400 py-12">
+                <div className="text-3xl mb-2">👋</div>
+                대화를 시작해보세요
+              </div>
+            )}
+          </div>
+
+          <form onSubmit={send} className="bg-white border-t border-[color:var(--line)] p-2.5 flex items-center gap-2">
+            <button type="button" className="w-9 h-9 rounded-full bg-gray-100 text-gray-500 text-lg pressable" title="메뉴">＋</button>
+            <input
+              className="flex-1 bg-gray-100 rounded-full px-4 py-2.5 text-sm focus:outline-none focus:ring-2 ring-carrot"
+              placeholder="메시지 보내기"
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+            />
+            <button disabled={!text.trim()} className="btn-carrot rounded-full w-9 h-9 text-sm disabled:opacity-40 flex items-center justify-center">↑</button>
+          </form>
+        </div>
+      );
+    }
+
+    // ───── 마이페이지 ─────
+    function MyPage({ me, setMe, navigate, logout }) {
+      const [tab, setTab] = useState('mine');
+      const [region, setRegion] = useState(me?.region || '');
+      const [data, setData] = useState({ mine: [], favs: [], chats: [] });
+      const [busy, setBusy] = useState(true);
+
+      const load = useCallback(async () => {
+        setBusy(true);
+        try {
+          const [a, b, c] = await Promise.all([
+            api('/api/me/products'),
+            api('/api/me/favorites'),
+            api('/api/chat/rooms'),
+          ]);
+          setData({ mine: a.items, favs: b.items, chats: c.items });
+        } finally { setBusy(false); }
+      }, []);
+      useEffect(() => { load(); }, [load]);
+
+      const saveRegion = async () => {
+        const { user } = await api('/api/auth/region', { method: 'PATCH', body: { region } });
+        setMe(user); localStorage.setItem(ME_KEY, JSON.stringify(user));
+        alert('동네가 업데이트됐습니다');
+      };
+
+      const tabs = [
+        { k: 'mine', label: `내 상품 (${data.mine.length})` },
+        { k: 'favs', label: `관심 (${data.favs.length})` },
+        { k: 'chats', label: `채팅 (${data.chats.length})` },
+      ];
+
+      return (
+        <div className="space-y-3 mt-3">
+          <div className="card p-5">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-orange-200 to-orange-400 text-white text-2xl font-bold flex items-center justify-center shadow-inner">{me.nickname?.[0]}</div>
+              <div className="flex-1 min-w-0">
+                <div className="font-extrabold text-lg">{me.nickname}</div>
+                <div className="text-xs text-gray-500 truncate">{me.email}</div>
+                <div className="mt-1 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
+                  <span>매너온도</span>
+                  <span>36.5°C</span>
+                </div>
+              </div>
+              <button onClick={logout} className="text-xs text-gray-500 px-3 py-1.5 rounded-full border border-[color:var(--line)] pressable">로그아웃</button>
+            </div>
+          </div>
+
+          <div className="card p-4">
+            <div className="text-sm font-semibold mb-2 flex items-center gap-1.5"><span>📍</span> 내 동네 설정</div>
+            <div className="flex gap-2">
+              <input className="flex-1 border border-[color:var(--line)] rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 ring-carrot" value={region} onChange={(e) => setRegion(e.target.value)} placeholder="예: 강남구 역삼동" />
+              <button onClick={saveRegion} className="btn-carrot rounded-xl px-4 py-2.5 text-sm font-semibold">저장</button>
+            </div>
+          </div>
+
+          <div className="card overflow-hidden">
+            <div className="flex border-b border-[color:var(--line)]">
+              {tabs.map((t) => (
+                <button
+                  key={t.k}
+                  onClick={() => setTab(t.k)}
+                  className={`flex-1 py-3.5 text-sm pressable ${tab === t.k ? 'text-carrot border-b-2 border-carrot font-bold' : 'text-gray-500'}`}
+                >{t.label}</button>
+              ))}
+            </div>
+            {busy ? (
+              <div className="py-10 text-center text-gray-400">불러오는 중…</div>
+            ) : tab === 'chats' ? (
+              data.chats.length === 0 ? (
+                <Empty text="진행 중인 채팅이 없어요" />
+              ) : (
+                <ul className="divide-y">
+                  {data.chats.map((r) => {
+                    const partner = r.buyer.id === me.id ? r.seller : r.buyer;
+                    return (
+                      <li key={r.id}>
+                        <button onClick={() => navigate(`/chat/${r.id}`)} className="w-full text-left p-3 hover:bg-gray-50 flex gap-3">
+                          <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">{partner.nickname?.[0]}</div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-semibold">{partner.nickname}</div>
+                            <div className="text-xs text-gray-500 truncate">{r.last_message || '대화 없음'}</div>
+                          </div>
+                          <div className="text-xs text-gray-400">{fmtTime(r.last_at)}</div>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )
+            ) : (
+              <ProductList items={tab === 'mine' ? data.mine : data.favs} navigate={navigate} emptyText={tab === 'mine' ? '등록한 상품이 없어요' : '관심 상품이 없어요'} />
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    function ProductList({ items, navigate, emptyText }) {
+      if (!items.length) return <Empty text={emptyText} />;
+      return (
+        <ul className="divide-y">
+          {items.map((p) => <ProductRow key={p.id} p={p} onClick={() => navigate(`/product/${p.id}`)} />)}
+        </ul>
+      );
+    }
+    function Empty({ text }) { return <div className="py-12 text-center text-sm text-gray-400">{text}</div>; }
+
+    function NotFound({ navigate }) {
+      return (
+        <div className="py-16 text-center">
+          <div className="text-5xl mb-3">🥕</div>
+          <div className="text-gray-500">페이지를 찾을 수 없어요</div>
+          <button onClick={() => navigate('/')} className="mt-4 btn-carrot rounded-lg px-4 py-2 text-sm">홈으로</button>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
