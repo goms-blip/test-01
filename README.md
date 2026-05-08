@@ -9,10 +9,10 @@
 - https://shoppingmall-dxhqk6ogi-384s-projects.vercel.app
 
 ### [Research] 경쟁 서비스 3곳 크롬 MCP 리서치
-- 폴더안에 있습니다. 
+- https://github.com/goms-blip/test-01/tree/main/week-6/quest/chrome_research
 
 ### [Planning] 개인 프로젝트 기획서 3종 (MISSION / DEV / AUDIENCES)
-- 폴더안에 있습니다. 
+- https://github.com/goms-blip/test-01/tree/main/week-6/quest/personal_project
 
 ### [Payment] 유료 콘텐츠 잠금 해제 미니앱
 https://miniapp-weld-six.vercel.app/#/
