@@ -6,7 +6,7 @@
 - https://week-6-quest-all.vercel.app
 
 ### [Payment+File] 쇼핑몰 완성 (이미지 + 결제 + 마이페이지)
-- https://shoppingmall-dxhqk6ogi-384s-projects.vercel.app/
+- https://shoppingmall-dxhqk6ogi-384s-projects.vercel.app
 
 ### [Research] 경쟁 서비스 3곳 크롬 MCP 리서치
 - 폴더안에 있습니다. 
@@ -18,4 +18,4 @@
 https://miniapp-weld-six.vercel.app/#/
 
 ### [Final] 당근마켓 클론
-- https://carrot-market-clone-five.vercel.app/
+https://carrot-market-clone-five.vercel.app
