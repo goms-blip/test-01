@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>이미지 업로드 테스트</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .animate-slide-in { animation: slideIn 0.25s ease-out; }
+    .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+    .dotted-grid {
+      background-image: radial-gradient(circle, #cbd5e1 1px, transparent 1px);
+      background-size: 12px 12px;
+    }
+    .dotted-grid-active {
+      background-image: radial-gradient(circle, #6366f1 1.5px, transparent 1.5px);
+      background-size: 12px 12px;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+  <div id="root"></div>
+  <script type="text/babel">
+    // ========================================
+    // React Hooks
+    // ========================================
+    const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+    // ========================================
+    // Utilities
+    // ========================================
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+    function formatFileSize(bytes) {
+      if (bytes < 1024) return `${bytes} B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+      return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+    }
+
+    function formatMime(mime) {
+      if (!mime) return 'IMAGE';
+      const sub = mime.split('/')[1] || mime;
+      return sub.toUpperCase();
+    }
+
+    function uid() {
+      return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+    }
+
+    // ========================================
+    // Design System
+    // ========================================
+    function Button({ variant = 'primary', size = 'md', disabled, onClick, className = '', children, type = 'button', ...rest }) {
+      const base = 'inline-flex items-center justify-center font-medium rounded-xl transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
+      const variants = {
+        primary: 'bg-indigo-600 text-white hover:bg-indigo-700 active:bg-indigo-800 focus:ring-indigo-500 shadow-sm',
+        secondary: 'bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 active:bg-slate-100 focus:ring-slate-300 shadow-sm',
+        danger: 'bg-rose-50 text-rose-600 border border-rose-100 hover:bg-rose-100 active:bg-rose-200 focus:ring-rose-300',
+        ghost: 'text-slate-600 hover:bg-slate-100 active:bg-slate-200 focus:ring-slate-300',
+      };
+      const sizes = {
+        sm: 'px-3 py-1.5 text-sm',
+        md: 'px-4 py-2 text-sm',
+        lg: 'px-5 py-2.5 text-base',
+      };
+      return (
+        <button type={type} disabled={disabled} onClick={onClick} className={`${base} ${variants[variant]} ${sizes[size]} ${className}`} {...rest}>
+          {children}
+        </button>
+      );
+    }
+
+    function Card({ className = '', children }) {
+      return (
+        <div className={`bg-white rounded-2xl shadow-sm border border-slate-100 ${className}`}>
+          {children}
+        </div>
+      );
+    }
+
+    function Badge({ children, variant = 'default', className = '' }) {
+      const variants = {
+        default: 'bg-slate-100 text-slate-600',
+        info: 'bg-indigo-50 text-indigo-600',
+        success: 'bg-emerald-50 text-emerald-600',
+        warning: 'bg-amber-50 text-amber-700',
+      };
+      return (
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium ${variants[variant]} ${className}`}>
+          {children}
+        </span>
+      );
+    }
+
+    function ProgressBar({ value = 0, status = 'idle' }) {
+      const colors = {
+        idle: 'bg-slate-300',
+        uploading: 'bg-indigo-500',
+        success: 'bg-emerald-500',
+        error: 'bg-rose-500',
+      };
+      return (
+        <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+          <div
+            className={`h-full ${colors[status]} transition-all duration-200 ease-out`}
+            style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
+          />
+        </div>
+      );
+    }
+
+    // ========================================
+    // Toast System
+    // ========================================
+    function Toast({ toast, onDismiss }) {
+      const styles = {
+        success: { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-800', icon: '✓' },
+        error: { bg: 'bg-rose-50', border: 'border-rose-200', text: 'text-rose-800', icon: '!' },
+        info: { bg: 'bg-indigo-50', border: 'border-indigo-200', text: 'text-indigo-800', icon: 'i' },
+      };
+      const s = styles[toast.type] || styles.info;
+      return (
+        <div className={`flex items-start gap-3 px-4 py-3 rounded-xl border shadow-sm ${s.bg} ${s.border} ${s.text} animate-slide-in min-w-[260px] max-w-md`}>
+          <div className={`flex-shrink-0 w-6 h-6 rounded-full ${s.text} bg-white/60 flex items-center justify-center text-xs font-bold`}>
+            {s.icon}
+          </div>
+          <div className="flex-1 text-sm font-medium">{toast.message}</div>
+          <button onClick={() => onDismiss(toast.id)} className="flex-shrink-0 text-slate-400 hover:text-slate-600" aria-label="닫기">
+            ×
+          </button>
+        </div>
+      );
+    }
+
+    function ToastContainer({ toasts, onDismiss }) {
+      return (
+        <div className="fixed top-4 right-4 z-50 flex flex-col gap-2" role="status" aria-live="polite">
+          {toasts.map(t => <Toast key={t.id} toast={t} onDismiss={onDismiss} />)}
+        </div>
+      );
+    }
+
+    function useToasts() {
+      const [toasts, setToasts] = useState([]);
+      const dismiss = useCallback((id) => {
+        setToasts(prev => prev.filter(t => t.id !== id));
+      }, []);
+      const push = useCallback((message, type = 'info', duration = 3200) => {
+        const id = uid();
+        setToasts(prev => [...prev, { id, message, type }]);
+        setTimeout(() => {
+          setToasts(prev => prev.filter(t => t.id !== id));
+        }, duration);
+      }, []);
+      return { toasts, push, dismiss };
+    }
+
+    // ========================================
+    // Drop Zone
+    // ========================================
+    function DropZone({ onFiles, isEmpty }) {
+      const [dragOver, setDragOver] = useState(false);
+      const inputRef = useRef(null);
+
+      const handleDragOver = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragOver(true);
+      };
+      const handleDragLeave = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragOver(false);
+      };
+      const handleDrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setDragOver(false);
+        const files = Array.from(e.dataTransfer.files || []);
+        if (files.length) onFiles(files);
+      };
+      const handleSelect = (e) => {
+        const files = Array.from(e.target.files || []);
+        if (files.length) onFiles(files);
+        e.target.value = '';
+      };
+
+      return (
+        <div
+          onDragOver={handleDragOver}
+          onDragEnter={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
+          className={`relative rounded-2xl border-2 border-dashed transition-all duration-200 ${
+            dragOver
+              ? 'border-indigo-400 bg-indigo-50/60 dotted-grid-active scale-[1.01]'
+              : 'border-slate-200 bg-white hover:border-slate-300 dotted-grid'
+          } ${isEmpty ? 'p-10 sm:p-16' : 'p-6 sm:p-8'}`}
+        >
+          <div className="flex flex-col items-center justify-center text-center gap-3">
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center transition-colors ${dragOver ? 'bg-indigo-100' : 'bg-slate-100'}`}>
+              <svg xmlns="http://www.w3.org/2000/svg" className={`w-7 h-7 ${dragOver ? 'text-indigo-600' : 'text-slate-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5V19a2 2 0 002 2h14a2 2 0 002-2v-2.5M16 6l-4-4m0 0L8 6m4-4v13" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-base sm:text-lg font-semibold text-slate-800">
+                {dragOver ? '여기에 놓아주세요' : '이미지를 끌어다 놓거나 클릭해 선택하세요'}
+              </p>
+              <p className="text-sm text-slate-500 mt-1">
+                PNG · JPG · GIF · WEBP · 최대 10MB
+              </p>
+            </div>
+            <Button variant="primary" size="md" onClick={() => inputRef.current?.click()} className="mt-2">
+              파일 선택
+            </Button>
+            <input
+              ref={inputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={handleSelect}
+              className="hidden"
+              aria-label="이미지 파일 선택"
+            />
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // Image Card
+    // ========================================
+    function ImageCard({ item, onRemove, onUpload, onCopyUrl }) {
+      const statusBadge = {
+        idle: { label: '대기', variant: 'default' },
+        uploading: { label: '업로드 중…', variant: 'info' },
+        success: { label: '완료', variant: 'success' },
+        error: { label: '오류', variant: 'warning' },
+      }[item.status] || { label: '대기', variant: 'default' };
+
+      return (
+        <Card className="overflow-hidden group animate-fade-in flex flex-col">
+          <div className="relative aspect-square bg-slate-100">
+            <img
+              src={item.url}
+              alt={item.file.name}
+              className="absolute inset-0 w-full h-full object-cover"
+              loading="lazy"
+            />
+            <button
+              onClick={() => onRemove(item.id)}
+              className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 hover:bg-black/80 text-white flex items-center justify-center text-base font-medium backdrop-blur-sm transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+              aria-label={`${item.file.name} 제거`}
+            >
+              ×
+            </button>
+            <div className="absolute bottom-2 left-2">
+              <Badge variant="default" className="bg-white/90 backdrop-blur-sm text-slate-700">
+                {formatMime(item.file.type)}
+              </Badge>
+            </div>
+            {item.status === 'error' && (
+              <div className="absolute top-2 left-2">
+                <Badge variant="warning" className="bg-rose-100 text-rose-700 border border-rose-200">
+                  업로드 실패
+                </Badge>
+              </div>
+            )}
+          </div>
+
+          <div className="p-3 flex-1 flex flex-col gap-2">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-sm font-medium text-slate-800 truncate flex-1" title={item.file.name}>
+                {item.file.name}
+              </p>
+              <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
+            </div>
+            <p className="text-xs text-slate-500">{formatFileSize(item.file.size)}</p>
+
+            <ProgressBar value={item.progress} status={item.status} />
+
+            {item.status === 'success' && item.remoteUrl && (
+              <div className="flex items-center gap-1.5 mt-1">
+                <a
+                  href={item.remoteUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-indigo-600 hover:text-indigo-700 underline truncate flex-1"
+                  title={item.remoteUrl}
+                >
+                  {item.remoteUrl}
+                </a>
+                <Button variant="secondary" size="sm" onClick={() => onCopyUrl(item.id)} className="!px-2 !py-1 text-xs">
+                  복사
+                </Button>
+              </div>
+            )}
+
+            {item.status === 'error' && item.errorMessage && (
+              <p className="text-xs text-rose-600 truncate" title={item.errorMessage}>
+                {item.errorMessage}
+              </p>
+            )}
+
+            <div className="flex gap-2 mt-1">
+              <Button
+                variant="primary"
+                size="sm"
+                className="flex-1"
+                onClick={() => onUpload(item.id)}
+                disabled={item.status === 'uploading' || item.status === 'success'}
+              >
+                {item.status === 'success' ? '업로드 완료' : item.status === 'uploading' ? '진행 중…' : item.status === 'error' ? '재시도' : '업로드'}
+              </Button>
+              <Button variant="danger" size="sm" onClick={() => onRemove(item.id)} aria-label="제거">
+                제거
+              </Button>
+            </div>
+          </div>
+        </Card>
+      );
+    }
+
+    // ========================================
+    // Empty State
+    // ========================================
+    function EmptyState() {
+      return (
+        <Card className="p-10 text-center">
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-8 h-8 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14M4 6h16a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2z" />
+            </svg>
+          </div>
+          <h3 className="text-base font-semibold text-slate-700">선택된 이미지가 없습니다</h3>
+          <p className="text-sm text-slate-500 mt-1">위 영역에서 이미지를 추가해 보세요.</p>
+        </Card>
+      );
+    }
+
+    // ========================================
+    // Upload Page
+    // ========================================
+    // ImageKit direct browser upload endpoint
+    const IMAGEKIT_UPLOAD_URL = 'https://upload.imagekit.io/api/v1/files/upload';
+
+    // Fetch fresh auth params from our server (signature/expire/token are short-lived)
+    async function fetchAuthParams() {
+      const res = await fetch('/api/imagekit/auth');
+      if (!res.ok) {
+        throw new Error('인증 정보를 가져오지 못했어요. 서버 상태를 확인해 주세요.');
+      }
+      return res.json();
+    }
+
+    // Upload a single file directly to ImageKit using XHR (so we can track real progress)
+    function uploadToImageKit({ file, auth, folder = '/uploads', onProgress }) {
+      return new Promise((resolve, reject) => {
+        const form = new FormData();
+        form.append('file', file);
+        form.append('fileName', file.name);
+        form.append('publicKey', auth.publicKey);
+        form.append('signature', auth.signature);
+        form.append('expire', String(auth.expire));
+        form.append('token', auth.token);
+        form.append('folder', folder);
+
+        const xhr = new XMLHttpRequest();
+        xhr.open('POST', IMAGEKIT_UPLOAD_URL);
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable && typeof onProgress === 'function') {
+            onProgress(Math.round((e.loaded / e.total) * 100));
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const data = JSON.parse(xhr.responseText);
+              resolve(data);
+            } catch (e) {
+              reject(new Error('서버 응답을 해석할 수 없어요.'));
+            }
+          } else {
+            let msg = '업로드에 실패했어요.';
+            try {
+              const data = JSON.parse(xhr.responseText);
+              if (data && data.message) msg = data.message;
+            } catch (e) {}
+            reject(new Error(msg));
+          }
+        };
+        xhr.onerror = () => reject(new Error('네트워크 오류로 업로드가 중단됐어요.'));
+        xhr.onabort = () => reject(new Error('업로드가 취소됐어요.'));
+
+        xhr.send(form);
+      });
+    }
+
+    function UploadPage() {
+      const [items, setItems] = useState([]);
+      const { toasts, push, dismiss } = useToasts();
+      const itemsRef = useRef(items);
+      itemsRef.current = items;
+
+      // Cache publicKey + urlEndpoint from initial auth fetch (these never change per session)
+      const [serverConfig, setServerConfig] = useState(null);
+
+      useEffect(() => {
+        let cancelled = false;
+        fetchAuthParams()
+          .then(auth => {
+            if (cancelled) return;
+            setServerConfig({ publicKey: auth.publicKey, urlEndpoint: auth.urlEndpoint });
+          })
+          .catch(err => {
+            if (cancelled) return;
+            push(err.message || '서버 설정을 불러오지 못했어요.', 'error', 4500);
+          });
+        return () => { cancelled = true; };
+      }, [push]);
+
+      // Cleanup blob URLs on unmount
+      useEffect(() => {
+        return () => {
+          itemsRef.current.forEach(it => {
+            try { URL.revokeObjectURL(it.url); } catch (e) {}
+          });
+        };
+      }, []);
+
+      const validateFile = (file) => {
+        if (!file.type || !file.type.startsWith('image/')) {
+          return '이미지 파일만 업로드할 수 있어요.';
+        }
+        if (file.size > MAX_FILE_SIZE) {
+          return `파일 크기는 최대 10MB까지 가능합니다 (${formatFileSize(file.size)}).`;
+        }
+        return null;
+      };
+
+      const handleFiles = useCallback((files) => {
+        const accepted = [];
+        const errors = [];
+        files.forEach(file => {
+          const err = validateFile(file);
+          if (err) {
+            errors.push(`${file.name}: ${err}`);
+          } else {
+            accepted.push({
+              id: uid(),
+              file,
+              url: URL.createObjectURL(file),
+              progress: 0,
+              status: 'idle',
+            });
+          }
+        });
+        if (accepted.length) {
+          setItems(prev => [...prev, ...accepted]);
+          push(`${accepted.length}개의 이미지를 추가했어요.`, 'success');
+        }
+        if (errors.length) {
+          push(errors[0], 'error', 4200);
+        }
+      }, [push]);
+
+      const handleRemove = useCallback((id) => {
+        setItems(prev => {
+          const target = prev.find(it => it.id === id);
+          if (target) {
+            try { URL.revokeObjectURL(target.url); } catch (e) {}
+          }
+          return prev.filter(it => it.id !== id);
+        });
+      }, []);
+
+      const handleClearAll = useCallback(() => {
+        setItems(prev => {
+          prev.forEach(it => {
+            try { URL.revokeObjectURL(it.url); } catch (e) {}
+          });
+          return [];
+        });
+        push('모든 이미지를 지웠어요.', 'info');
+      }, [push]);
+
+      const handleUpload = useCallback(async (id) => {
+        const target = itemsRef.current.find(it => it.id === id);
+        if (!target) return;
+        if (target.status === 'uploading' || target.status === 'success') return;
+
+        setItems(prev => prev.map(it => it.id === id ? { ...it, status: 'uploading', progress: 0, errorMessage: null } : it));
+
+        try {
+          // Each upload uses a fresh signature (they're short-lived)
+          const auth = await fetchAuthParams();
+          const result = await uploadToImageKit({
+            file: target.file,
+            auth,
+            folder: '/uploads',
+            onProgress: (pct) => {
+              setItems(prev => prev.map(it => it.id === id ? { ...it, progress: pct } : it));
+            },
+          });
+
+          setItems(prev => prev.map(it => it.id === id ? {
+            ...it,
+            status: 'success',
+            progress: 100,
+            remoteUrl: result.url,
+            fileId: result.fileId,
+          } : it));
+          push(`"${target.file.name}" 업로드 완료`, 'success');
+        } catch (err) {
+          const msg = err && err.message ? err.message : '알 수 없는 오류가 발생했어요.';
+          setItems(prev => prev.map(it => it.id === id ? {
+            ...it,
+            status: 'error',
+            errorMessage: msg,
+          } : it));
+          push(`"${target.file.name}" 업로드 실패: ${msg}`, 'error', 4500);
+        }
+      }, [push]);
+
+      const handleCopyUrl = useCallback(async (id) => {
+        const target = itemsRef.current.find(it => it.id === id);
+        if (!target || !target.remoteUrl) return;
+        try {
+          await navigator.clipboard.writeText(target.remoteUrl);
+          push('URL을 복사했어요.', 'success', 1800);
+        } catch (e) {
+          push('복사에 실패했어요. 브라우저 권한을 확인해 주세요.', 'error');
+        }
+      }, [push]);
+
+      const handleUploadAll = useCallback(() => {
+        const targets = itemsRef.current.filter(it => it.status === 'idle' || it.status === 'error');
+        if (!targets.length) {
+          push('업로드할 새 이미지가 없어요.', 'info');
+          return;
+        }
+        // Stagger slightly to avoid hammering the auth endpoint
+        targets.forEach((it, idx) => {
+          setTimeout(() => handleUpload(it.id), idx * 120);
+        });
+      }, [handleUpload, push]);
+
+      const totalSize = useMemo(
+        () => items.reduce((acc, it) => acc + it.file.size, 0),
+        [items]
+      );
+
+      return (
+        <div className="min-h-screen">
+          <ToastContainer toasts={toasts} onDismiss={dismiss} />
+
+          <header className="border-b border-slate-100 bg-white/80 backdrop-blur sticky top-0 z-10">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-500 flex items-center justify-center text-white font-bold">
+                  IM
+                </div>
+                <div>
+                  <h1 className="text-base sm:text-lg font-bold text-slate-900 leading-tight">이미지 업로드 테스트</h1>
+                  <p className="text-xs text-slate-500">드래그 앤 드롭 · 미리보기 · ImageKit 업로드</p>
+                </div>
+              </div>
+              <Badge variant="info">{items.length}개</Badge>
+            </div>
+          </header>
+
+          <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+            <DropZone onFiles={handleFiles} isEmpty={items.length === 0} />
+
+            {items.length > 0 && (
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="text-sm text-slate-600">
+                  <span className="font-semibold text-slate-800">{items.length}</span>개 선택됨
+                  <span className="mx-2 text-slate-300">·</span>
+                  총 <span className="font-semibold text-slate-800">{formatFileSize(totalSize)}</span>
+                </div>
+                <div className="flex gap-2">
+                  <Button variant="secondary" size="md" onClick={handleClearAll}>
+                    모두 지우기
+                  </Button>
+                  <Button variant="primary" size="md" onClick={handleUploadAll}>
+                    전체 업로드
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {items.length === 0 ? (
+              <EmptyState />
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+                {items.map(item => (
+                  <ImageCard
+                    key={item.id}
+                    item={item}
+                    onRemove={handleRemove}
+                    onUpload={handleUpload}
+                    onCopyUrl={handleCopyUrl}
+                  />
+                ))}
+              </div>
+            )}
+          </main>
+
+          <footer className="max-w-5xl mx-auto px-4 sm:px-6 py-8 text-center text-xs text-slate-400">
+            ImageKit 직접 업로드 · 서버 인증 후 브라우저에서 바로 전송됩니다.
+          </footer>
+        </div>
+      );
+    }
+
+    // ========================================
+    // App
+    // ========================================
+    function App() {
+      return <UploadPage />;
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

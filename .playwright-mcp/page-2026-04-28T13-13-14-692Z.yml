@@ -1,0 +1,1462 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]: ₩
+      - generic [ref=e5]:
+        - generic [ref=e6]: My Ledger
+        - generic [ref=e7]: 나만의 가계부
+    - generic [ref=e8]:
+      - generic [ref=e9]: ○ 데모 모드 (localStorage)
+      - generic [ref=e10]: 2026.04.28
+  - main [ref=e11]:
+    - generic [ref=e12]:
+      - generic [ref=e13]:
+        - generic [ref=e14]: 총 잔액
+        - generic [ref=e15]: ₩ 5,624,500
+        - generic [ref=e16]:
+          - generic [ref=e17]:
+            - generic [ref=e18]: 수입
+            - generic [ref=e19]: ₩ 10,623,400
+          - generic [ref=e20]:
+            - generic [ref=e21]: 지출
+            - generic [ref=e22]: ₩ 4,998,900
+      - generic [ref=e24]:
+        - generic [ref=e25]:
+          - heading "새 내역 추가" [level=2] [ref=e26]
+          - tablist [ref=e27]:
+            - button "지출" [ref=e28] [cursor=pointer]
+            - button "수입" [ref=e29] [cursor=pointer]
+        - generic [ref=e30]: 금액
+        - generic [ref=e31]:
+          - generic [ref=e32]: ₩
+          - textbox "0" [ref=e33]
+        - generic [ref=e34]:
+          - generic [ref=e35]:
+            - text: 날짜
+            - textbox [ref=e36]: 2026-04-28
+          - generic [ref=e37]:
+            - text: 카테고리
+            - combobox [ref=e38]:
+              - option "식비" [selected]
+              - option "교통"
+              - option "주거"
+              - option "구독료"
+              - option "보험"
+              - option "세금"
+              - option "저축"
+              - option "경조사"
+              - option "쇼핑"
+              - option "문화"
+              - option "의료"
+              - option "교육"
+              - option "기타"
+        - generic [ref=e39]:
+          - text: 메모
+          - textbox "예) 점심 김치찌개" [ref=e40]
+        - button "저장하기" [ref=e41] [cursor=pointer]
+    - generic [ref=e42]:
+      - generic [ref=e43]:
+        - generic [ref=e45]:
+          - heading "카테고리별 지출" [level=2] [ref=e46]
+          - paragraph [ref=e47]:
+            - text: SQL
+            - code [ref=e48]: GROUP BY category
+            - text: 결과
+        - list [ref=e52]:
+          - listitem [ref=e53]:
+            - generic [ref=e54]:
+              - generic [ref=e56]: 저축
+              - generic [ref=e57]: 3건
+            - generic [ref=e58]: ₩ 1,500,000
+          - listitem [ref=e59]:
+            - generic [ref=e60]:
+              - generic [ref=e62]: 식비
+              - generic [ref=e63]: 64건
+            - generic [ref=e64]: ₩ 1,032,300
+          - listitem [ref=e65]:
+            - generic [ref=e66]:
+              - generic [ref=e68]: 쇼핑
+              - generic [ref=e69]: 9건
+            - generic [ref=e70]: ₩ 573,800
+          - listitem [ref=e71]:
+            - generic [ref=e72]:
+              - generic [ref=e74]: 주거
+              - generic [ref=e75]: 3건
+            - generic [ref=e76]: ₩ 540,000
+          - listitem [ref=e77]:
+            - generic [ref=e78]:
+              - generic [ref=e80]: 보험
+              - generic [ref=e81]: 3건
+            - generic [ref=e82]: ₩ 435,000
+          - listitem [ref=e83]:
+            - generic [ref=e84]:
+              - generic [ref=e86]: 구독료
+              - generic [ref=e87]: 12건
+            - generic [ref=e88]: ₩ 179,700
+          - listitem [ref=e89]:
+            - generic [ref=e90]:
+              - generic [ref=e92]: 교통
+              - generic [ref=e93]: 30건
+            - generic [ref=e94]: ₩ 179,100
+          - listitem [ref=e95]:
+            - generic [ref=e96]:
+              - generic [ref=e98]: 세금
+              - generic [ref=e99]: 1건
+            - generic [ref=e100]: ₩ 168,000
+          - listitem [ref=e101]:
+            - generic [ref=e102]:
+              - generic [ref=e104]: 의료
+              - generic [ref=e105]: 5건
+            - generic [ref=e106]: ₩ 156,100
+          - listitem [ref=e107]:
+            - generic [ref=e108]:
+              - generic [ref=e110]: 문화
+              - generic [ref=e111]: 5건
+            - generic [ref=e112]: ₩ 141,900
+          - listitem [ref=e113]:
+            - generic [ref=e114]:
+              - generic [ref=e116]: 교육
+              - generic [ref=e117]: 2건
+            - generic [ref=e118]: ₩ 93,000
+      - generic [ref=e119]:
+        - generic [ref=e120]:
+          - heading "내역" [level=2] [ref=e121]
+          - generic [ref=e122]:
+            - button "전체" [ref=e123] [cursor=pointer]
+            - button "수입" [ref=e124] [cursor=pointer]
+            - button "지출" [ref=e125] [cursor=pointer]
+            - button "Excel" [ref=e126] [cursor=pointer]:
+              - img [ref=e127]
+              - text: Excel
+        - generic [ref=e130]:
+          - button "전체" [ref=e131] [cursor=pointer]
+          - button "2026.04" [ref=e132] [cursor=pointer]
+          - button "2026.03" [ref=e133] [cursor=pointer]
+          - button "2026.02" [ref=e134] [cursor=pointer]
+        - generic [ref=e135]:
+          - generic [ref=e136]:
+            - generic [ref=e137]:
+              - generic [ref=e138]: "2026.04"
+              - generic [ref=e139]: 52건
+            - generic [ref=e140]:
+              - generic [ref=e141]: +₩ 3,200,000
+              - generic [ref=e142]: −₩ 1,969,200
+          - generic [ref=e143]:
+            - generic [ref=e146]:
+              - generic [ref=e147]:
+                - generic [ref=e148]: 식비
+                - generic [ref=e149]: 지출
+              - generic [ref=e150]: 2026-04-28 · 샌드위치 점심
+            - generic [ref=e151]:
+              - generic [ref=e152]: − ₩ 12,300
+              - button "삭제" [ref=e153] [cursor=pointer]
+          - generic [ref=e154]:
+            - generic [ref=e157]:
+              - generic [ref=e158]:
+                - generic [ref=e159]: 식비
+                - generic [ref=e160]: 지출
+              - generic [ref=e161]: 2026-04-28 · 스타벅스 아메리카노
+            - generic [ref=e162]:
+              - generic [ref=e163]: − ₩ 24,900
+              - button "삭제" [ref=e164] [cursor=pointer]
+          - generic [ref=e165]:
+            - generic [ref=e168]:
+              - generic [ref=e169]:
+                - generic [ref=e170]: 교통
+                - generic [ref=e171]: 지출
+              - generic [ref=e172]: 2026-04-27 · 고속도로 통행료
+            - generic [ref=e173]:
+              - generic [ref=e174]: − ₩ 3,800
+              - button "삭제" [ref=e175] [cursor=pointer]
+          - generic [ref=e176]:
+            - generic [ref=e179]:
+              - generic [ref=e180]:
+                - generic [ref=e181]: 교통
+                - generic [ref=e182]: 지출
+              - generic [ref=e183]: 2026-04-27 · 따릉이 1일권
+            - generic [ref=e184]:
+              - generic [ref=e185]: − ₩ 8,100
+              - button "삭제" [ref=e186] [cursor=pointer]
+          - generic [ref=e187]:
+            - generic [ref=e190]:
+              - generic [ref=e191]:
+                - generic [ref=e192]: 교육
+                - generic [ref=e193]: 지출
+              - generic [ref=e194]: 2026-04-27 · 온라인 강의
+            - generic [ref=e195]:
+              - generic [ref=e196]: − ₩ 72,800
+              - button "삭제" [ref=e197] [cursor=pointer]
+          - generic [ref=e198]:
+            - generic [ref=e201]:
+              - generic [ref=e202]:
+                - generic [ref=e203]: 식비
+                - generic [ref=e204]: 지출
+              - generic [ref=e205]: 2026-04-26 · 카페 라떼
+            - generic [ref=e206]:
+              - generic [ref=e207]: − ₩ 17,600
+              - button "삭제" [ref=e208] [cursor=pointer]
+          - generic [ref=e209]:
+            - generic [ref=e212]:
+              - generic [ref=e213]:
+                - generic [ref=e214]: 식비
+                - generic [ref=e215]: 지출
+              - generic [ref=e216]: 2026-04-26 · 샌드위치 점심
+            - generic [ref=e217]:
+              - generic [ref=e218]: − ₩ 27,200
+              - button "삭제" [ref=e219] [cursor=pointer]
+          - generic [ref=e220]:
+            - generic [ref=e223]:
+              - generic [ref=e224]:
+                - generic [ref=e225]: 급여
+                - generic [ref=e226]: 수입
+              - generic [ref=e227]: 2026-04-25 · 4월 급여
+            - generic [ref=e228]:
+              - generic [ref=e229]: + ₩ 3,200,000
+              - button "삭제" [ref=e230] [cursor=pointer]
+          - generic [ref=e231]:
+            - generic [ref=e234]:
+              - generic [ref=e235]:
+                - generic [ref=e236]: 보험
+                - generic [ref=e237]: 지출
+              - generic [ref=e238]: 2026-04-25 · 실손/종신
+            - generic [ref=e239]:
+              - generic [ref=e240]: − ₩ 145,000
+              - button "삭제" [ref=e241] [cursor=pointer]
+          - generic [ref=e242]:
+            - generic [ref=e245]:
+              - generic [ref=e246]:
+                - generic [ref=e247]: 저축
+                - generic [ref=e248]: 지출
+              - generic [ref=e249]: 2026-04-25 · 적금 자동이체
+            - generic [ref=e250]:
+              - generic [ref=e251]: − ₩ 500,000
+              - button "삭제" [ref=e252] [cursor=pointer]
+          - generic [ref=e253]:
+            - generic [ref=e256]:
+              - generic [ref=e257]:
+                - generic [ref=e258]: 식비
+                - generic [ref=e259]: 지출
+              - generic [ref=e260]: 2026-04-24 · 김밥천국 점심
+            - generic [ref=e261]:
+              - generic [ref=e262]: − ₩ 18,700
+              - button "삭제" [ref=e263] [cursor=pointer]
+          - generic [ref=e264]:
+            - generic [ref=e267]:
+              - generic [ref=e268]:
+                - generic [ref=e269]: 식비
+                - generic [ref=e270]: 지출
+              - generic [ref=e271]: 2026-04-24 · 마트 장보기
+            - generic [ref=e272]:
+              - generic [ref=e273]: − ₩ 22,500
+              - button "삭제" [ref=e274] [cursor=pointer]
+          - generic [ref=e275]:
+            - generic [ref=e278]:
+              - generic [ref=e279]:
+                - generic [ref=e280]: 교통
+                - generic [ref=e281]: 지출
+              - generic [ref=e282]: 2026-04-24 · 택시 야근
+            - generic [ref=e283]:
+              - generic [ref=e284]: − ₩ 2,900
+              - button "삭제" [ref=e285] [cursor=pointer]
+          - generic [ref=e286]:
+            - generic [ref=e289]:
+              - generic [ref=e290]:
+                - generic [ref=e291]: 쇼핑
+                - generic [ref=e292]: 지출
+              - generic [ref=e293]: 2026-04-24 · 운동화
+            - generic [ref=e294]:
+              - generic [ref=e295]: − ₩ 145,500
+              - button "삭제" [ref=e296] [cursor=pointer]
+          - generic [ref=e297]:
+            - generic [ref=e300]:
+              - generic [ref=e301]:
+                - generic [ref=e302]: 식비
+                - generic [ref=e303]: 지출
+              - generic [ref=e304]: 2026-04-22 · 분식 떡볶이
+            - generic [ref=e305]:
+              - generic [ref=e306]: − ₩ 10,900
+              - button "삭제" [ref=e307] [cursor=pointer]
+          - generic [ref=e308]:
+            - generic [ref=e311]:
+              - generic [ref=e312]:
+                - generic [ref=e313]: 식비
+                - generic [ref=e314]: 지출
+              - generic [ref=e315]: 2026-04-22 · 샌드위치 점심
+            - generic [ref=e316]:
+              - generic [ref=e317]: − ₩ 10,700
+              - button "삭제" [ref=e318] [cursor=pointer]
+          - generic [ref=e319]:
+            - generic [ref=e322]:
+              - generic [ref=e323]:
+                - generic [ref=e324]: 교통
+                - generic [ref=e325]: 지출
+              - generic [ref=e326]: 2026-04-22 · 지하철 충전
+            - generic [ref=e327]:
+              - generic [ref=e328]: − ₩ 4,300
+              - button "삭제" [ref=e329] [cursor=pointer]
+          - generic [ref=e330]:
+            - generic [ref=e333]:
+              - generic [ref=e334]:
+                - generic [ref=e335]: 식비
+                - generic [ref=e336]: 지출
+              - generic [ref=e337]: 2026-04-21 · 파스타
+            - generic [ref=e338]:
+              - generic [ref=e339]: − ₩ 16,700
+              - button "삭제" [ref=e340] [cursor=pointer]
+          - generic [ref=e341]:
+            - generic [ref=e344]:
+              - generic [ref=e345]:
+                - generic [ref=e346]: 의료
+                - generic [ref=e347]: 지출
+              - generic [ref=e348]: 2026-04-21 · 치과 스케일링
+            - generic [ref=e349]:
+              - generic [ref=e350]: − ₩ 17,900
+              - button "삭제" [ref=e351] [cursor=pointer]
+          - generic [ref=e352]:
+            - generic [ref=e355]:
+              - generic [ref=e356]:
+                - generic [ref=e357]: 식비
+                - generic [ref=e358]: 지출
+              - generic [ref=e359]: 2026-04-19 · 스타벅스 아메리카노
+            - generic [ref=e360]:
+              - generic [ref=e361]: − ₩ 19,500
+              - button "삭제" [ref=e362] [cursor=pointer]
+          - generic [ref=e363]:
+            - generic [ref=e366]:
+              - generic [ref=e367]:
+                - generic [ref=e368]: 문화
+                - generic [ref=e369]: 지출
+              - generic [ref=e370]: 2026-04-19 · 콘서트 예매
+            - generic [ref=e371]:
+              - generic [ref=e372]: − ₩ 11,100
+              - button "삭제" [ref=e373] [cursor=pointer]
+          - generic [ref=e374]:
+            - generic [ref=e377]:
+              - generic [ref=e378]:
+                - generic [ref=e379]: 교통
+                - generic [ref=e380]: 지출
+              - generic [ref=e381]: 2026-04-18 · 택시 야근
+            - generic [ref=e382]:
+              - generic [ref=e383]: − ₩ 2,400
+              - button "삭제" [ref=e384] [cursor=pointer]
+          - generic [ref=e385]:
+            - generic [ref=e388]:
+              - generic [ref=e389]:
+                - generic [ref=e390]: 교통
+                - generic [ref=e391]: 지출
+              - generic [ref=e392]: 2026-04-18 · KTX 부산
+            - generic [ref=e393]:
+              - generic [ref=e394]: − ₩ 4,400
+              - button "삭제" [ref=e395] [cursor=pointer]
+          - generic [ref=e396]:
+            - generic [ref=e399]:
+              - generic [ref=e400]:
+                - generic [ref=e401]: 식비
+                - generic [ref=e402]: 지출
+              - generic [ref=e403]: 2026-04-17 · 회사 근처 백반
+            - generic [ref=e404]:
+              - generic [ref=e405]: − ₩ 22,300
+              - button "삭제" [ref=e406] [cursor=pointer]
+          - generic [ref=e407]:
+            - generic [ref=e410]:
+              - generic [ref=e411]:
+                - generic [ref=e412]: 식비
+                - generic [ref=e413]: 지출
+              - generic [ref=e414]: 2026-04-17 · 중국집 짜장
+            - generic [ref=e415]:
+              - generic [ref=e416]: − ₩ 25,800
+              - button "삭제" [ref=e417] [cursor=pointer]
+          - generic [ref=e418]:
+            - generic [ref=e421]:
+              - generic [ref=e422]:
+                - generic [ref=e423]: 식비
+                - generic [ref=e424]: 지출
+              - generic [ref=e425]: 2026-04-16 · 샐러드 배달
+            - generic [ref=e426]:
+              - generic [ref=e427]: − ₩ 17,100
+              - button "삭제" [ref=e428] [cursor=pointer]
+          - generic [ref=e429]:
+            - generic [ref=e432]:
+              - generic [ref=e433]:
+                - generic [ref=e434]: 식비
+                - generic [ref=e435]: 지출
+              - generic [ref=e436]: 2026-04-16 · 마트 장보기
+            - generic [ref=e437]:
+              - generic [ref=e438]: − ₩ 14,700
+              - button "삭제" [ref=e439] [cursor=pointer]
+          - generic [ref=e440]:
+            - generic [ref=e443]:
+              - generic [ref=e444]:
+                - generic [ref=e445]: 교통
+                - generic [ref=e446]: 지출
+              - generic [ref=e447]: 2026-04-15 · 지하철 충전
+            - generic [ref=e448]:
+              - generic [ref=e449]: − ₩ 1,900
+              - button "삭제" [ref=e450] [cursor=pointer]
+          - generic [ref=e451]:
+            - generic [ref=e454]:
+              - generic [ref=e455]:
+                - generic [ref=e456]: 식비
+                - generic [ref=e457]: 지출
+              - generic [ref=e458]: 2026-04-14 · 분식 떡볶이
+            - generic [ref=e459]:
+              - generic [ref=e460]: − ₩ 16,200
+              - button "삭제" [ref=e461] [cursor=pointer]
+          - generic [ref=e462]:
+            - generic [ref=e465]:
+              - generic [ref=e466]:
+                - generic [ref=e467]: 쇼핑
+                - generic [ref=e468]: 지출
+              - generic [ref=e469]: 2026-04-14 · 화장품 세트
+            - generic [ref=e470]:
+              - generic [ref=e471]: − ₩ 48,100
+              - button "삭제" [ref=e472] [cursor=pointer]
+          - generic [ref=e473]:
+            - generic [ref=e476]:
+              - generic [ref=e477]:
+                - generic [ref=e478]: 식비
+                - generic [ref=e479]: 지출
+              - generic [ref=e480]: 2026-04-12 · 카페 라떼
+            - generic [ref=e481]:
+              - generic [ref=e482]: − ₩ 10,900
+              - button "삭제" [ref=e483] [cursor=pointer]
+          - generic [ref=e484]:
+            - generic [ref=e487]:
+              - generic [ref=e488]:
+                - generic [ref=e489]: 의료
+                - generic [ref=e490]: 지출
+              - generic [ref=e491]: 2026-04-11 · 감기 진료
+            - generic [ref=e492]:
+              - generic [ref=e493]: − ₩ 47,000
+              - button "삭제" [ref=e494] [cursor=pointer]
+          - generic [ref=e495]:
+            - generic [ref=e498]:
+              - generic [ref=e499]:
+                - generic [ref=e500]: 식비
+                - generic [ref=e501]: 지출
+              - generic [ref=e502]: 2026-04-10 · 스타벅스 아메리카노
+            - generic [ref=e503]:
+              - generic [ref=e504]: − ₩ 22,300
+              - button "삭제" [ref=e505] [cursor=pointer]
+          - generic [ref=e506]:
+            - generic [ref=e509]:
+              - generic [ref=e510]:
+                - generic [ref=e511]: 교통
+                - generic [ref=e512]: 지출
+              - generic [ref=e513]: 2026-04-10 · 주유 5만원
+            - generic [ref=e514]:
+              - generic [ref=e515]: − ₩ 7,600
+              - button "삭제" [ref=e516] [cursor=pointer]
+          - generic [ref=e517]:
+            - generic [ref=e520]:
+              - generic [ref=e521]:
+                - generic [ref=e522]: 세금
+                - generic [ref=e523]: 지출
+              - generic [ref=e524]: 2026-04-10 · 자동차세
+            - generic [ref=e525]:
+              - generic [ref=e526]: − ₩ 168,000
+              - button "삭제" [ref=e527] [cursor=pointer]
+          - generic [ref=e528]:
+            - generic [ref=e531]:
+              - generic [ref=e532]:
+                - generic [ref=e533]: 식비
+                - generic [ref=e534]: 지출
+              - generic [ref=e535]: 2026-04-09 · 삼각김밥+커피
+            - generic [ref=e536]:
+              - generic [ref=e537]: − ₩ 18,600
+              - button "삭제" [ref=e538] [cursor=pointer]
+          - generic [ref=e539]:
+            - generic [ref=e542]:
+              - generic [ref=e543]:
+                - generic [ref=e544]: 식비
+                - generic [ref=e545]: 지출
+              - generic [ref=e546]: 2026-04-09 · 스타벅스 아메리카노
+            - generic [ref=e547]:
+              - generic [ref=e548]: − ₩ 20,100
+              - button "삭제" [ref=e549] [cursor=pointer]
+          - generic [ref=e550]:
+            - generic [ref=e553]:
+              - generic [ref=e554]:
+                - generic [ref=e555]: 식비
+                - generic [ref=e556]: 지출
+              - generic [ref=e557]: 2026-04-09 · 샌드위치 점심
+            - generic [ref=e558]:
+              - generic [ref=e559]: − ₩ 13,200
+              - button "삭제" [ref=e560] [cursor=pointer]
+          - generic [ref=e561]:
+            - generic [ref=e564]:
+              - generic [ref=e565]:
+                - generic [ref=e566]: 교통
+                - generic [ref=e567]: 지출
+              - generic [ref=e568]: 2026-04-09 · 주유 5만원
+            - generic [ref=e569]:
+              - generic [ref=e570]: − ₩ 2,500
+              - button "삭제" [ref=e571] [cursor=pointer]
+          - generic [ref=e572]:
+            - generic [ref=e575]:
+              - generic [ref=e576]:
+                - generic [ref=e577]: 교통
+                - generic [ref=e578]: 지출
+              - generic [ref=e579]: 2026-04-09 · 주유 5만원
+            - generic [ref=e580]:
+              - generic [ref=e581]: − ₩ 5,600
+              - button "삭제" [ref=e582] [cursor=pointer]
+          - generic [ref=e583]:
+            - generic [ref=e586]:
+              - generic [ref=e587]:
+                - generic [ref=e588]: 문화
+                - generic [ref=e589]: 지출
+              - generic [ref=e590]: 2026-04-09 · 전시 관람
+            - generic [ref=e591]:
+              - generic [ref=e592]: − ₩ 43,000
+              - button "삭제" [ref=e593] [cursor=pointer]
+          - generic [ref=e594]:
+            - generic [ref=e597]:
+              - generic [ref=e598]:
+                - generic [ref=e599]: 식비
+                - generic [ref=e600]: 지출
+              - generic [ref=e601]: 2026-04-07 · 마트 장보기
+            - generic [ref=e602]:
+              - generic [ref=e603]: − ₩ 18,200
+              - button "삭제" [ref=e604] [cursor=pointer]
+          - generic [ref=e605]:
+            - generic [ref=e608]:
+              - generic [ref=e609]:
+                - generic [ref=e610]: 문화
+                - generic [ref=e611]: 지출
+              - generic [ref=e612]: 2026-04-07 · 보드게임
+            - generic [ref=e613]:
+              - generic [ref=e614]: − ₩ 30,500
+              - button "삭제" [ref=e615] [cursor=pointer]
+          - generic [ref=e616]:
+            - generic [ref=e619]:
+              - generic [ref=e620]:
+                - generic [ref=e621]: 식비
+                - generic [ref=e622]: 지출
+              - generic [ref=e623]: 2026-04-06 · 회사 근처 백반
+            - generic [ref=e624]:
+              - generic [ref=e625]: − ₩ 12,800
+              - button "삭제" [ref=e626] [cursor=pointer]
+          - generic [ref=e627]:
+            - generic [ref=e630]:
+              - generic [ref=e631]:
+                - generic [ref=e632]: 교통
+                - generic [ref=e633]: 지출
+              - generic [ref=e634]: 2026-04-05 · 카쉐어링
+            - generic [ref=e635]:
+              - generic [ref=e636]: − ₩ 6,100
+              - button "삭제" [ref=e637] [cursor=pointer]
+          - generic [ref=e638]:
+            - generic [ref=e641]:
+              - generic [ref=e642]:
+                - generic [ref=e643]: 교통
+                - generic [ref=e644]: 지출
+              - generic [ref=e645]: 2026-04-03 · 고속도로 통행료
+            - generic [ref=e646]:
+              - generic [ref=e647]: − ₩ 2,100
+              - button "삭제" [ref=e648] [cursor=pointer]
+          - generic [ref=e649]:
+            - generic [ref=e652]:
+              - generic [ref=e653]:
+                - generic [ref=e654]: 쇼핑
+                - generic [ref=e655]: 지출
+              - generic [ref=e656]: 2026-04-03 · 이불 세트
+            - generic [ref=e657]:
+              - generic [ref=e658]: − ₩ 55,500
+              - button "삭제" [ref=e659] [cursor=pointer]
+          - generic [ref=e660]:
+            - generic [ref=e663]:
+              - generic [ref=e664]:
+                - generic [ref=e665]: 주거
+                - generic [ref=e666]: 지출
+              - generic [ref=e667]: 2026-04-01 · 4월 관리비/공과금
+            - generic [ref=e668]:
+              - generic [ref=e669]: − ₩ 180,000
+              - button "삭제" [ref=e670] [cursor=pointer]
+          - generic [ref=e671]:
+            - generic [ref=e674]:
+              - generic [ref=e675]:
+                - generic [ref=e676]: 구독료
+                - generic [ref=e677]: 지출
+              - generic [ref=e678]: 2026-04-01 · 넷플릭스
+            - generic [ref=e679]:
+              - generic [ref=e680]: − ₩ 17,000
+              - button "삭제" [ref=e681] [cursor=pointer]
+          - generic [ref=e682]:
+            - generic [ref=e685]:
+              - generic [ref=e686]:
+                - generic [ref=e687]: 구독료
+                - generic [ref=e688]: 지출
+              - generic [ref=e689]: 2026-04-01 · 멜론
+            - generic [ref=e690]:
+              - generic [ref=e691]: − ₩ 9,900
+              - button "삭제" [ref=e692] [cursor=pointer]
+          - generic [ref=e693]:
+            - generic [ref=e696]:
+              - generic [ref=e697]:
+                - generic [ref=e698]: 구독료
+                - generic [ref=e699]: 지출
+              - generic [ref=e700]: 2026-04-01 · 유튜브 프리미엄
+            - generic [ref=e701]:
+              - generic [ref=e702]: − ₩ 11,000
+              - button "삭제" [ref=e703] [cursor=pointer]
+          - generic [ref=e704]:
+            - generic [ref=e707]:
+              - generic [ref=e708]:
+                - generic [ref=e709]: 구독료
+                - generic [ref=e710]: 지출
+              - generic [ref=e711]: 2026-04-01 · 쿠팡와우+ChatGPT
+            - generic [ref=e712]:
+              - generic [ref=e713]: − ₩ 22,000
+              - button "삭제" [ref=e714] [cursor=pointer]
+          - generic [ref=e715]:
+            - generic [ref=e716]:
+              - generic [ref=e717]: "2026.03"
+              - generic [ref=e718]: 46건
+            - generic [ref=e719]:
+              - generic [ref=e720]: +₩ 4,059,300
+              - generic [ref=e721]: −₩ 1,474,300
+          - generic [ref=e722]:
+            - generic [ref=e725]:
+              - generic [ref=e726]:
+                - generic [ref=e727]: 식비
+                - generic [ref=e728]: 지출
+              - generic [ref=e729]: 2026-03-30 · 마트 장보기
+            - generic [ref=e730]:
+              - generic [ref=e731]: − ₩ 10,600
+              - button "삭제" [ref=e732] [cursor=pointer]
+          - generic [ref=e733]:
+            - generic [ref=e736]:
+              - generic [ref=e737]:
+                - generic [ref=e738]: 교통
+                - generic [ref=e739]: 지출
+              - generic [ref=e740]: 2026-03-29 · 지하철 충전
+            - generic [ref=e741]:
+              - generic [ref=e742]: − ₩ 6,900
+              - button "삭제" [ref=e743] [cursor=pointer]
+          - generic [ref=e744]:
+            - generic [ref=e747]:
+              - generic [ref=e748]:
+                - generic [ref=e749]: 교통
+                - generic [ref=e750]: 지출
+              - generic [ref=e751]: 2026-03-29 · 따릉이 1일권
+            - generic [ref=e752]:
+              - generic [ref=e753]: − ₩ 6,600
+              - button "삭제" [ref=e754] [cursor=pointer]
+          - generic [ref=e755]:
+            - generic [ref=e758]:
+              - generic [ref=e759]:
+                - generic [ref=e760]: 식비
+                - generic [ref=e761]: 지출
+              - generic [ref=e762]: 2026-03-28 · 분식 떡볶이
+            - generic [ref=e763]:
+              - generic [ref=e764]: − ₩ 10,600
+              - button "삭제" [ref=e765] [cursor=pointer]
+          - generic [ref=e766]:
+            - generic [ref=e769]:
+              - generic [ref=e770]:
+                - generic [ref=e771]: 교통
+                - generic [ref=e772]: 지출
+              - generic [ref=e773]: 2026-03-28 · 따릉이 1일권
+            - generic [ref=e774]:
+              - generic [ref=e775]: − ₩ 3,100
+              - button "삭제" [ref=e776] [cursor=pointer]
+          - generic [ref=e777]:
+            - generic [ref=e780]:
+              - generic [ref=e781]:
+                - generic [ref=e782]: 식비
+                - generic [ref=e783]: 지출
+              - generic [ref=e784]: 2026-03-27 · 회사 근처 백반
+            - generic [ref=e785]:
+              - generic [ref=e786]: − ₩ 14,500
+              - button "삭제" [ref=e787] [cursor=pointer]
+          - generic [ref=e788]:
+            - generic [ref=e791]:
+              - generic [ref=e792]:
+                - generic [ref=e793]: 급여
+                - generic [ref=e794]: 수입
+              - generic [ref=e795]: 2026-03-25 · 3월 급여
+            - generic [ref=e796]:
+              - generic [ref=e797]: + ₩ 3,200,000
+              - button "삭제" [ref=e798] [cursor=pointer]
+          - generic [ref=e799]:
+            - generic [ref=e802]:
+              - generic [ref=e803]:
+                - generic [ref=e804]: 보험
+                - generic [ref=e805]: 지출
+              - generic [ref=e806]: 2026-03-25 · 실손/종신
+            - generic [ref=e807]:
+              - generic [ref=e808]: − ₩ 145,000
+              - button "삭제" [ref=e809] [cursor=pointer]
+          - generic [ref=e810]:
+            - generic [ref=e813]:
+              - generic [ref=e814]:
+                - generic [ref=e815]: 저축
+                - generic [ref=e816]: 지출
+              - generic [ref=e817]: 2026-03-25 · 적금 자동이체
+            - generic [ref=e818]:
+              - generic [ref=e819]: − ₩ 500,000
+              - button "삭제" [ref=e820] [cursor=pointer]
+          - generic [ref=e821]:
+            - generic [ref=e824]:
+              - generic [ref=e825]:
+                - generic [ref=e826]: 식비
+                - generic [ref=e827]: 지출
+              - generic [ref=e828]: 2026-03-25 · 베이커리 빵
+            - generic [ref=e829]:
+              - generic [ref=e830]: − ₩ 14,900
+              - button "삭제" [ref=e831] [cursor=pointer]
+          - generic [ref=e832]:
+            - generic [ref=e835]:
+              - generic [ref=e836]:
+                - generic [ref=e837]: 이자소득
+                - generic [ref=e838]: 수입
+              - generic [ref=e839]: 2026-03-25 · 예금 이자
+            - generic [ref=e840]:
+              - generic [ref=e841]: + ₩ 9,300
+              - button "삭제" [ref=e842] [cursor=pointer]
+          - generic [ref=e843]:
+            - generic [ref=e846]:
+              - generic [ref=e847]:
+                - generic [ref=e848]: 식비
+                - generic [ref=e849]: 지출
+              - generic [ref=e850]: 2026-03-24 · 파스타
+            - generic [ref=e851]:
+              - generic [ref=e852]: − ₩ 19,000
+              - button "삭제" [ref=e853] [cursor=pointer]
+          - generic [ref=e854]:
+            - generic [ref=e857]:
+              - generic [ref=e858]:
+                - generic [ref=e859]: 쇼핑
+                - generic [ref=e860]: 지출
+              - generic [ref=e861]: 2026-03-24 · 선글라스
+            - generic [ref=e862]:
+              - generic [ref=e863]: − ₩ 18,200
+              - button "삭제" [ref=e864] [cursor=pointer]
+          - generic [ref=e865]:
+            - generic [ref=e868]:
+              - generic [ref=e869]:
+                - generic [ref=e870]: 의료
+                - generic [ref=e871]: 지출
+              - generic [ref=e872]: 2026-03-24 · 치과 스케일링
+            - generic [ref=e873]:
+              - generic [ref=e874]: − ₩ 17,800
+              - button "삭제" [ref=e875] [cursor=pointer]
+          - generic [ref=e876]:
+            - generic [ref=e879]:
+              - generic [ref=e880]:
+                - generic [ref=e881]: 교통
+                - generic [ref=e882]: 지출
+              - generic [ref=e883]: 2026-03-22 · KTX 부산
+            - generic [ref=e884]:
+              - generic [ref=e885]: − ₩ 3,700
+              - button "삭제" [ref=e886] [cursor=pointer]
+          - generic [ref=e887]:
+            - generic [ref=e890]:
+              - generic [ref=e891]:
+                - generic [ref=e892]: 식비
+                - generic [ref=e893]: 지출
+              - generic [ref=e894]: 2026-03-21 · 샌드위치 점심
+            - generic [ref=e895]:
+              - generic [ref=e896]: − ₩ 9,600
+              - button "삭제" [ref=e897] [cursor=pointer]
+          - generic [ref=e898]:
+            - generic [ref=e901]:
+              - generic [ref=e902]:
+                - generic [ref=e903]: 교통
+                - generic [ref=e904]: 지출
+              - generic [ref=e905]: 2026-03-20 · 지하철 충전
+            - generic [ref=e906]:
+              - generic [ref=e907]: − ₩ 3,300
+              - button "삭제" [ref=e908] [cursor=pointer]
+          - generic [ref=e909]:
+            - generic [ref=e912]:
+              - generic [ref=e913]:
+                - generic [ref=e914]: 문화
+                - generic [ref=e915]: 지출
+              - generic [ref=e916]: 2026-03-20 · 넷플릭스 영화 대여
+            - generic [ref=e917]:
+              - generic [ref=e918]: − ₩ 41,100
+              - button "삭제" [ref=e919] [cursor=pointer]
+          - generic [ref=e920]:
+            - generic [ref=e923]:
+              - generic [ref=e924]:
+                - generic [ref=e925]: 쇼핑
+                - generic [ref=e926]: 지출
+              - generic [ref=e927]: 2026-03-19 · 화장품 세트
+            - generic [ref=e928]:
+              - generic [ref=e929]: − ₩ 43,600
+              - button "삭제" [ref=e930] [cursor=pointer]
+          - generic [ref=e931]:
+            - generic [ref=e934]:
+              - generic [ref=e935]:
+                - generic [ref=e936]: 식비
+                - generic [ref=e937]: 지출
+              - generic [ref=e938]: 2026-03-18 · 일식 돈카츠
+            - generic [ref=e939]:
+              - generic [ref=e940]: − ₩ 13,700
+              - button "삭제" [ref=e941] [cursor=pointer]
+          - generic [ref=e942]:
+            - generic [ref=e945]:
+              - generic [ref=e946]:
+                - generic [ref=e947]: 식비
+                - generic [ref=e948]: 지출
+              - generic [ref=e949]: 2026-03-18 · 배달 치킨
+            - generic [ref=e950]:
+              - generic [ref=e951]: − ₩ 19,500
+              - button "삭제" [ref=e952] [cursor=pointer]
+          - generic [ref=e953]:
+            - generic [ref=e956]:
+              - generic [ref=e957]:
+                - generic [ref=e958]: 식비
+                - generic [ref=e959]: 지출
+              - generic [ref=e960]: 2026-03-17 · 피자 한판
+            - generic [ref=e961]:
+              - generic [ref=e962]: − ₩ 13,300
+              - button "삭제" [ref=e963] [cursor=pointer]
+          - generic [ref=e964]:
+            - generic [ref=e967]:
+              - generic [ref=e968]:
+                - generic [ref=e969]: 식비
+                - generic [ref=e970]: 지출
+              - generic [ref=e971]: 2026-03-17 · 국밥 한 그릇
+            - generic [ref=e972]:
+              - generic [ref=e973]: − ₩ 15,900
+              - button "삭제" [ref=e974] [cursor=pointer]
+          - generic [ref=e975]:
+            - generic [ref=e978]:
+              - generic [ref=e979]:
+                - generic [ref=e980]: 식비
+                - generic [ref=e981]: 지출
+              - generic [ref=e982]: 2026-03-17 · 카페 라떼
+            - generic [ref=e983]:
+              - generic [ref=e984]: − ₩ 8,800
+              - button "삭제" [ref=e985] [cursor=pointer]
+          - generic [ref=e986]:
+            - generic [ref=e989]:
+              - generic [ref=e990]:
+                - generic [ref=e991]: 식비
+                - generic [ref=e992]: 지출
+              - generic [ref=e993]: 2026-03-16 · 스타벅스 아메리카노
+            - generic [ref=e994]:
+              - generic [ref=e995]: − ₩ 26,800
+              - button "삭제" [ref=e996] [cursor=pointer]
+          - generic [ref=e997]:
+            - generic [ref=e1000]:
+              - generic [ref=e1001]:
+                - generic [ref=e1002]: 식비
+                - generic [ref=e1003]: 지출
+              - generic [ref=e1004]: 2026-03-16 · 삼각김밥+커피
+            - generic [ref=e1005]:
+              - generic [ref=e1006]: − ₩ 12,800
+              - button "삭제" [ref=e1007] [cursor=pointer]
+          - generic [ref=e1008]:
+            - generic [ref=e1011]:
+              - generic [ref=e1012]:
+                - generic [ref=e1013]: 교통
+                - generic [ref=e1014]: 지출
+              - generic [ref=e1015]: 2026-03-16 · 버스 환승
+            - generic [ref=e1016]:
+              - generic [ref=e1017]: − ₩ 4,600
+              - button "삭제" [ref=e1018] [cursor=pointer]
+          - generic [ref=e1019]:
+            - generic [ref=e1022]:
+              - generic [ref=e1023]:
+                - generic [ref=e1024]: 쇼핑
+                - generic [ref=e1025]: 지출
+              - generic [ref=e1026]: 2026-03-16 · 선글라스
+            - generic [ref=e1027]:
+              - generic [ref=e1028]: − ₩ 34,000
+              - button "삭제" [ref=e1029] [cursor=pointer]
+          - generic [ref=e1030]:
+            - generic [ref=e1033]:
+              - generic [ref=e1034]:
+                - generic [ref=e1035]: 쇼핑
+                - generic [ref=e1036]: 지출
+              - generic [ref=e1037]: 2026-03-16 · 텀블러
+            - generic [ref=e1038]:
+              - generic [ref=e1039]: − ₩ 80,900
+              - button "삭제" [ref=e1040] [cursor=pointer]
+          - generic [ref=e1041]:
+            - generic [ref=e1044]:
+              - generic [ref=e1045]:
+                - generic [ref=e1046]: 식비
+                - generic [ref=e1047]: 지출
+              - generic [ref=e1048]: 2026-03-15 · 삼각김밥+커피
+            - generic [ref=e1049]:
+              - generic [ref=e1050]: − ₩ 6,000
+              - button "삭제" [ref=e1051] [cursor=pointer]
+          - generic [ref=e1052]:
+            - generic [ref=e1055]:
+              - generic [ref=e1056]:
+                - generic [ref=e1057]: 상여/보너스
+                - generic [ref=e1058]: 수입
+              - generic [ref=e1059]: 2026-03-15 · 1Q 인센티브
+            - generic [ref=e1060]:
+              - generic [ref=e1061]: + ₩ 850,000
+              - button "삭제" [ref=e1062] [cursor=pointer]
+          - generic [ref=e1063]:
+            - generic [ref=e1066]:
+              - generic [ref=e1067]:
+                - generic [ref=e1068]: 식비
+                - generic [ref=e1069]: 지출
+              - generic [ref=e1070]: 2026-03-14 · 샐러드 배달
+            - generic [ref=e1071]:
+              - generic [ref=e1072]: − ₩ 5,600
+              - button "삭제" [ref=e1073] [cursor=pointer]
+          - generic [ref=e1074]:
+            - generic [ref=e1077]:
+              - generic [ref=e1078]:
+                - generic [ref=e1079]: 교통
+                - generic [ref=e1080]: 지출
+              - generic [ref=e1081]: 2026-03-11 · 주차비
+            - generic [ref=e1082]:
+              - generic [ref=e1083]: − ₩ 3,500
+              - button "삭제" [ref=e1084] [cursor=pointer]
+          - generic [ref=e1085]:
+            - generic [ref=e1088]:
+              - generic [ref=e1089]:
+                - generic [ref=e1090]: 식비
+                - generic [ref=e1091]: 지출
+              - generic [ref=e1092]: 2026-03-10 · 샌드위치 점심
+            - generic [ref=e1093]:
+              - generic [ref=e1094]: − ₩ 10,400
+              - button "삭제" [ref=e1095] [cursor=pointer]
+          - generic [ref=e1096]:
+            - generic [ref=e1099]:
+              - generic [ref=e1100]:
+                - generic [ref=e1101]: 교통
+                - generic [ref=e1102]: 지출
+              - generic [ref=e1103]: 2026-03-10 · 주차비
+            - generic [ref=e1104]:
+              - generic [ref=e1105]: − ₩ 2,900
+              - button "삭제" [ref=e1106] [cursor=pointer]
+          - generic [ref=e1107]:
+            - generic [ref=e1110]:
+              - generic [ref=e1111]:
+                - generic [ref=e1112]: 식비
+                - generic [ref=e1113]: 지출
+              - generic [ref=e1114]: 2026-03-09 · 편의점 도시락
+            - generic [ref=e1115]:
+              - generic [ref=e1116]: − ₩ 18,500
+              - button "삭제" [ref=e1117] [cursor=pointer]
+          - generic [ref=e1118]:
+            - generic [ref=e1121]:
+              - generic [ref=e1122]:
+                - generic [ref=e1123]: 식비
+                - generic [ref=e1124]: 지출
+              - generic [ref=e1125]: 2026-03-09 · 베이커리 빵
+            - generic [ref=e1126]:
+              - generic [ref=e1127]: − ₩ 18,200
+              - button "삭제" [ref=e1128] [cursor=pointer]
+          - generic [ref=e1129]:
+            - generic [ref=e1132]:
+              - generic [ref=e1133]:
+                - generic [ref=e1134]: 식비
+                - generic [ref=e1135]: 지출
+              - generic [ref=e1136]: 2026-03-08 · 배달 치킨
+            - generic [ref=e1137]:
+              - generic [ref=e1138]: − ₩ 13,200
+              - button "삭제" [ref=e1139] [cursor=pointer]
+          - generic [ref=e1140]:
+            - generic [ref=e1143]:
+              - generic [ref=e1144]:
+                - generic [ref=e1145]: 식비
+                - generic [ref=e1146]: 지출
+              - generic [ref=e1147]: 2026-03-08 · 삼각김밥+커피
+            - generic [ref=e1148]:
+              - generic [ref=e1149]: − ₩ 25,600
+              - button "삭제" [ref=e1150] [cursor=pointer]
+          - generic [ref=e1151]:
+            - generic [ref=e1154]:
+              - generic [ref=e1155]:
+                - generic [ref=e1156]: 식비
+                - generic [ref=e1157]: 지출
+              - generic [ref=e1158]: 2026-03-06 · 국밥 한 그릇
+            - generic [ref=e1159]:
+              - generic [ref=e1160]: − ₩ 23,400
+              - button "삭제" [ref=e1161] [cursor=pointer]
+          - generic [ref=e1162]:
+            - generic [ref=e1165]:
+              - generic [ref=e1166]:
+                - generic [ref=e1167]: 교통
+                - generic [ref=e1168]: 지출
+              - generic [ref=e1169]: 2026-03-04 · 카쉐어링
+            - generic [ref=e1170]:
+              - generic [ref=e1171]: − ₩ 8,300
+              - button "삭제" [ref=e1172] [cursor=pointer]
+          - generic [ref=e1173]:
+            - generic [ref=e1176]:
+              - generic [ref=e1177]:
+                - generic [ref=e1178]: 주거
+                - generic [ref=e1179]: 지출
+              - generic [ref=e1180]: 2026-03-01 · 3월 관리비/공과금
+            - generic [ref=e1181]:
+              - generic [ref=e1182]: − ₩ 180,000
+              - button "삭제" [ref=e1183] [cursor=pointer]
+          - generic [ref=e1184]:
+            - generic [ref=e1187]:
+              - generic [ref=e1188]:
+                - generic [ref=e1189]: 구독료
+                - generic [ref=e1190]: 지출
+              - generic [ref=e1191]: 2026-03-01 · 넷플릭스
+            - generic [ref=e1192]:
+              - generic [ref=e1193]: − ₩ 17,000
+              - button "삭제" [ref=e1194] [cursor=pointer]
+          - generic [ref=e1195]:
+            - generic [ref=e1198]:
+              - generic [ref=e1199]:
+                - generic [ref=e1200]: 구독료
+                - generic [ref=e1201]: 지출
+              - generic [ref=e1202]: 2026-03-01 · 멜론
+            - generic [ref=e1203]:
+              - generic [ref=e1204]: − ₩ 9,900
+              - button "삭제" [ref=e1205] [cursor=pointer]
+          - generic [ref=e1206]:
+            - generic [ref=e1209]:
+              - generic [ref=e1210]:
+                - generic [ref=e1211]: 구독료
+                - generic [ref=e1212]: 지출
+              - generic [ref=e1213]: 2026-03-01 · 유튜브 프리미엄
+            - generic [ref=e1214]:
+              - generic [ref=e1215]: − ₩ 11,000
+              - button "삭제" [ref=e1216] [cursor=pointer]
+          - generic [ref=e1217]:
+            - generic [ref=e1220]:
+              - generic [ref=e1221]:
+                - generic [ref=e1222]: 구독료
+                - generic [ref=e1223]: 지출
+              - generic [ref=e1224]: 2026-03-01 · 쿠팡와우+ChatGPT
+            - generic [ref=e1225]:
+              - generic [ref=e1226]: − ₩ 22,000
+              - button "삭제" [ref=e1227] [cursor=pointer]
+          - generic [ref=e1228]:
+            - generic [ref=e1229]:
+              - generic [ref=e1230]: "2026.02"
+              - generic [ref=e1231]: 47건
+            - generic [ref=e1232]:
+              - generic [ref=e1233]: +₩ 3,364,100
+              - generic [ref=e1234]: −₩ 1,555,400
+          - generic [ref=e1235]:
+            - generic [ref=e1238]:
+              - generic [ref=e1239]:
+                - generic [ref=e1240]: 식비
+                - generic [ref=e1241]: 지출
+              - generic [ref=e1242]: 2026-02-28 · 분식 떡볶이
+            - generic [ref=e1243]:
+              - generic [ref=e1244]: − ₩ 7,100
+              - button "삭제" [ref=e1245] [cursor=pointer]
+          - generic [ref=e1246]:
+            - generic [ref=e1249]:
+              - generic [ref=e1250]:
+                - generic [ref=e1251]: 식비
+                - generic [ref=e1252]: 지출
+              - generic [ref=e1253]: 2026-02-28 · 국밥 한 그릇
+            - generic [ref=e1254]:
+              - generic [ref=e1255]: − ₩ 18,200
+              - button "삭제" [ref=e1256] [cursor=pointer]
+          - generic [ref=e1257]:
+            - generic [ref=e1260]:
+              - generic [ref=e1261]:
+                - generic [ref=e1262]: 식비
+                - generic [ref=e1263]: 지출
+              - generic [ref=e1264]: 2026-02-28 · 마트 장보기
+            - generic [ref=e1265]:
+              - generic [ref=e1266]: − ₩ 22,100
+              - button "삭제" [ref=e1267] [cursor=pointer]
+          - generic [ref=e1268]:
+            - generic [ref=e1271]:
+              - generic [ref=e1272]:
+                - generic [ref=e1273]: 교통
+                - generic [ref=e1274]: 지출
+              - generic [ref=e1275]: 2026-02-28 · 택시 야근
+            - generic [ref=e1276]:
+              - generic [ref=e1277]: − ₩ 6,100
+              - button "삭제" [ref=e1278] [cursor=pointer]
+          - generic [ref=e1279]:
+            - generic [ref=e1282]:
+              - generic [ref=e1283]:
+                - generic [ref=e1284]: 의료
+                - generic [ref=e1285]: 지출
+              - generic [ref=e1286]: 2026-02-28 · 감기약
+            - generic [ref=e1287]:
+              - generic [ref=e1288]: − ₩ 34,800
+              - button "삭제" [ref=e1289] [cursor=pointer]
+          - generic [ref=e1290]:
+            - generic [ref=e1293]:
+              - generic [ref=e1294]:
+                - generic [ref=e1295]: 교통
+                - generic [ref=e1296]: 지출
+              - generic [ref=e1297]: 2026-02-27 · 주유 5만원
+            - generic [ref=e1298]:
+              - generic [ref=e1299]: − ₩ 2,200
+              - button "삭제" [ref=e1300] [cursor=pointer]
+          - generic [ref=e1301]:
+            - generic [ref=e1304]:
+              - generic [ref=e1305]:
+                - generic [ref=e1306]: 문화
+                - generic [ref=e1307]: 지출
+              - generic [ref=e1308]: 2026-02-27 · 보드게임
+            - generic [ref=e1309]:
+              - generic [ref=e1310]: − ₩ 16,200
+              - button "삭제" [ref=e1311] [cursor=pointer]
+          - generic [ref=e1312]:
+            - generic [ref=e1315]:
+              - generic [ref=e1316]:
+                - generic [ref=e1317]: 이자소득
+                - generic [ref=e1318]: 수입
+              - generic [ref=e1319]: 2026-02-27 · 예금 이자
+            - generic [ref=e1320]:
+              - generic [ref=e1321]: + ₩ 6,400
+              - button "삭제" [ref=e1322] [cursor=pointer]
+          - generic [ref=e1323]:
+            - generic [ref=e1326]:
+              - generic [ref=e1327]:
+                - generic [ref=e1328]: 식비
+                - generic [ref=e1329]: 지출
+              - generic [ref=e1330]: 2026-02-26 · 국밥 한 그릇
+            - generic [ref=e1331]:
+              - generic [ref=e1332]: − ₩ 10,700
+              - button "삭제" [ref=e1333] [cursor=pointer]
+          - generic [ref=e1334]:
+            - generic [ref=e1337]:
+              - generic [ref=e1338]:
+                - generic [ref=e1339]: 급여
+                - generic [ref=e1340]: 수입
+              - generic [ref=e1341]: 2026-02-25 · 2월 급여
+            - generic [ref=e1342]:
+              - generic [ref=e1343]: + ₩ 3,200,000
+              - button "삭제" [ref=e1344] [cursor=pointer]
+          - generic [ref=e1345]:
+            - generic [ref=e1348]:
+              - generic [ref=e1349]:
+                - generic [ref=e1350]: 보험
+                - generic [ref=e1351]: 지출
+              - generic [ref=e1352]: 2026-02-25 · 실손/종신
+            - generic [ref=e1353]:
+              - generic [ref=e1354]: − ₩ 145,000
+              - button "삭제" [ref=e1355] [cursor=pointer]
+          - generic [ref=e1356]:
+            - generic [ref=e1359]:
+              - generic [ref=e1360]:
+                - generic [ref=e1361]: 저축
+                - generic [ref=e1362]: 지출
+              - generic [ref=e1363]: 2026-02-25 · 적금 자동이체
+            - generic [ref=e1364]:
+              - generic [ref=e1365]: − ₩ 500,000
+              - button "삭제" [ref=e1366] [cursor=pointer]
+          - generic [ref=e1367]:
+            - generic [ref=e1370]:
+              - generic [ref=e1371]:
+                - generic [ref=e1372]: 식비
+                - generic [ref=e1373]: 지출
+              - generic [ref=e1374]: 2026-02-24 · 삼각김밥+커피
+            - generic [ref=e1375]:
+              - generic [ref=e1376]: − ₩ 27,100
+              - button "삭제" [ref=e1377] [cursor=pointer]
+          - generic [ref=e1378]:
+            - generic [ref=e1381]:
+              - generic [ref=e1382]:
+                - generic [ref=e1383]: 식비
+                - generic [ref=e1384]: 지출
+              - generic [ref=e1385]: 2026-02-24 · 베이커리 빵
+            - generic [ref=e1386]:
+              - generic [ref=e1387]: − ₩ 19,000
+              - button "삭제" [ref=e1388] [cursor=pointer]
+          - generic [ref=e1389]:
+            - generic [ref=e1392]:
+              - generic [ref=e1393]:
+                - generic [ref=e1394]: 교통
+                - generic [ref=e1395]: 지출
+              - generic [ref=e1396]: 2026-02-24 · 고속도로 통행료
+            - generic [ref=e1397]:
+              - generic [ref=e1398]: − ₩ 1,600
+              - button "삭제" [ref=e1399] [cursor=pointer]
+          - generic [ref=e1400]:
+            - generic [ref=e1403]:
+              - generic [ref=e1404]:
+                - generic [ref=e1405]: 배당소득
+                - generic [ref=e1406]: 수입
+              - generic [ref=e1407]: 2026-02-21 · 국내 ETF 배당
+            - generic [ref=e1408]:
+              - generic [ref=e1409]: + ₩ 32,700
+              - button "삭제" [ref=e1410] [cursor=pointer]
+          - generic [ref=e1411]:
+            - generic [ref=e1414]:
+              - generic [ref=e1415]:
+                - generic [ref=e1416]: 식비
+                - generic [ref=e1417]: 지출
+              - generic [ref=e1418]: 2026-02-20 · 삼각김밥+커피
+            - generic [ref=e1419]:
+              - generic [ref=e1420]: − ₩ 8,500
+              - button "삭제" [ref=e1421] [cursor=pointer]
+          - generic [ref=e1422]:
+            - generic [ref=e1425]:
+              - generic [ref=e1426]:
+                - generic [ref=e1427]: 식비
+                - generic [ref=e1428]: 지출
+              - generic [ref=e1429]: 2026-02-20 · 샐러드 배달
+            - generic [ref=e1430]:
+              - generic [ref=e1431]: − ₩ 19,200
+              - button "삭제" [ref=e1432] [cursor=pointer]
+          - generic [ref=e1433]:
+            - generic [ref=e1436]:
+              - generic [ref=e1437]:
+                - generic [ref=e1438]: 환급
+                - generic [ref=e1439]: 수입
+              - generic [ref=e1440]: 2026-02-20 · 연말정산 환급
+            - generic [ref=e1441]:
+              - generic [ref=e1442]: + ₩ 125,000
+              - button "삭제" [ref=e1443] [cursor=pointer]
+          - generic [ref=e1444]:
+            - generic [ref=e1447]:
+              - generic [ref=e1448]:
+                - generic [ref=e1449]: 교통
+                - generic [ref=e1450]: 지출
+              - generic [ref=e1451]: 2026-02-19 · 고속도로 통행료
+            - generic [ref=e1452]:
+              - generic [ref=e1453]: − ₩ 9,300
+              - button "삭제" [ref=e1454] [cursor=pointer]
+          - generic [ref=e1455]:
+            - generic [ref=e1458]:
+              - generic [ref=e1459]:
+                - generic [ref=e1460]: 교통
+                - generic [ref=e1461]: 지출
+              - generic [ref=e1462]: 2026-02-18 · 따릉이 1일권
+            - generic [ref=e1463]:
+              - generic [ref=e1464]: − ₩ 4,100
+              - button "삭제" [ref=e1465] [cursor=pointer]
+          - generic [ref=e1466]:
+            - generic [ref=e1469]:
+              - generic [ref=e1470]:
+                - generic [ref=e1471]: 식비
+                - generic [ref=e1472]: 지출
+              - generic [ref=e1473]: 2026-02-16 · 삼각김밥+커피
+            - generic [ref=e1474]:
+              - generic [ref=e1475]: − ₩ 15,400
+              - button "삭제" [ref=e1476] [cursor=pointer]
+          - generic [ref=e1477]:
+            - generic [ref=e1480]:
+              - generic [ref=e1481]:
+                - generic [ref=e1482]: 식비
+                - generic [ref=e1483]: 지출
+              - generic [ref=e1484]: 2026-02-15 · 중국집 짜장
+            - generic [ref=e1485]:
+              - generic [ref=e1486]: − ₩ 11,800
+              - button "삭제" [ref=e1487] [cursor=pointer]
+          - generic [ref=e1488]:
+            - generic [ref=e1491]:
+              - generic [ref=e1492]:
+                - generic [ref=e1493]: 교육
+                - generic [ref=e1494]: 지출
+              - generic [ref=e1495]: 2026-02-15 · 코딩 부트캠프 분납
+            - generic [ref=e1496]:
+              - generic [ref=e1497]: − ₩ 20,200
+              - button "삭제" [ref=e1498] [cursor=pointer]
+          - generic [ref=e1499]:
+            - generic [ref=e1502]:
+              - generic [ref=e1503]:
+                - generic [ref=e1504]: 식비
+                - generic [ref=e1505]: 지출
+              - generic [ref=e1506]: 2026-02-14 · 마트 장보기
+            - generic [ref=e1507]:
+              - generic [ref=e1508]: − ₩ 24,800
+              - button "삭제" [ref=e1509] [cursor=pointer]
+          - generic [ref=e1510]:
+            - generic [ref=e1513]:
+              - generic [ref=e1514]:
+                - generic [ref=e1515]: 식비
+                - generic [ref=e1516]: 지출
+              - generic [ref=e1517]: 2026-02-14 · 삼각김밥+커피
+            - generic [ref=e1518]:
+              - generic [ref=e1519]: − ₩ 21,400
+              - button "삭제" [ref=e1520] [cursor=pointer]
+          - generic [ref=e1521]:
+            - generic [ref=e1524]:
+              - generic [ref=e1525]:
+                - generic [ref=e1526]: 교통
+                - generic [ref=e1527]: 지출
+              - generic [ref=e1528]: 2026-02-14 · 카쉐어링
+            - generic [ref=e1529]:
+              - generic [ref=e1530]: − ₩ 49,600
+              - button "삭제" [ref=e1531] [cursor=pointer]
+          - generic [ref=e1532]:
+            - generic [ref=e1535]:
+              - generic [ref=e1536]:
+                - generic [ref=e1537]: 교통
+                - generic [ref=e1538]: 지출
+              - generic [ref=e1539]: 2026-02-13 · 따릉이 1일권
+            - generic [ref=e1540]:
+              - generic [ref=e1541]: − ₩ 4,400
+              - button "삭제" [ref=e1542] [cursor=pointer]
+          - generic [ref=e1543]:
+            - generic [ref=e1546]:
+              - generic [ref=e1547]:
+                - generic [ref=e1548]: 식비
+                - generic [ref=e1549]: 지출
+              - generic [ref=e1550]: 2026-02-12 · 스타벅스 아메리카노
+            - generic [ref=e1551]:
+              - generic [ref=e1552]: − ₩ 27,200
+              - button "삭제" [ref=e1553] [cursor=pointer]
+          - generic [ref=e1554]:
+            - generic [ref=e1557]:
+              - generic [ref=e1558]:
+                - generic [ref=e1559]: 식비
+                - generic [ref=e1560]: 지출
+              - generic [ref=e1561]: 2026-02-10 · 베이커리 빵
+            - generic [ref=e1562]:
+              - generic [ref=e1563]: − ₩ 19,100
+              - button "삭제" [ref=e1564] [cursor=pointer]
+          - generic [ref=e1565]:
+            - generic [ref=e1568]:
+              - generic [ref=e1569]:
+                - generic [ref=e1570]: 의료
+                - generic [ref=e1571]: 지출
+              - generic [ref=e1572]: 2026-02-10 · 약국 영양제
+            - generic [ref=e1573]:
+              - generic [ref=e1574]: − ₩ 38,600
+              - button "삭제" [ref=e1575] [cursor=pointer]
+          - generic [ref=e1576]:
+            - generic [ref=e1579]:
+              - generic [ref=e1580]:
+                - generic [ref=e1581]: 교통
+                - generic [ref=e1582]: 지출
+              - generic [ref=e1583]: 2026-02-08 · 주차비
+            - generic [ref=e1584]:
+              - generic [ref=e1585]: − ₩ 4,000
+              - button "삭제" [ref=e1586] [cursor=pointer]
+          - generic [ref=e1587]:
+            - generic [ref=e1590]:
+              - generic [ref=e1591]:
+                - generic [ref=e1592]: 식비
+                - generic [ref=e1593]: 지출
+              - generic [ref=e1594]: 2026-02-07 · 샌드위치 점심
+            - generic [ref=e1595]:
+              - generic [ref=e1596]: − ₩ 7,600
+              - button "삭제" [ref=e1597] [cursor=pointer]
+          - generic [ref=e1598]:
+            - generic [ref=e1601]:
+              - generic [ref=e1602]:
+                - generic [ref=e1603]: 식비
+                - generic [ref=e1604]: 지출
+              - generic [ref=e1605]: 2026-02-07 · 베이커리 빵
+            - generic [ref=e1606]:
+              - generic [ref=e1607]: − ₩ 15,700
+              - button "삭제" [ref=e1608] [cursor=pointer]
+          - generic [ref=e1609]:
+            - generic [ref=e1612]:
+              - generic [ref=e1613]:
+                - generic [ref=e1614]: 식비
+                - generic [ref=e1615]: 지출
+              - generic [ref=e1616]: 2026-02-06 · 중국집 짜장
+            - generic [ref=e1617]:
+              - generic [ref=e1618]: − ₩ 11,600
+              - button "삭제" [ref=e1619] [cursor=pointer]
+          - generic [ref=e1620]:
+            - generic [ref=e1623]:
+              - generic [ref=e1624]:
+                - generic [ref=e1625]: 교통
+                - generic [ref=e1626]: 지출
+              - generic [ref=e1627]: 2026-02-06 · 주유 5만원
+            - generic [ref=e1628]:
+              - generic [ref=e1629]: − ₩ 3,200
+              - button "삭제" [ref=e1630] [cursor=pointer]
+          - generic [ref=e1631]:
+            - generic [ref=e1634]:
+              - generic [ref=e1635]:
+                - generic [ref=e1636]: 쇼핑
+                - generic [ref=e1637]: 지출
+              - generic [ref=e1638]: 2026-02-06 · 책상 정리함
+            - generic [ref=e1639]:
+              - generic [ref=e1640]: − ₩ 108,200
+              - button "삭제" [ref=e1641] [cursor=pointer]
+          - generic [ref=e1642]:
+            - generic [ref=e1645]:
+              - generic [ref=e1646]:
+                - generic [ref=e1647]: 식비
+                - generic [ref=e1648]: 지출
+              - generic [ref=e1649]: 2026-02-04 · 일식 돈카츠
+            - generic [ref=e1650]:
+              - generic [ref=e1651]: − ₩ 19,600
+              - button "삭제" [ref=e1652] [cursor=pointer]
+          - generic [ref=e1653]:
+            - generic [ref=e1656]:
+              - generic [ref=e1657]:
+                - generic [ref=e1658]: 쇼핑
+                - generic [ref=e1659]: 지출
+              - generic [ref=e1660]: 2026-02-03 · 화장품 세트
+            - generic [ref=e1661]:
+              - generic [ref=e1662]: − ₩ 39,800
+              - button "삭제" [ref=e1663] [cursor=pointer]
+          - generic [ref=e1664]:
+            - generic [ref=e1667]:
+              - generic [ref=e1668]:
+                - generic [ref=e1669]: 식비
+                - generic [ref=e1670]: 지출
+              - generic [ref=e1671]: 2026-02-02 · 일식 돈카츠
+            - generic [ref=e1672]:
+              - generic [ref=e1673]: − ₩ 8,900
+              - button "삭제" [ref=e1674] [cursor=pointer]
+          - generic [ref=e1675]:
+            - generic [ref=e1678]:
+              - generic [ref=e1679]:
+                - generic [ref=e1680]: 식비
+                - generic [ref=e1681]: 지출
+              - generic [ref=e1682]: 2026-02-02 · 배달 치킨
+            - generic [ref=e1683]:
+              - generic [ref=e1684]: − ₩ 4,600
+              - button "삭제" [ref=e1685] [cursor=pointer]
+          - generic [ref=e1686]:
+            - generic [ref=e1689]:
+              - generic [ref=e1690]:
+                - generic [ref=e1691]: 식비
+                - generic [ref=e1692]: 지출
+              - generic [ref=e1693]: 2026-02-02 · 마트 장보기
+            - generic [ref=e1694]:
+              - generic [ref=e1695]: − ₩ 8,600
+              - button "삭제" [ref=e1696] [cursor=pointer]
+          - generic [ref=e1697]:
+            - generic [ref=e1700]:
+              - generic [ref=e1701]:
+                - generic [ref=e1702]: 주거
+                - generic [ref=e1703]: 지출
+              - generic [ref=e1704]: 2026-02-01 · 2월 관리비/공과금
+            - generic [ref=e1705]:
+              - generic [ref=e1706]: − ₩ 180,000
+              - button "삭제" [ref=e1707] [cursor=pointer]
+          - generic [ref=e1708]:
+            - generic [ref=e1711]:
+              - generic [ref=e1712]:
+                - generic [ref=e1713]: 구독료
+                - generic [ref=e1714]: 지출
+              - generic [ref=e1715]: 2026-02-01 · 넷플릭스
+            - generic [ref=e1716]:
+              - generic [ref=e1717]: − ₩ 17,000
+              - button "삭제" [ref=e1718] [cursor=pointer]
+          - generic [ref=e1719]:
+            - generic [ref=e1722]:
+              - generic [ref=e1723]:
+                - generic [ref=e1724]: 구독료
+                - generic [ref=e1725]: 지출
+              - generic [ref=e1726]: 2026-02-01 · 멜론
+            - generic [ref=e1727]:
+              - generic [ref=e1728]: − ₩ 9,900
+              - button "삭제" [ref=e1729] [cursor=pointer]
+          - generic [ref=e1730]:
+            - generic [ref=e1733]:
+              - generic [ref=e1734]:
+                - generic [ref=e1735]: 구독료
+                - generic [ref=e1736]: 지출
+              - generic [ref=e1737]: 2026-02-01 · 유튜브 프리미엄
+            - generic [ref=e1738]:
+              - generic [ref=e1739]: − ₩ 11,000
+              - button "삭제" [ref=e1740] [cursor=pointer]
+          - generic [ref=e1741]:
+            - generic [ref=e1744]:
+              - generic [ref=e1745]:
+                - generic [ref=e1746]: 구독료
+                - generic [ref=e1747]: 지출
+              - generic [ref=e1748]: 2026-02-01 · 쿠팡와우+ChatGPT
+            - generic [ref=e1749]:
+              - generic [ref=e1750]: − ₩ 22,000
+              - button "삭제" [ref=e1751] [cursor=pointer]

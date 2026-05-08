@@ -1,0 +1,84 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - link "moduui · gwangjang 모두의 광장" [ref=e4] [cursor=pointer]:
+      - /url: "#top"
+      - img [ref=e6]
+      - generic [ref=e9]:
+        - generic [ref=e10]: moduui · gwangjang
+        - generic [ref=e11]: 모두의 광장
+    - button "로그인 · 가입" [ref=e131] [cursor=pointer]
+  - main [ref=e15]:
+    - generic [ref=e17]:
+      - generic [ref=e18]:
+        - generic [ref=e19]: Auth · Community · 2026
+        - heading "오늘의 생각을 한 줄로, 가볍게." [level=1] [ref=e20]:
+          - text: 오늘의 생각을
+          - text: 한 줄로,
+          - text: 가볍게.
+        - paragraph [ref=e21]: 로그인하면 글을 남길 수 있고, 내 글은 나만 고치고 지울 수 있어요.오래된 종이에 짧은 메모를 적어두듯이, 가볍게 한 줄 던져볼까요?
+        - generic [ref=e22]:
+          - button "가입하고 시작하기" [ref=e132] [cursor=pointer]:
+            - img [ref=e133]
+            - text: 가입하고 시작하기
+          - link "먼저 둘러보기" [ref=e26] [cursor=pointer]:
+            - /url: "#feed"
+          - generic [ref=e27]: 광장에 글 4개
+      - generic [ref=e28]:
+        - img [ref=e30]
+        - img [ref=e40]
+        - img [ref=e49]
+    - generic [ref=e53]:
+      - generic [ref=e55]:
+        - generic [ref=e56]: Compose
+        - heading "한 줄 남기기" [level=2] [ref=e57]
+      - generic [ref=e135]:
+        - img [ref=e136]
+        - generic [ref=e145]:
+          - generic [ref=e146]: 로그인하면 글쓰기 칸이 열려요
+          - generic [ref=e147]: 상단 로그인 · 가입 버튼을 눌러주세요.
+    - generic [ref=e74]:
+      - generic [ref=e75]:
+        - generic [ref=e76]:
+          - generic [ref=e77]: Feed · latest
+          - heading "방금 올라온 글" [level=2] [ref=e78]
+        - generic [ref=e79]: 4 posts
+      - generic [ref=e80]:
+        - article [ref=e81]:
+          - generic [ref=e82]:
+            - generic [ref=e83]: M
+            - generic [ref=e84]:
+              - generic "me@demo.app" [ref=e85]
+              - generic [ref=e86]: 5분 전
+          - heading "첫 출근날의 풍경" [level=3] [ref=e90]
+          - paragraph [ref=e91]: 사옥 1층 카페에서 라떼 한 잔. 익숙해지면 사라질 풍경들을 오늘만 또렷하게 적어둔다.
+        - article [ref=e92]:
+          - generic [ref=e93]:
+            - generic [ref=e94]: J
+            - generic [ref=e95]:
+              - generic "jin@demo.app" [ref=e96]
+              - generic [ref=e97]: 1시간 전
+          - heading "주말의 스무 페이지" [level=3] [ref=e98]
+          - paragraph [ref=e99]: 두꺼운 책은 기록만으로 무겁다. 가벼운 책 두 권 들고 한강에 다녀와야겠다.
+        - article [ref=e100]:
+          - generic [ref=e101]:
+            - generic [ref=e102]: S
+            - generic [ref=e103]:
+              - generic "soo@demo.app" [ref=e104]
+              - generic [ref=e105]: 3시간 전
+          - heading "비가 와도 되는 일요일" [level=3] [ref=e106]
+          - paragraph [ref=e107]: 우산을 챙기지 않은 날, 그날의 우산이 되어주는 사람들이 있다. 오늘은 그런 마음이 그립다.
+        - article [ref=e108]:
+          - generic [ref=e109]:
+            - generic [ref=e110]: H
+            - generic [ref=e111]:
+              - generic "host@demo.app" [ref=e112]
+              - generic [ref=e113]: 1일 전
+          - heading "광장 첫 글" [level=3] [ref=e114]
+          - paragraph [ref=e115]: 안녕하세요. 가벼운 한 줄, 무거운 한 줄, 무엇이든 환영해요.
+    - generic [ref=e117]:
+      - img [ref=e118]
+      - generic [ref=e127]:
+        - generic [ref=e128]: 모두의 광장
+        - generic [ref=e129]: Supabase Auth · PostgreSQL RLS · React + Tailwind · Pretendard / Fraunces
+      - generic [ref=e130]: © 2026 quest/community_app
+  - generic [ref=e148]: 로그아웃 되었어요. 또 와요.

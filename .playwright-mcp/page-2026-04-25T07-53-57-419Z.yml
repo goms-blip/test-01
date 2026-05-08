@@ -1,0 +1,1705 @@
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - generic [ref=e4]:
+      - list [ref=e5]:
+        - listitem [ref=e6]:
+          - link "판매자 가입" [ref=e7] [cursor=pointer]:
+            - /url: https://wing.coupang.com/tenants/vendor-signup/signup?utm_source=button_pc_coupang_app_category_3&utm_medium=non_paid&utm_id=onsite_ca&utm_content=20240328
+        - listitem [ref=e8]:
+          - link "고객센터" [ref=e9] [cursor=pointer]:
+            - /url: https://mc.coupang.com/ssr/desktop/contact/faq
+        - listitem [ref=e10]:
+          - link "회원가입" [ref=e11] [cursor=pointer]:
+            - /url: https://login.coupang.com/login/memberJoinFrm.pang
+        - listitem [ref=e12]:
+          - link "로그인" [ref=e13] [cursor=pointer]:
+            - /url: https://login.coupang.com/login/login.pang?rtnUrl=https%3A%2F%2Fwww.coupang.com%2Fnp%2Fpost%2Flogin%3Fr%3Dhttp%253A%252F%252Fwww.coupang.com%252Fnp%252Fsearch%253Fcomponent%253D%2526q%253D%2525EC%252595%252584%2525EC%2525B9%2525A8%252B%2525EA%2525B0%252584%2525ED%25258E%2525B8%2525EC%25258B%25259D%2526traceId%253Dmoe1mcg8%2526channel%253Duser
+      - list [ref=e14]:
+        - listitem [ref=e15]: 즐겨찾기
+        - listitem [ref=e16]:
+          - generic [ref=e17] [cursor=pointer]: 입점신청
+    - generic [ref=e20]:
+      - generic [ref=e26] [cursor=pointer]: 카테고리
+      - generic [ref=e27]:
+        - generic [ref=e28]:
+          - link "Coupang" [ref=e29] [cursor=pointer]:
+            - /url: https://www.coupang.com
+            - img "Coupang" [ref=e30]
+          - generic [ref=e31]:
+            - link "전체" [ref=e34] [cursor=pointer]:
+              - /url: "#"
+            - textbox "쿠팡 상품 검색" [ref=e36]:
+              - /placeholder: 찾고 싶은 상품을 검색해보세요!
+              - text: 아침 간편식
+            - button "검색" [ref=e38] [cursor=pointer]
+          - list [ref=e39]:
+            - listitem [ref=e40]:
+              - link "마이쿠팡" [ref=e41] [cursor=pointer]:
+                - /url: https://mc.coupang.com/ssr/desktop/order/list
+                - generic [ref=e42]: 마이쿠팡
+            - listitem [ref=e43]:
+              - link "장바구니" [ref=e44] [cursor=pointer]:
+                - /url: //cart.coupang.com/cartView.pang
+                - emphasis [ref=e45]
+                - generic [ref=e46]: 장바구니
+        - list [ref=e51]:
+          - listitem [ref=e52]:
+            - link "쿠팡플레이 쿠팡플레이" [ref=e53] [cursor=pointer]:
+              - /url: https://www.coupangplay.com/catalog
+              - img "쿠팡플레이" [ref=e54]
+              - generic [ref=e55]: 쿠팡플레이
+          - listitem [ref=e56]:
+            - link "로켓배송 로켓배송" [ref=e57] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/campaigns/82
+              - img "로켓배송" [ref=e58]
+              - generic [ref=e59]: 로켓배송
+          - listitem [ref=e60]:
+            - link "로켓프레시 로켓프레시" [ref=e61] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/categories/393760
+              - img "로켓프레시" [ref=e62]
+              - generic [ref=e63]: 로켓프레시
+          - listitem [ref=e64]:
+            - link "가정의 달 가정의 달" [ref=e65] [cursor=pointer]:
+              - /url: https://pages.coupang.com/p/168131
+              - img "가정의 달" [ref=e66]
+              - generic [ref=e67]: 가정의 달
+          - listitem [ref=e69]:
+            - link "다시 구매 다시 구매" [ref=e70] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/fbi?sourceType=home_section_fbi
+              - img "다시 구매" [ref=e71]
+              - generic [ref=e72]: 다시 구매
+          - listitem [ref=e74]:
+            - link "쿠팡비즈 쿠팡비즈" [ref=e75] [cursor=pointer]:
+              - /url: https://login.coupang.com/corporation/member/landing-page
+              - img "쿠팡비즈" [ref=e76]
+              - generic [ref=e77]: 쿠팡비즈
+          - listitem [ref=e78]:
+            - link "로켓직구 로켓직구" [ref=e79] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/coupangglobal
+              - img "로켓직구" [ref=e80]
+              - generic [ref=e81]: 로켓직구
+          - listitem [ref=e82]:
+            - link "골드박스 골드박스" [ref=e83] [cursor=pointer]:
+              - /url: https://pages.coupang.com/p/121237?sourceType=gm_crm_goldbox&subSourceType=gm_crm_gwsrtcut
+              - img "골드박스" [ref=e84]
+              - generic [ref=e85]: 골드박스
+          - listitem [ref=e86]:
+            - link "이달의신상 이달의신상" [ref=e87] [cursor=pointer]:
+              - /url: https://pages.coupang.com/p/136938
+              - img "이달의신상" [ref=e88]
+              - generic [ref=e89]: 이달의신상
+          - listitem [ref=e90]:
+            - link "판매자특가 판매자특가" [ref=e91] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/omp
+              - img "판매자특가" [ref=e92]
+              - generic [ref=e93]: 판매자특가
+          - listitem [ref=e94]:
+            - link "와우회원할인 와우회원할인" [ref=e95] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/campaigns/83
+              - img "와우회원할인" [ref=e96]
+              - generic [ref=e97]: 와우회원할인
+          - listitem [ref=e98]:
+            - link "이벤트/쿠폰 이벤트/쿠폰" [ref=e99] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/coupangbenefit
+              - img "이벤트/쿠폰" [ref=e100]
+              - generic [ref=e101]: 이벤트/쿠폰
+          - listitem [ref=e102]:
+            - link "반품마켓 반품마켓" [ref=e103] [cursor=pointer]:
+              - /url: https://pages.coupang.com/p/54908
+              - img "반품마켓" [ref=e104]
+              - generic [ref=e105]: 반품마켓
+          - listitem [ref=e106]:
+            - link "착한상점 착한상점" [ref=e107] [cursor=pointer]:
+              - /url: https://pages.coupang.com/p/63240
+              - img "착한상점" [ref=e108]
+              - generic [ref=e109]: 착한상점
+          - listitem [ref=e111]:
+            - link "기획전 기획전" [ref=e112] [cursor=pointer]:
+              - /url: https://pages.coupang.com/p/bep?sourceType=gm_crm_oms&subSourceType=gm_crm_gwsrtcut
+              - img "기획전" [ref=e113]
+              - generic [ref=e114]: 기획전
+          - listitem [ref=e115]:
+            - link "쿠팡트래블 쿠팡트래블" [ref=e116] [cursor=pointer]:
+              - /url: https://trip.coupang.com/?channel=gnb
+              - img "쿠팡트래블" [ref=e117]
+              - generic [ref=e118]: 쿠팡트래블
+          - listitem [ref=e120]:
+            - link "입점신청 입점신청" [ref=e121] [cursor=pointer]:
+              - /url: https://wing.coupang.com/tenants/vendor-signup/signup?utm_source=button_pc_coupang_shortcut_1&utm_medium=non_paid&utm_id=onsite_ca&utm_content=202411
+              - img "입점신청" [ref=e122]
+              - generic [ref=e123]: 입점신청
+  - generic [ref=e127]:
+    - generic [ref=e130]:
+      - list [ref=e131]:
+        - listitem [ref=e132]:
+          - link "전체" [ref=e133] [cursor=pointer]:
+            - /url: /np/search?q=%EC%95%84%EC%B9%A8+%EA%B0%84%ED%8E%B8%EC%8B%9D&traceId=moe1mcg8&channel=user
+          - img [ref=e134]
+      - strong [ref=e137]: "'아침 간편식'"
+    - generic [ref=e140]:
+      - generic [ref=e141]:
+        - generic [ref=e144]:
+          - heading "필터" [level=4] [ref=e146]
+          - list [ref=e149]:
+            - listitem [ref=e150]:
+              - img "rocket_luxury,rocket,coupang_global" [ref=e154] [cursor=pointer]
+              - list [ref=e156]:
+                - listitem [ref=e157]:
+                  - generic:
+                    - generic:
+                      - img "rocket_luxury"
+                    - text: 만 보기
+                - listitem [ref=e158]:
+                  - generic [ref=e159] [cursor=pointer]:
+                    - img "rocket" [ref=e162]
+                    - text: 만 보기
+                - listitem [ref=e163]:
+                  - generic [ref=e164] [cursor=pointer]:
+                    - img "coupang_global" [ref=e167]
+                    - text: 만 보기
+            - listitem [ref=e168]:
+              - generic:
+                - generic:
+                  - img "top_brand"
+            - listitem [ref=e169]:
+              - generic [ref=e170] [cursor=pointer]: 무료배송
+          - separator [ref=e172]
+          - generic [ref=e173]:
+            - heading "카테고리" [level=5] [ref=e174]
+            - generic [ref=e175]:
+              - list [ref=e176]:
+                - listitem [ref=e177]:
+                  - link "전체" [ref=e179] [cursor=pointer]:
+                    - /url: https://www.coupang.com
+                - listitem [ref=e180]:
+                  - link "식품" [ref=e182] [cursor=pointer]:
+                    - /url: https://www.coupang.com/np/categories/194276
+                - listitem [ref=e183]:
+                  - link "싱글라이프" [ref=e185] [cursor=pointer]:
+                    - /url: https://www.coupang.com/np/categories/433784
+                - listitem [ref=e186]:
+                  - link "쿠팡수입" [ref=e188] [cursor=pointer]:
+                    - /url: https://www.coupang.com/np/categories/510691
+                - listitem [ref=e189]:
+                  - link "로켓직구" [ref=e191] [cursor=pointer]:
+                    - /url: https://www.coupang.com/np/coupangglobal
+                - listitem:
+                  - link "헬스/건강식품" [ref=e193] [cursor=pointer]:
+                    - /url: https://www.coupang.com/np/categories/305798
+                - listitem:
+                  - link "실버스토어" [ref=e195] [cursor=pointer]:
+                    - /url: https://www.coupang.com/np/categories/383370
+                - listitem:
+                  - link "결혼준비" [ref=e197] [cursor=pointer]:
+                    - /url: https://www.coupang.com/np/categories/416130
+                - listitem:
+                  - link "주방용품" [ref=e199] [cursor=pointer]:
+                    - /url: https://www.coupang.com/np/categories/185669
+                - listitem:
+                  - link "출산/유아동" [ref=e201] [cursor=pointer]:
+                    - /url: https://www.coupang.com/np/categories/221934
+                - listitem:
+                  - link "홈카페" [ref=e203] [cursor=pointer]:
+                    - /url: https://www.coupang.com/np/categories/316168
+                - listitem:
+                  - link "가전디지털" [ref=e205] [cursor=pointer]:
+                    - /url: https://www.coupang.com/np/categories/178255
+                - listitem:
+                  - link "스포츠/레저" [ref=e207] [cursor=pointer]:
+                    - /url: https://www.coupang.com/np/categories/317778
+                - listitem:
+                  - link "생활용품" [ref=e209] [cursor=pointer]:
+                    - /url: https://www.coupang.com/np/categories/115673
+                - listitem:
+                  - link "홈인테리어" [ref=e211] [cursor=pointer]:
+                    - /url: https://www.coupang.com/np/categories/184555
+                - listitem:
+                  - link "뷰티" [ref=e213] [cursor=pointer]:
+                    - /url: https://www.coupang.com/np/categories/176522
+                - listitem:
+                  - link "R.LUX" [ref=e215] [cursor=pointer]:
+                    - /url: https://www.coupang.com/np/campaigns/18530
+                - listitem:
+                  - link "패션의류/잡화" [ref=e217] [cursor=pointer]:
+                    - /url: https://www.coupang.com/np/categories/564653
+                - listitem:
+                  - link "완구/취미" [ref=e219] [cursor=pointer]:
+                    - /url: https://www.coupang.com/np/categories/317779
+                - listitem:
+                  - link "도서/음반/DVD" [ref=e221] [cursor=pointer]:
+                    - /url: https://www.coupang.com/np/categories/317777
+                - listitem:
+                  - link "문구/오피스" [ref=e223] [cursor=pointer]:
+                    - /url: https://www.coupang.com/np/categories/177295
+                - listitem:
+                  - link "반려동물용품" [ref=e225] [cursor=pointer]:
+                    - /url: https://www.coupang.com/np/categories/115674
+                - listitem:
+                  - link "미세먼지용품" [ref=e227] [cursor=pointer]:
+                    - /url: https://www.coupang.com/np/campaigns/17593
+                - listitem:
+                  - link "자동차용품" [ref=e229] [cursor=pointer]:
+                    - /url: https://www.coupang.com/np/categories/184060
+                - listitem:
+                  - link "아트/공예" [ref=e231] [cursor=pointer]:
+                    - /url: https://www.coupang.com/np/categories/410273
+              - generic [ref=e232] [cursor=pointer]: + 더보기
+          - separator [ref=e233]
+          - generic [ref=e234]:
+            - heading "브랜드" [level=5] [ref=e235]
+            - generic [ref=e236]:
+              - list [ref=e237]:
+                - listitem [ref=e238]:
+                  - generic [ref=e239] [cursor=pointer]: gomgom
+                - listitem [ref=e241]:
+                  - generic [ref=e242] [cursor=pointer]: 남향또띠아
+                - listitem [ref=e244]:
+                  - generic [ref=e245] [cursor=pointer]: 그린래빗
+                - listitem [ref=e247]:
+                  - generic [ref=e248] [cursor=pointer]: 오즈키친
+                - listitem [ref=e250]:
+                  - generic [ref=e251] [cursor=pointer]: 삼립
+                - listitem:
+                  - generic [ref=e253] [cursor=pointer]: 홍루이젠
+                - listitem:
+                  - generic [ref=e255] [cursor=pointer]: 오뚜기
+                - listitem:
+                  - generic [ref=e257] [cursor=pointer]: 애슐리
+                - listitem:
+                  - generic [ref=e259] [cursor=pointer]: 쉐푸드
+                - listitem:
+                  - generic [ref=e261] [cursor=pointer]: 천일식품
+                - listitem:
+                  - generic [ref=e263] [cursor=pointer]: 아리울
+                - listitem:
+                  - generic [ref=e265] [cursor=pointer]: 오꾸밥
+                - listitem:
+                  - generic [ref=e267] [cursor=pointer]: 스윗밸런스
+                - listitem:
+                  - generic [ref=e269] [cursor=pointer]: 착한떡
+                - listitem:
+                  - generic [ref=e271] [cursor=pointer]: 한우물
+                - listitem:
+                  - generic [ref=e273] [cursor=pointer]: 풀무원
+                - listitem:
+                  - generic [ref=e275] [cursor=pointer]: 풍요한아침
+                - listitem:
+                  - generic [ref=e277] [cursor=pointer]: 본죽
+                - listitem:
+                  - generic [ref=e279] [cursor=pointer]: 두손드림
+                - listitem:
+                  - generic [ref=e281] [cursor=pointer]: 풀스케어
+              - generic [ref=e283] [cursor=pointer]: + 더보기
+          - separator [ref=e284]
+          - generic [ref=e285]:
+            - heading "상품 상태" [level=5] [ref=e286]
+            - list [ref=e288]:
+              - listitem [ref=e289]:
+                - generic [ref=e290] [cursor=pointer]: 새 상품
+              - listitem [ref=e292]:
+                - generic [ref=e293] [cursor=pointer]: 박스 훼손
+              - listitem [ref=e295]:
+                - generic [ref=e296] [cursor=pointer]: 재포장
+              - listitem [ref=e298]:
+                - generic [ref=e299] [cursor=pointer]: 리퍼
+              - listitem [ref=e301]:
+                - generic [ref=e302] [cursor=pointer]: 반품
+              - listitem [ref=e304]:
+                - generic [ref=e305] [cursor=pointer]: 중고
+          - separator [ref=e307]
+          - generic [ref=e308]:
+            - heading "낱개상품 여부" [level=5] [ref=e309]
+            - list [ref=e311]:
+              - listitem [ref=e312]:
+                - generic [ref=e313] [cursor=pointer]: 낱개상품
+          - separator [ref=e315]
+          - generic [ref=e316]:
+            - heading "총 중량" [level=5] [ref=e317]
+            - list [ref=e319]:
+              - listitem [ref=e320]:
+                - generic [ref=e321] [cursor=pointer]: 200g 이하
+              - listitem [ref=e323]:
+                - generic [ref=e324] [cursor=pointer]: 200~500g
+              - listitem [ref=e326]:
+                - generic [ref=e327] [cursor=pointer]: 500g 이상
+          - separator [ref=e329]
+          - generic [ref=e330]:
+            - heading "총 수량" [level=5] [ref=e331]
+            - list [ref=e333]:
+              - listitem [ref=e334]:
+                - generic [ref=e335] [cursor=pointer]: 5개 이하
+              - listitem [ref=e337]:
+                - generic [ref=e338] [cursor=pointer]: 5~10개
+              - listitem [ref=e340]:
+                - generic [ref=e341] [cursor=pointer]: 10~15개
+              - listitem [ref=e343]:
+                - generic [ref=e344] [cursor=pointer]: 20개 이상
+          - separator [ref=e346]
+          - generic [ref=e347]:
+            - heading "중량" [level=5] [ref=e348]
+            - list [ref=e350]:
+              - listitem [ref=e351]:
+                - generic [ref=e352] [cursor=pointer]: 500g 이하
+              - listitem [ref=e354]:
+                - generic [ref=e355] [cursor=pointer]: 500g~1kg
+              - listitem [ref=e357]:
+                - generic [ref=e358] [cursor=pointer]: 1~2kg
+              - listitem [ref=e360]:
+                - generic [ref=e361] [cursor=pointer]: 2kg 이상
+          - separator [ref=e363]
+          - generic [ref=e364]:
+            - heading "보관방식" [level=5] [ref=e365]
+            - list [ref=e367]:
+              - listitem [ref=e368]:
+                - generic [ref=e369] [cursor=pointer]: 냉장보관
+              - listitem [ref=e371]:
+                - generic [ref=e372] [cursor=pointer]: 냉동보관
+              - listitem [ref=e374]:
+                - generic [ref=e375] [cursor=pointer]: 실온보관
+          - separator [ref=e377]
+          - generic [ref=e378]:
+            - heading "설탕함량" [level=5] [ref=e379]
+            - list [ref=e381]:
+              - listitem [ref=e382]:
+                - generic [ref=e383] [cursor=pointer]: 무설탕
+              - listitem [ref=e385]:
+                - generic [ref=e386] [cursor=pointer]: 저설탕
+              - listitem [ref=e388]:
+                - generic [ref=e389] [cursor=pointer]: 설탕첨가
+              - listitem [ref=e391]:
+                - generic [ref=e392] [cursor=pointer]: 당 첨가
+          - separator [ref=e394]
+          - generic [ref=e395]:
+            - heading "구성" [level=5] [ref=e396]
+            - list [ref=e398]:
+              - listitem [ref=e399]:
+                - generic [ref=e400] [cursor=pointer]: 단품
+              - listitem [ref=e402]:
+                - generic [ref=e403] [cursor=pointer]: 단품세트
+              - listitem [ref=e405]:
+                - generic [ref=e406] [cursor=pointer]: 혼합세트
+          - separator [ref=e408]
+          - generic [ref=e409]:
+            - heading "간편식" [level=5] [ref=e410]
+            - list [ref=e412]:
+              - listitem [ref=e413]:
+                - generic [ref=e414] [cursor=pointer]: 즉석섭취음료
+              - listitem [ref=e416]:
+                - generic [ref=e417] [cursor=pointer]: 즉석섭취식품
+              - listitem [ref=e419]:
+                - generic [ref=e420] [cursor=pointer]: 즉석조리식품
+              - listitem [ref=e422]:
+                - generic [ref=e423] [cursor=pointer]: 밀키트
+          - separator [ref=e425]
+          - generic [ref=e426]:
+            - heading "전자레인지 가능 여부" [level=5] [ref=e427]
+            - list [ref=e429]:
+              - listitem [ref=e430]:
+                - generic [ref=e431] [cursor=pointer]: 전자레인지 가능
+          - separator [ref=e433]
+          - generic [ref=e434]:
+            - heading "개별포장 여부" [level=5] [ref=e435]
+            - list [ref=e437]:
+              - listitem [ref=e438]:
+                - generic [ref=e439] [cursor=pointer]: 개별포장
+          - separator [ref=e441]
+          - generic [ref=e442]:
+            - heading "용기형태" [level=5] [ref=e443]
+            - generic [ref=e444]:
+              - list [ref=e445]:
+                - listitem [ref=e446]:
+                  - generic [ref=e447] [cursor=pointer]: 플라스틱병
+                - listitem [ref=e449]:
+                  - generic [ref=e450] [cursor=pointer]: 유리병
+                - listitem [ref=e452]:
+                  - generic [ref=e453] [cursor=pointer]: 캔
+                - listitem [ref=e455]:
+                  - generic [ref=e456] [cursor=pointer]: 파우치
+                - listitem [ref=e458]:
+                  - generic [ref=e459] [cursor=pointer]: 종이팩
+                - listitem:
+                  - generic [ref=e461] [cursor=pointer]: 컵
+                - listitem:
+                  - generic [ref=e463] [cursor=pointer]: 스틱/포
+                - listitem:
+                  - generic [ref=e465] [cursor=pointer]: 튜브
+              - generic [ref=e467] [cursor=pointer]: + 더보기
+          - separator [ref=e468]
+          - generic [ref=e469]:
+            - heading "1회 제공량당 열량" [level=5] [ref=e470]
+            - generic [ref=e471]:
+              - list [ref=e472]:
+                - listitem [ref=e473]:
+                  - generic: 0Kcal
+                - listitem [ref=e474]:
+                  - generic [ref=e475] [cursor=pointer]: 1Kcal 이상 ~ 20Kcal 이하
+                - listitem [ref=e477]:
+                  - generic [ref=e478] [cursor=pointer]: 20Kcal 이상 ~ 40Kcal 이하
+                - listitem [ref=e480]:
+                  - generic [ref=e481] [cursor=pointer]: 40Kcal 이상 ~ 100Kcal 이하
+                - listitem [ref=e483]:
+                  - generic [ref=e484] [cursor=pointer]: 100Kcal 이상 ~ 200Kcal 이하
+                - listitem:
+                  - generic [ref=e486] [cursor=pointer]: 200Kcal 이상 ~ 300Kcal 이하
+                - listitem:
+                  - generic [ref=e488] [cursor=pointer]: 300Kcal 이상
+              - generic [ref=e490] [cursor=pointer]: + 더보기
+          - separator [ref=e491]
+          - generic [ref=e492]:
+            - heading "샌드위치 종류" [level=5] [ref=e493]
+            - list [ref=e495]:
+              - listitem [ref=e496]:
+                - generic [ref=e497] [cursor=pointer]: 일반
+              - listitem [ref=e499]:
+                - generic [ref=e500] [cursor=pointer]: 대만식
+              - listitem [ref=e502]:
+                - generic [ref=e503] [cursor=pointer]: 파니니
+              - listitem [ref=e505]:
+                - generic: 크로크무슈
+              - listitem [ref=e506]:
+                - generic [ref=e507] [cursor=pointer]: 랩 샌드위치
+              - listitem [ref=e509]:
+                - generic [ref=e510] [cursor=pointer]: 기타
+          - separator [ref=e512]
+          - generic [ref=e513]:
+            - heading "종류" [level=5] [ref=e514]
+            - generic [ref=e515]:
+              - list [ref=e516]:
+                - listitem [ref=e517]:
+                  - generic [ref=e518] [cursor=pointer]: 찹쌀떡
+                - listitem [ref=e520]:
+                  - generic [ref=e521] [cursor=pointer]: 가래떡
+                - listitem [ref=e523]:
+                  - generic [ref=e524] [cursor=pointer]: 치즈떡
+                - listitem [ref=e526]:
+                  - generic [ref=e527] [cursor=pointer]: 백설기
+                - listitem [ref=e529]:
+                  - generic [ref=e530] [cursor=pointer]: 인절미
+                - listitem:
+                  - generic [ref=e532] [cursor=pointer]: 송편
+                - listitem:
+                  - generic [ref=e534] [cursor=pointer]: 오메기떡
+                - listitem:
+                  - generic [ref=e536] [cursor=pointer]: 쑥떡
+                - listitem:
+                  - generic [ref=e538] [cursor=pointer]: 꿀떡
+                - listitem:
+                  - generic [ref=e540] [cursor=pointer]: 찰떡
+                - listitem:
+                  - generic [ref=e542] [cursor=pointer]: 절편
+                - listitem:
+                  - generic [ref=e544] [cursor=pointer]: 두텁떡
+                - listitem:
+                  - generic [ref=e546] [cursor=pointer]: 콩떡
+                - listitem:
+                  - generic [ref=e548] [cursor=pointer]: 감자떡
+                - listitem:
+                  - generic [ref=e550] [cursor=pointer]: 경단
+                - listitem:
+                  - generic [ref=e552] [cursor=pointer]: 떡케이크
+                - listitem:
+                  - generic [ref=e554] [cursor=pointer]: 떡세트
+                - listitem:
+                  - generic [ref=e556] [cursor=pointer]: 기타떡
+              - generic [ref=e558] [cursor=pointer]: + 더보기
+          - separator [ref=e559]
+          - generic [ref=e560]:
+            - heading "크기" [level=5] [ref=e561]
+            - list [ref=e563]:
+              - listitem [ref=e564]:
+                - generic [ref=e565] [cursor=pointer]: 미니
+              - listitem [ref=e567]:
+                - generic [ref=e568] [cursor=pointer]: 일반형
+          - separator [ref=e570]
+          - generic [ref=e571]:
+            - heading "별점" [level=5] [ref=e572]
+            - list [ref=e574]:
+              - listitem [ref=e575]:
+                - generic "전체" [ref=e576]: 별점전체
+              - listitem [ref=e577]:
+                - generic "4점 이상" [ref=e578]: 4점 이상
+              - listitem [ref=e580]:
+                - generic "3점 이상" [ref=e581]: 3점 이상
+              - listitem [ref=e583]:
+                - generic "2점 이상" [ref=e584]: 2점 이상
+              - listitem [ref=e586]:
+                - generic "1점 이상" [ref=e587]: 1점 이상
+          - separator [ref=e589]
+          - generic [ref=e590]:
+            - heading "가격" [level=5] [ref=e591]
+            - list [ref=e593]:
+              - listitem [ref=e594]:
+                - generic "priceFilter" [ref=e595]: 가격 전체
+              - listitem [ref=e596]:
+                - generic "priceFilter" [ref=e597]: 5천원 이하
+              - listitem [ref=e598]:
+                - generic "priceFilter" [ref=e599]: 5천원~1만원
+              - listitem [ref=e600]:
+                - generic "priceFilter" [ref=e601]: 1만원~1만 5천원
+              - listitem [ref=e602]:
+                - generic "priceFilter" [ref=e603]: 1만 5천원~2만원
+              - listitem [ref=e604]:
+                - generic "priceFilter" [ref=e605]: 2만원 이상
+            - generic [ref=e606]:
+              - generic [ref=e607]:
+                - textbox "minPrice" [ref=e608]
+                - generic [ref=e609]: ~
+                - textbox "maxPrice" [ref=e610]
+                - text: 원
+              - generic "priceFilter" [ref=e611]: 검색
+          - separator [ref=e612]
+        - generic [ref=e615]:
+          - generic [ref=e616]: 현재 검색 결과에 만족하셨나요?
+          - button [ref=e617] [cursor=pointer]
+          - button [ref=e618] [cursor=pointer]
+          - generic [ref=e619]:
+            - paragraph [ref=e620]: 어떤 문제가 있었나요?
+            - list [ref=e621]:
+              - listitem [ref=e622] [cursor=pointer]: 관련 없는 상품이 있어요
+              - listitem [ref=e623] [cursor=pointer]: 이미지나 정보가 부정확해요
+              - listitem [ref=e624] [cursor=pointer]: 필터가 도움이 안 돼요
+              - listitem [ref=e625] [cursor=pointer]: 추천해준 검색어가 도움이 안 돼요
+              - listitem [ref=e626] [cursor=pointer]: 기타 원하는 옵션이 없어요
+      - generic [ref=e627]:
+        - generic [ref=e628]:
+          - heading "'아침 간편식'에 대한 검색결과" [level=1] [ref=e629]:
+            - strong [ref=e630]: "'아침 간편식'"
+            - text: 에 대한 검색결과
+          - generic [ref=e631]:
+            - generic [ref=e632]: "연관검색어:"
+            - link "아침식사대용" [ref=e633] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/search?q=%EC%95%84%EC%B9%A8%EC%8B%9D%EC%82%AC%EB%8C%80%EC%9A%A9&channel=relate
+            - link "오그래퐁" [ref=e634] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/search?q=%EC%98%A4%EA%B7%B8%EB%9E%98%ED%90%81&channel=relate
+            - link "아침" [ref=e635] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/search?q=%EC%95%84%EC%B9%A8&channel=relate
+            - link "간식" [ref=e636] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/search?q=%EA%B0%84%EC%8B%9D&channel=relate
+            - link "오그래" [ref=e637] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/search?q=%EC%98%A4%EA%B7%B8%EB%9E%98&channel=relate
+            - link "아침간편식" [ref=e638] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/search?q=%EC%95%84%EC%B9%A8%EA%B0%84%ED%8E%B8%EC%8B%9D&channel=relate
+            - link "시리얼" [ref=e639] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/search?q=%EC%8B%9C%EB%A6%AC%EC%96%BC&channel=relate
+            - link "간편식" [ref=e640] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/search?q=%EA%B0%84%ED%8E%B8%EC%8B%9D&channel=relate
+            - link "샐러드" [ref=e641] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/search?q=%EC%83%90%EB%9F%AC%EB%93%9C&channel=relate
+            - link "오그래오!그래퐁" [ref=e642] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/search?q=%EC%98%A4%EA%B7%B8%EB%9E%98%EC%98%A4%21%EA%B7%B8%EB%9E%98%ED%90%81&channel=relate
+          - generic [ref=e643]:
+            - generic [ref=e646]:
+              - checkbox "배송비 포함" [ref=e647] [cursor=pointer]
+              - generic [ref=e651]: 배송비 포함
+            - list [ref=e654]:
+              - listitem [ref=e655]:
+                - radio "쿠팡 랭킹순" [checked] [ref=e656]
+                - generic [ref=e657] [cursor=pointer]: 쿠팡 랭킹순
+                - generic [ref=e658]: 설명
+              - listitem [ref=e659]:
+                - radio "낮은가격순" [ref=e660]
+                - generic [ref=e661] [cursor=pointer]: 낮은가격순
+              - listitem [ref=e662]:
+                - radio "높은가격순" [ref=e663]
+                - generic [ref=e664] [cursor=pointer]: 높은가격순
+              - listitem [ref=e665]:
+                - radio "판매량순" [ref=e666]
+                - generic [ref=e667] [cursor=pointer]: 판매량순
+              - listitem [ref=e668]:
+                - radio "최신순" [ref=e669]
+                - generic [ref=e670] [cursor=pointer]: 최신순
+            - list [ref=e675]:
+              - listitem [ref=e676] [cursor=pointer]:
+                - radio "36개씩 보기" [checked] [ref=e677]
+                - generic [ref=e678]: 36개씩 보기
+        - link "11709391" [ref=e685] [cursor=pointer]:
+          - /url: https://shop.coupang.com/cj/424774?source=brandstore_display_ads&adType=DA&eventId=oGcdUSBSIzqtCCXa
+          - img "11709391" [ref=e686]
+        - generic [ref=e687]:
+          - list [ref=e689]:
+            - listitem [ref=e690] [cursor=pointer]:
+              - link "케어웰 밸런스N 고단백 바나나맛 로우슈거, 200ml, 18개 할인 32,410원 7% 29,820원 (10ml당 83원) 내일(일) 도착 보장 무료배송 4.5 (759) 최대 1,490원 적립 최대 1,490원 적립 AD" [ref=e691]:
+                - /url: /vp/products/6332981118?itemId=22991747469&vendorItemId=89521730749&sourceType=srp_product_ads&clickEventId=e8d75fe0-407b-11f1-8edb-51e6e3c1aeb9&korePlacement=15&koreSubPlacement=1&clickEventId=e8d75fe0-407b-11f1-8edb-51e6e3c1aeb9&korePlacement=15&koreSubPlacement=1
+                - figure [ref=e692]:
+                  - img "케어웰 밸런스N 고단백 바나나맛 로우슈거, 200ml, 18개" [ref=e693]
+                - generic [ref=e694]:
+                  - generic [ref=e696]: 케어웰 밸런스N 고단백 바나나맛 로우슈거, 200ml, 18개
+                  - generic [ref=e697]:
+                    - generic [ref=e698]:
+                      - generic [ref=e699]: 할인
+                      - deletion [ref=e700]: 32,410원
+                    - generic [ref=e702]:
+                      - generic [ref=e703]:
+                        - generic [ref=e705]: 7%
+                        - img [ref=e706]
+                      - generic [ref=e708]: 29,820원
+                      - generic [ref=e709]: (10ml당 83원)
+                  - generic [ref=e710]:
+                    - generic [ref=e714]: 내일(일) 도착 보장
+                    - generic [ref=e715]: 무료배송
+                  - generic [ref=e717]:
+                    - generic "4.5" [ref=e718]
+                    - generic [ref=e725]: (759)
+                  - generic [ref=e727]:
+                    - img "최대 1,490원 적립" [ref=e728]
+                    - generic [ref=e729]: 최대 1,490원 적립
+                  - generic [ref=e730]:
+                    - generic [ref=e731]: AD
+                    - img [ref=e733]
+            - listitem [ref=e737] [cursor=pointer]:
+              - link "이소당 간편한끼 미숫가루 제로 당류 아침식사대용 국내산 병미숫가루, 10개, 48g 할인 32,000원 10% 28,500원 (100g당 5,938원) 내일(일) 도착 보장 무료배송 5 (814) 최대 1,359원 적립 최대 1,359원 적립 AD" [ref=e738]:
+                - /url: /vp/products/8472986946?itemId=24516747094&vendorItemId=91529570491&sourceType=srp_product_ads&clickEventId=e8d786f0-407b-11f1-bb7f-60ce26026c88&korePlacement=15&koreSubPlacement=5&clickEventId=e8d786f0-407b-11f1-bb7f-60ce26026c88&korePlacement=15&koreSubPlacement=5
+                - figure [ref=e739]:
+                  - img "이소당 간편한끼 미숫가루 제로 당류 아침식사대용 국내산 병미숫가루, 10개, 48g" [ref=e740]
+                - generic [ref=e741]:
+                  - generic [ref=e743]: 이소당 간편한끼 미숫가루 제로 당류 아침식사대용 국내산 병미숫가루, 10개, 48g
+                  - generic [ref=e744]:
+                    - generic [ref=e745]:
+                      - generic [ref=e746]: 할인
+                      - deletion [ref=e747]: 32,000원
+                    - generic [ref=e749]:
+                      - generic [ref=e750]:
+                        - generic [ref=e752]: 10%
+                        - img [ref=e753]
+                      - generic [ref=e755]: 28,500원
+                      - generic [ref=e756]: (100g당 5,938원)
+                  - generic [ref=e757]:
+                    - generic [ref=e761]: 내일(일) 도착 보장
+                    - generic [ref=e762]: 무료배송
+                  - generic [ref=e764]:
+                    - generic "5" [ref=e765]
+                    - generic [ref=e772]: (814)
+                  - generic [ref=e774]:
+                    - img "최대 1,359원 적립" [ref=e775]
+                    - generic [ref=e776]: 최대 1,359원 적립
+                  - generic [ref=e777]:
+                    - generic [ref=e778]: AD
+                    - img [ref=e780]
+            - listitem [ref=e784] [cursor=pointer]:
+              - link "오꾸밥 오븐에 구운 주먹밥 12봉 6종 옵션 소불2+참치2+불닭2+로제2+김치2+까치2, 1세트, 100g 할인 21,600원 31% 14,900원 (100g당 14,900원) 4/28(화) 도착 예정 무료배송 ∙ 오늘출발 4.5 (14,442) 최대 745원 적립 최대 745원 적립 1" [ref=e785]:
+                - /url: /vp/products/7786499837?itemId=20585113654&vendorItemId=80239538145&q=아침 간편식&searchId=5033d28e9930160&sourceType=search&itemsCount=36&searchRank=2&rank=2
+                - figure [ref=e786]:
+                  - img "오꾸밥 오븐에 구운 주먹밥 12봉 6종 옵션 소불2+참치2+불닭2+로제2+김치2+까치2, 1세트, 100g" [ref=e787]
+                - generic [ref=e788]:
+                  - generic [ref=e790]: 오꾸밥 오븐에 구운 주먹밥 12봉 6종 옵션 소불2+참치2+불닭2+로제2+김치2+까치2, 1세트, 100g
+                  - generic [ref=e791]:
+                    - generic [ref=e792]:
+                      - generic [ref=e793]: 할인
+                      - deletion [ref=e794]: 21,600원
+                    - generic [ref=e796]:
+                      - generic [ref=e797]:
+                        - generic [ref=e799]: 31%
+                        - img [ref=e800]
+                      - generic [ref=e802]: 14,900원
+                      - generic [ref=e803]: (100g당 14,900원)
+                  - generic [ref=e804]:
+                    - generic [ref=e806]: 4/28(화) 도착 예정
+                    - generic [ref=e807]: 무료배송 ∙ 오늘출발
+                  - generic [ref=e809]:
+                    - generic "4.5" [ref=e810]
+                    - generic [ref=e817]: (14,442)
+                  - generic [ref=e819]:
+                    - img "최대 745원 적립" [ref=e820]
+                    - generic [ref=e821]: 최대 745원 적립
+                  - generic [ref=e822]: "1"
+            - listitem [ref=e823] [cursor=pointer]:
+              - link "델포유 오븐에 구운 십센치 파운드 케이크 50g, 25개 17,900원 5% 16,900원 (10g당 135원) 내일(일) 도착 보장 5 (16,652) 최대 845원 적립 최대 845원 적립 2" [ref=e824]:
+                - /url: /vp/products/7679943903?itemId=24752724094&vendorItemId=91761207113&pickType=COU_PICK&q=아침 간편식&searchId=5033d28e9930160&sourceType=search&itemsCount=36&searchRank=3&rank=3
+                - figure [ref=e825]:
+                  - img "델포유 오븐에 구운 십센치 파운드 케이크 50g, 25개" [ref=e826]
+                - generic [ref=e827]:
+                  - img [ref=e831]
+                  - generic [ref=e832]: 델포유 오븐에 구운 십센치 파운드 케이크 50g, 25개
+                  - generic [ref=e833]:
+                    - deletion [ref=e835]: 17,900원
+                    - generic [ref=e837]:
+                      - generic [ref=e838]: 5%
+                      - generic [ref=e839]: 16,900원
+                      - generic [ref=e840]: (10g당 135원)
+                  - generic [ref=e845]: 내일(일) 도착 보장
+                  - generic [ref=e847]:
+                    - generic "5" [ref=e848]
+                    - generic [ref=e855]: (16,652)
+                  - generic [ref=e857]:
+                    - img "최대 845원 적립" [ref=e858]
+                    - generic [ref=e859]: 최대 845원 적립
+                  - generic [ref=e860]: "2"
+            - listitem [ref=e861] [cursor=pointer]:
+              - link "대용량 천원빵 밀크브레드 간편아침식사 회사간식, 30개, 32g 19,900원 15% 16,790원 (10g당 175원) 내일(일) 도착 보장 4.5 (1,804) 최대 840원 적립 최대 840원 적립 3" [ref=e862]:
+                - /url: /vp/products/8534809770?itemId=24489562298&vendorItemId=91734487750&q=아침 간편식&searchId=5033d28e9930160&sourceType=search&itemsCount=36&searchRank=4&rank=4
+                - figure [ref=e863]:
+                  - img "대용량 천원빵 밀크브레드 간편아침식사 회사간식, 30개, 32g" [ref=e864]
+                - generic [ref=e865]:
+                  - generic [ref=e867]: 대용량 천원빵 밀크브레드 간편아침식사 회사간식, 30개, 32g
+                  - generic [ref=e868]:
+                    - deletion [ref=e870]: 19,900원
+                    - generic [ref=e872]:
+                      - generic [ref=e873]: 15%
+                      - generic [ref=e874]: 16,790원
+                      - generic [ref=e875]: (10g당 175원)
+                  - generic [ref=e880]: 내일(일) 도착 보장
+                  - generic [ref=e882]:
+                    - generic "4.5" [ref=e883]
+                    - generic [ref=e890]: (1,804)
+                  - generic [ref=e892]:
+                    - img "최대 840원 적립" [ref=e893]
+                    - generic [ref=e894]: 최대 840원 적립
+                  - generic [ref=e895]: "3"
+            - listitem [ref=e896] [cursor=pointer]:
+              - link "케어웰 시니어영양죽, 40g, 30개 60,000원 26% 43,900원 (100g당 3,658원) 내일(일) 도착 보장 무료배송 5 (4,071) 최대 2,195원 적립 최대 2,195원 적립 AD" [ref=e897]:
+                - /url: /vp/products/18930087?itemId=23242107105&vendorItemId=80284178473&sourceType=srp_product_ads&clickEventId=e8d786f0-407b-11f1-ae60-f1e8fb279984&korePlacement=15&koreSubPlacement=6&clickEventId=e8d786f0-407b-11f1-ae60-f1e8fb279984&korePlacement=15&koreSubPlacement=6
+                - figure [ref=e898]:
+                  - img "케어웰 시니어영양죽, 40g, 30개" [ref=e899]
+                - generic [ref=e900]:
+                  - generic [ref=e902]: 케어웰 시니어영양죽, 40g, 30개
+                  - generic [ref=e903]:
+                    - deletion [ref=e905]: 60,000원
+                    - generic [ref=e907]:
+                      - generic [ref=e908]: 26%
+                      - generic [ref=e909]: 43,900원
+                      - generic [ref=e910]: (100g당 3,658원)
+                  - generic [ref=e911]:
+                    - generic [ref=e915]: 내일(일) 도착 보장
+                    - generic [ref=e916]: 무료배송
+                  - generic [ref=e918]:
+                    - generic "5" [ref=e919]
+                    - generic [ref=e926]: (4,071)
+                  - generic [ref=e928]:
+                    - img "최대 2,195원 적립" [ref=e929]
+                    - generic [ref=e930]: 최대 2,195원 적립
+                  - generic [ref=e931]:
+                    - generic [ref=e932]: AD
+                    - img [ref=e934]
+            - listitem [ref=e938] [cursor=pointer]:
+              - link "곡물도감 무가당 서리태 가득 콩물두유, 180ml, 30개 87,000원 38% 53,340원 (100ml당 988원) 내일(일) 도착 보장 무료배송 4.5 (9,409) 최대 2,586원 적립 최대 2,586원 적립 AD" [ref=e939]:
+                - /url: /vp/products/7290082549?itemId=19944399755&vendorItemId=94983617960&sourceType=srp_product_ads&clickEventId=e8d786f0-407b-11f1-bacd-939dd17ec6b6&korePlacement=15&koreSubPlacement=9&clickEventId=e8d786f0-407b-11f1-bacd-939dd17ec6b6&korePlacement=15&koreSubPlacement=9
+                - figure [ref=e940]:
+                  - img "곡물도감 무가당 서리태 가득 콩물두유, 180ml, 30개" [ref=e941]
+                - generic [ref=e942]:
+                  - generic [ref=e944]: 곡물도감 무가당 서리태 가득 콩물두유, 180ml, 30개
+                  - generic [ref=e945]:
+                    - deletion [ref=e947]: 87,000원
+                    - generic [ref=e949]:
+                      - generic [ref=e950]: 38%
+                      - generic [ref=e951]: 53,340원
+                      - generic [ref=e952]: (100ml당 988원)
+                  - generic [ref=e953]:
+                    - generic [ref=e957]: 내일(일) 도착 보장
+                    - generic [ref=e958]: 무료배송
+                  - generic [ref=e960]:
+                    - generic "4.5" [ref=e961]
+                    - generic [ref=e968]: (9,409)
+                  - generic [ref=e970]:
+                    - img "최대 2,586원 적립" [ref=e971]
+                    - generic [ref=e972]: 최대 2,586원 적립
+                  - generic [ref=e973]:
+                    - generic [ref=e974]: AD
+                    - img [ref=e976]
+            - listitem [ref=e980] [cursor=pointer]:
+              - link "맛꾼 파손보상 촉촉쫄깃 맥반석 구운계란 찜질방, 30구, 1개 할인 35,000원 60% 13,900원 (1구당 463원) 5/8 도착 예정 무료배송 4.5 (9,786) 최대 695원 적립 최대 695원 적립 4" [ref=e981]:
+                - /url: /vp/products/8529746863?itemId=24695447808&vendorItemId=72440198666&q=아침 간편식&searchId=5033d28e9930160&sourceType=search&itemsCount=36&searchRank=7&rank=7
+                - figure [ref=e982]:
+                  - img "맛꾼 파손보상 촉촉쫄깃 맥반석 구운계란 찜질방, 30구, 1개" [ref=e983]
+                - generic [ref=e984]:
+                  - generic [ref=e986]: 맛꾼 파손보상 촉촉쫄깃 맥반석 구운계란 찜질방, 30구, 1개
+                  - generic [ref=e987]:
+                    - generic [ref=e988]:
+                      - generic [ref=e989]: 할인
+                      - deletion [ref=e990]: 35,000원
+                    - generic [ref=e992]:
+                      - generic [ref=e993]: 60%
+                      - generic [ref=e994]: 13,900원
+                      - generic [ref=e995]: (1구당 463원)
+                  - generic [ref=e996]:
+                    - generic [ref=e998]: 5/8 도착 예정
+                    - generic [ref=e999]: 무료배송
+                  - generic [ref=e1001]:
+                    - generic "4.5" [ref=e1002]
+                    - generic [ref=e1009]: (9,786)
+                  - generic [ref=e1011]:
+                    - img "최대 695원 적립" [ref=e1012]
+                    - generic [ref=e1013]: 최대 695원 적립
+                  - generic [ref=e1014]: "4"
+            - listitem [ref=e1015] [cursor=pointer]:
+              - link "호정가 하루영양바 (20개입), 1세트, 500g 할인 20,000원 34% 13,200원 (100g당 2,640원) 내일(일) 도착 보장 5 (2,428) 최대 653원 적립 최대 653원 적립 5" [ref=e1016]:
+                - /url: /vp/products/8463348565?itemId=24485595450&vendorItemId=92306211837&q=아침 간편식&searchId=5033d28e9930160&sourceType=search&itemsCount=36&searchRank=8&rank=8
+                - figure [ref=e1017]:
+                  - img "호정가 하루영양바 (20개입), 1세트, 500g" [ref=e1018]
+                - generic [ref=e1019]:
+                  - generic [ref=e1021]: 호정가 하루영양바 (20개입), 1세트, 500g
+                  - generic [ref=e1022]:
+                    - generic [ref=e1023]:
+                      - generic [ref=e1024]: 할인
+                      - deletion [ref=e1025]: 20,000원
+                    - generic [ref=e1027]:
+                      - generic [ref=e1028]: 34%
+                      - generic [ref=e1029]: 13,200원
+                      - generic [ref=e1030]: (100g당 2,640원)
+                  - generic [ref=e1035]: 내일(일) 도착 보장
+                  - generic [ref=e1037]:
+                    - generic "5" [ref=e1038]
+                    - generic [ref=e1045]: (2,428)
+                  - generic [ref=e1047]:
+                    - img "최대 653원 적립" [ref=e1048]
+                    - generic [ref=e1049]: 최대 653원 적립
+                  - generic [ref=e1050]: "5"
+            - listitem [ref=e1051] [cursor=pointer]:
+              - link "세브란스케어 구수한맛 완전균형 영양식, 200ml, 16개 37,900원 21% 29,900원 (10ml당 93원) 내일(일) 도착 보장 무료배송 5 (503) 최대 1,495원 적립 최대 1,495원 적립 AD" [ref=e1052]:
+                - /url: /vp/products/9273387726?itemId=27449278328&vendorItemId=94414657723&sourceType=srp_product_ads&clickEventId=e8d7ae00-407b-11f1-b743-63d3d427920a&korePlacement=15&koreSubPlacement=11&clickEventId=e8d7ae00-407b-11f1-b743-63d3d427920a&korePlacement=15&koreSubPlacement=11
+                - figure [ref=e1053]:
+                  - img "세브란스케어 구수한맛 완전균형 영양식, 200ml, 16개" [ref=e1054]
+                - generic [ref=e1055]:
+                  - generic [ref=e1057]: 세브란스케어 구수한맛 완전균형 영양식, 200ml, 16개
+                  - generic [ref=e1058]:
+                    - deletion [ref=e1060]: 37,900원
+                    - generic [ref=e1062]:
+                      - generic [ref=e1063]: 21%
+                      - generic [ref=e1064]: 29,900원
+                      - generic [ref=e1065]: (10ml당 93원)
+                  - generic [ref=e1066]:
+                    - generic [ref=e1070]: 내일(일) 도착 보장
+                    - generic [ref=e1071]: 무료배송
+                  - generic [ref=e1073]:
+                    - generic "5" [ref=e1074]
+                    - generic [ref=e1081]: (503)
+                  - generic [ref=e1083]:
+                    - img "최대 1,495원 적립" [ref=e1084]
+                    - generic [ref=e1085]: 최대 1,495원 적립
+                  - generic [ref=e1086]:
+                    - generic [ref=e1087]: AD
+                    - img [ref=e1089]
+            - listitem [ref=e1093] [cursor=pointer]:
+              - link "베지밀 17곡 한끼두유, 190ml, 32개 19,980원 (100ml당 329원) 내일(일) 도착 보장 무료배송 5 (24,857) 최대 999원 적립 최대 999원 적립 6" [ref=e1094]:
+                - /url: /vp/products/181252754?itemId=17832007703&vendorItemId=84995745580&q=아침 간편식&searchId=5033d28e9930160&sourceType=search&itemsCount=36&searchRank=10&rank=10
+                - figure [ref=e1095]:
+                  - img "베지밀 17곡 한끼두유, 190ml, 32개" [ref=e1096]
+                - generic [ref=e1097]:
+                  - generic [ref=e1099]: 베지밀 17곡 한끼두유, 190ml, 32개
+                  - generic [ref=e1102]:
+                    - generic [ref=e1103]: 19,980원
+                    - generic [ref=e1104]: (100ml당 329원)
+                  - generic [ref=e1105]:
+                    - generic [ref=e1109]: 내일(일) 도착 보장
+                    - generic [ref=e1110]: 무료배송
+                  - generic [ref=e1112]:
+                    - generic "5" [ref=e1113]
+                    - generic [ref=e1120]: (24,857)
+                  - generic [ref=e1122]:
+                    - img "최대 999원 적립" [ref=e1123]
+                    - generic [ref=e1124]: 최대 999원 적립
+                  - generic [ref=e1125]: "6"
+            - listitem [ref=e1126] [cursor=pointer]:
+              - link "이소당 간편한끼 미숫가루 365 아침식사대용 국내산 병미숫가루, 60g, 20개 58,000원 14% 49,350원 (100g당 4,113원) 4/28(화) 도착 예정 무료배송 ∙ 오늘출발 5 (1,442) 최대 2,468원 적립 최대 2,468원 적립 AD" [ref=e1127]:
+                - /url: /vp/products/7563272322?itemId=19930640837&vendorItemId=85071626111&sourceType=srp_product_ads&clickEventId=e8d7ae00-407b-11f1-b247-6525873284d0&korePlacement=15&koreSubPlacement=12&clickEventId=e8d7ae00-407b-11f1-b247-6525873284d0&korePlacement=15&koreSubPlacement=12
+                - figure [ref=e1128]:
+                  - img "이소당 간편한끼 미숫가루 365 아침식사대용 국내산 병미숫가루, 60g, 20개" [ref=e1129]
+                - generic [ref=e1130]:
+                  - generic [ref=e1132]: 이소당 간편한끼 미숫가루 365 아침식사대용 국내산 병미숫가루, 60g, 20개
+                  - generic [ref=e1133]:
+                    - deletion [ref=e1135]: 58,000원
+                    - generic [ref=e1137]:
+                      - generic [ref=e1138]: 14%
+                      - generic [ref=e1139]: 49,350원
+                      - generic [ref=e1140]: (100g당 4,113원)
+                  - generic [ref=e1141]:
+                    - generic [ref=e1143]: 4/28(화) 도착 예정
+                    - generic [ref=e1144]: 무료배송 ∙ 오늘출발
+                  - generic [ref=e1146]:
+                    - generic "5" [ref=e1147]
+                    - generic [ref=e1154]: (1,442)
+                  - generic [ref=e1156]:
+                    - img "최대 2,468원 적립" [ref=e1157]
+                    - generic [ref=e1158]: 최대 2,468원 적립
+                  - generic [ref=e1159]:
+                    - generic [ref=e1160]: AD
+                    - img [ref=e1162]
+            - listitem [ref=e1166]:
+              - generic [ref=e1168]: 베스트셀러
+              - heading "최근 다른 고객이 많이 구매한 상품" [level=2] [ref=e1169]
+              - generic [ref=e1171]:
+                - list [ref=e1173]:
+                  - listitem [ref=e1174]:
+                    - link "삼립 모닝 잉글리쉬 머핀 6개입 (냉동), 840g, 1개 쿠폰할인|5%15,150원 14,390원 (10g당 171원) 내일(일) 새벽 도착 보장 4.5 (23,881) 최대 720원 적립 최대 720원 적립" [ref=e1175] [cursor=pointer]:
+                      - /url: /vp/products/218398822?itemId=676224068&vendorItemId=4742579326&sourceType=SDW_TOP_SELLING_WIDGET_V2&searchId=5033d28e9930160&q=아침 간편식
+                      - figure [ref=e1176]:
+                        - img "삼립 모닝 잉글리쉬 머핀 6개입 (냉동), 840g, 1개" [ref=e1177]
+                      - generic [ref=e1178]:
+                        - generic [ref=e1180]: 삼립 모닝 잉글리쉬 머핀 6개입 (냉동), 840g, 1개
+                        - generic [ref=e1181]:
+                          - generic [ref=e1182]:
+                            - text: 쿠폰할인|
+                            - generic [ref=e1183]: 5%
+                            - deletion [ref=e1184]: 15,150원
+                          - generic [ref=e1185]:
+                            - strong [ref=e1187]: 14,390원
+                            - generic [ref=e1188]: (10g당 171원)
+                        - generic [ref=e1190]: 내일(일) 새벽 도착 보장
+                        - generic [ref=e1192]:
+                          - generic "4.5" [ref=e1193]
+                          - generic [ref=e1200]: (23,881)
+                        - generic [ref=e1203]:
+                          - img "최대 720원 적립" [ref=e1204]
+                          - generic [ref=e1205]: 최대 720원 적립
+                  - listitem [ref=e1206]:
+                    - link "삼립 리얼 후레쉬 치즈케익, 70g, 10개입, 1개 11,090원 (10g당 158원) 내일(일) 새벽 도착 보장 4.5 (134,380) 최대 495원 적립 최대 495원 적립" [ref=e1207] [cursor=pointer]:
+                      - /url: /vp/products/192137568?itemId=549656318&vendorItemId=4442319474&sourceType=SDW_TOP_SELLING_WIDGET_V2&searchId=5033d28e9930160&q=아침 간편식
+                      - figure [ref=e1208]:
+                        - img "삼립 리얼 후레쉬 치즈케익, 70g, 10개입, 1개" [ref=e1209]
+                      - generic [ref=e1210]:
+                        - generic [ref=e1212]: 삼립 리얼 후레쉬 치즈케익, 70g, 10개입, 1개
+                        - generic [ref=e1214]:
+                          - strong [ref=e1216]: 11,090원
+                          - generic [ref=e1217]: (10g당 158원)
+                        - generic [ref=e1219]: 내일(일) 새벽 도착 보장
+                        - generic [ref=e1221]:
+                          - generic "4.5" [ref=e1222]
+                          - generic [ref=e1229]: (134,380)
+                        - generic [ref=e1232]:
+                          - img "최대 495원 적립" [ref=e1233]
+                          - generic [ref=e1234]: 최대 495원 적립
+                  - listitem [ref=e1235]:
+                    - link "삼립 주종발효 밤만쥬, 27g, 40개입, 1개 10,060원 (10g당 93원) 내일(일) 새벽 도착 보장 4.5 (46,069) 최대 503원 적립 최대 503원 적립" [ref=e1236] [cursor=pointer]:
+                      - /url: /vp/products/1610531928?itemId=2750478764&vendorItemId=70740434422&sourceType=SDW_TOP_SELLING_WIDGET_V2&searchId=5033d28e9930160&q=아침 간편식
+                      - figure [ref=e1237]:
+                        - img "삼립 주종발효 밤만쥬, 27g, 40개입, 1개" [ref=e1238]
+                      - generic [ref=e1239]:
+                        - generic [ref=e1241]: 삼립 주종발효 밤만쥬, 27g, 40개입, 1개
+                        - generic [ref=e1243]:
+                          - strong [ref=e1245]: 10,060원
+                          - generic [ref=e1246]: (10g당 93원)
+                        - generic [ref=e1248]: 내일(일) 새벽 도착 보장
+                        - generic [ref=e1250]:
+                          - generic "4.5" [ref=e1251]
+                          - generic [ref=e1258]: (46,069)
+                        - generic [ref=e1261]:
+                          - img "최대 503원 적립" [ref=e1262]
+                          - generic [ref=e1263]: 최대 503원 적립
+                  - listitem [ref=e1264]:
+                    - link "천일식품 간편한 체다치즈 오믈렛 (냉동), 70g, 20개입, 1개 25,000원 (10g당 179원) 내일(일) 새벽 도착 보장 5 (3,518) 최대 1,250원 적립 최대 1,250원 적립" [ref=e1265] [cursor=pointer]:
+                      - /url: /vp/products/326164759?itemId=1043997353&vendorItemId=5504750054&sourceType=SDW_TOP_SELLING_WIDGET_V2&searchId=5033d28e9930160&q=아침 간편식
+                      - figure [ref=e1266]:
+                        - img "천일식품 간편한 체다치즈 오믈렛 (냉동), 70g, 20개입, 1개" [ref=e1267]
+                      - generic [ref=e1268]:
+                        - generic [ref=e1270]: 천일식품 간편한 체다치즈 오믈렛 (냉동), 70g, 20개입, 1개
+                        - generic [ref=e1272]:
+                          - strong [ref=e1274]: 25,000원
+                          - generic [ref=e1275]: (10g당 179원)
+                        - generic [ref=e1277]: 내일(일) 새벽 도착 보장
+                        - generic [ref=e1279]:
+                          - generic "5" [ref=e1280]
+                          - generic [ref=e1287]: (3,518)
+                        - generic [ref=e1290]:
+                          - img "최대 1,250원 적립" [ref=e1291]
+                          - generic [ref=e1292]: 최대 1,250원 적립
+                  - listitem [ref=e1293]:
+                    - link "삼립 리얼 스위트 고구마케익, 72g, 10개입, 1개 16,680원 (10g당 232원) 내일(일) 새벽 도착 보장 4.5 (28,412) 최대 834원 적립 최대 834원 적립" [ref=e1294] [cursor=pointer]:
+                      - /url: /vp/products/192137556?itemId=549656304&vendorItemId=4442319435&sourceType=SDW_TOP_SELLING_WIDGET_V2&searchId=5033d28e9930160&q=아침 간편식
+                      - figure [ref=e1295]:
+                        - img "삼립 리얼 스위트 고구마케익, 72g, 10개입, 1개" [ref=e1296]
+                      - generic [ref=e1297]:
+                        - generic [ref=e1299]: 삼립 리얼 스위트 고구마케익, 72g, 10개입, 1개
+                        - generic [ref=e1301]:
+                          - strong [ref=e1303]: 16,680원
+                          - generic [ref=e1304]: (10g당 232원)
+                        - generic [ref=e1306]: 내일(일) 새벽 도착 보장
+                        - generic [ref=e1308]:
+                          - generic "4.5" [ref=e1309]
+                          - generic [ref=e1316]: (28,412)
+                        - generic [ref=e1319]:
+                          - img "최대 834원 적립" [ref=e1320]
+                          - generic [ref=e1321]: 최대 834원 적립
+                  - listitem [ref=e1322]:
+                    - link "신라명과 부시맨 빵 (냉동), 100g, 6개입, 1개 7,900원 (10g당 132원) 내일(일) 새벽 도착 보장 5 (32,620) 최대 395원 적립 최대 395원 적립" [ref=e1323] [cursor=pointer]:
+                      - /url: /vp/products/229391712?itemId=727358214&vendorItemId=4839584738&sourceType=SDW_TOP_SELLING_WIDGET_V2&searchId=5033d28e9930160&q=아침 간편식
+                      - figure [ref=e1324]:
+                        - img "신라명과 부시맨 빵 (냉동), 100g, 6개입, 1개" [ref=e1325]
+                      - generic [ref=e1326]:
+                        - generic [ref=e1328]: 신라명과 부시맨 빵 (냉동), 100g, 6개입, 1개
+                        - generic [ref=e1330]:
+                          - strong [ref=e1332]: 7,900원
+                          - generic [ref=e1333]: (10g당 132원)
+                        - generic [ref=e1335]: 내일(일) 새벽 도착 보장
+                        - generic [ref=e1337]:
+                          - generic "5" [ref=e1338]
+                          - generic [ref=e1345]: (32,620)
+                        - generic [ref=e1348]:
+                          - img "최대 395원 적립" [ref=e1349]
+                          - generic [ref=e1350]: 최대 395원 적립
+                - button "다음 상품 보기" [ref=e1351] [cursor=pointer]
+            - listitem [ref=e1352] [cursor=pointer]:
+              - link "아임푸디 오독오독 크런치 식이섬유 볼 야채 샐러드 샤인머스켓맛, 75g, 1개 할인 25,600원 50% 12,800원 (10g당 1,707원) 내일(일) 도착 보장 5 (67) 최대 640원 적립 최대 640원 적립 AD" [ref=e1353]:
+                - /url: /vp/products/9483188147?itemId=28236968193&vendorItemId=95190819138&sourceType=srp_product_ads&clickEventId=e8d7ae00-407b-11f1-927e-be2af8518ab6&korePlacement=15&koreSubPlacement=21&clickEventId=e8d7ae00-407b-11f1-927e-be2af8518ab6&korePlacement=15&koreSubPlacement=21
+                - figure [ref=e1354]:
+                  - img "아임푸디 오독오독 크런치 식이섬유 볼 야채 샐러드 샤인머스켓맛, 75g, 1개" [ref=e1355]
+                - generic [ref=e1356]:
+                  - generic [ref=e1358]: 아임푸디 오독오독 크런치 식이섬유 볼 야채 샐러드 샤인머스켓맛, 75g, 1개
+                  - generic [ref=e1359]:
+                    - generic [ref=e1360]:
+                      - generic [ref=e1361]: 할인
+                      - deletion [ref=e1362]: 25,600원
+                    - generic [ref=e1364]:
+                      - generic [ref=e1365]:
+                        - generic [ref=e1367]: 50%
+                        - img [ref=e1368]
+                      - generic [ref=e1370]: 12,800원
+                      - generic [ref=e1371]: (10g당 1,707원)
+                  - generic [ref=e1376]: 내일(일) 도착 보장
+                  - generic [ref=e1378]:
+                    - generic "5" [ref=e1379]
+                    - generic [ref=e1386]: (67)
+                  - generic [ref=e1388]:
+                    - img "최대 640원 적립" [ref=e1389]
+                    - generic [ref=e1390]: 최대 640원 적립
+                  - generic [ref=e1391]:
+                    - generic [ref=e1392]: AD
+                    - img [ref=e1394]
+            - listitem [ref=e1398] [cursor=pointer]:
+              - link "식사대용 개별포장 떡 건강 영양찰떡, 1.8kg, 1개 할인 35,000원 29% 24,720원 (10g당 137원) 4/29(수) 도착 예정 무료배송 4.5 (3,030) 최대 1,224원 적립 최대 1,224원 적립 7" [ref=e1399]:
+                - /url: /vp/products/5888062239?itemId=10346018517&vendorItemId=77628212192&q=아침 간편식&searchId=5033d28e9930160&sourceType=search&itemsCount=36&searchRank=13&rank=13
+                - figure [ref=e1400]:
+                  - img "식사대용 개별포장 떡 건강 영양찰떡, 1.8kg, 1개" [ref=e1401]
+                - generic [ref=e1402]:
+                  - generic [ref=e1404]: 식사대용 개별포장 떡 건강 영양찰떡, 1.8kg, 1개
+                  - generic [ref=e1405]:
+                    - generic [ref=e1406]:
+                      - generic [ref=e1407]: 할인
+                      - deletion [ref=e1408]: 35,000원
+                    - generic [ref=e1410]:
+                      - generic [ref=e1411]:
+                        - generic [ref=e1413]: 29%
+                        - img [ref=e1414]
+                      - generic [ref=e1416]: 24,720원
+                      - generic [ref=e1417]: (10g당 137원)
+                  - generic [ref=e1418]:
+                    - generic [ref=e1420]: 4/29(수) 도착 예정
+                    - generic [ref=e1421]: 무료배송
+                  - generic [ref=e1423]:
+                    - generic "4.5" [ref=e1424]
+                    - generic [ref=e1431]: (3,030)
+                  - generic [ref=e1433]:
+                    - img "최대 1,224원 적립" [ref=e1434]
+                    - generic [ref=e1435]: 최대 1,224원 적립
+                  - generic [ref=e1436]: "7"
+            - listitem [ref=e1437] [cursor=pointer]:
+              - link "냉동 모닝 잉글리쉬 머핀 6입 1박스, 840g, 1개 15,150원 (10g당 180원) 4/28(화) 도착 예정 무료배송 ∙ 오늘출발 4.5 (410) 최대 758원 적립 최대 758원 적립 8" [ref=e1438]:
+                - /url: /vp/products/2136749895?itemId=3628310358&vendorItemId=86545444428&q=아침 간편식&searchId=5033d28e9930160&sourceType=search&itemsCount=36&searchRank=14&rank=14
+                - figure [ref=e1439]:
+                  - img "냉동 모닝 잉글리쉬 머핀 6입 1박스, 840g, 1개" [ref=e1440]
+                - generic [ref=e1441]:
+                  - generic [ref=e1443]: 냉동 모닝 잉글리쉬 머핀 6입 1박스, 840g, 1개
+                  - generic [ref=e1446]:
+                    - generic [ref=e1447]: 15,150원
+                    - generic [ref=e1448]: (10g당 180원)
+                  - generic [ref=e1449]:
+                    - generic [ref=e1451]: 4/28(화) 도착 예정
+                    - generic [ref=e1452]: 무료배송 ∙ 오늘출발
+                  - generic [ref=e1454]:
+                    - generic "4.5" [ref=e1455]
+                    - generic [ref=e1462]: (410)
+                  - generic [ref=e1464]:
+                    - img "최대 758원 적립" [ref=e1465]
+                    - generic [ref=e1466]: 최대 758원 적립
+                  - generic [ref=e1467]: "8"
+            - listitem [ref=e1468] [cursor=pointer]:
+              - link "애슐리 볶음밥 10인분 혼합 구성 10종(통새우+갈릭스테이크+버터와규+깍두기베이컨+케이준+랍스터+해물+묵은지삼겹+잡채+스크램블게살)아침 대용 직장인 도시락, 2.32kg, 1세트 할인 34,500원 21% 27,190원 (100g당 1,172원) 4/28(화) 도착 예정 무료배송 ∙ 오늘출발 4.5 (6,575) 최대 1,360원 적립 최대 1,360원 적립 9" [ref=e1469]:
+                - /url: /vp/products/7937090267?itemId=21849825504&vendorItemId=88898090025&q=아침 간편식&searchId=5033d28e9930160&sourceType=search&itemsCount=36&searchRank=15&rank=15
+                - figure [ref=e1470]:
+                  - img "애슐리 볶음밥 10인분 혼합 구성 10종(통새우+갈릭스테이크+버터와규+깍두기베이컨+케이준+랍스터+해물+묵은지삼겹+잡채+스크램블게살)아침 대용 직장인 도시락, 2.32kg, 1세트" [ref=e1471]
+                - generic [ref=e1472]:
+                  - generic [ref=e1474]: 애슐리 볶음밥 10인분 혼합 구성 10종(통새우+갈릭스테이크+버터와규+깍두기베이컨+케이준+랍스터+해물+묵은지삼겹+잡채+스크램블게살)아침 대용 직장인 도시락, 2.32kg, 1세트
+                  - generic [ref=e1475]:
+                    - generic [ref=e1476]:
+                      - generic [ref=e1477]: 할인
+                      - deletion [ref=e1478]: 34,500원
+                    - generic [ref=e1480]:
+                      - generic [ref=e1481]:
+                        - generic [ref=e1483]: 21%
+                        - img [ref=e1484]
+                      - generic [ref=e1486]: 27,190원
+                      - generic [ref=e1487]: (100g당 1,172원)
+                  - generic [ref=e1488]:
+                    - generic [ref=e1490]: 4/28(화) 도착 예정
+                    - generic [ref=e1491]: 무료배송 ∙ 오늘출발
+                  - generic [ref=e1493]:
+                    - generic "4.5" [ref=e1494]
+                    - generic [ref=e1501]: (6,575)
+                  - generic [ref=e1503]:
+                    - img "최대 1,360원 적립" [ref=e1504]
+                    - generic [ref=e1505]: 최대 1,360원 적립
+                  - generic [ref=e1506]: "9"
+            - listitem [ref=e1507] [cursor=pointer]:
+              - link "미미스상회 꿀설기 (50gX40개), 2kg, 1개 할인 21,950원 32% 14,750원 (10g당 74원) 4/28(화) 도착 예정 무료배송 ∙ 오늘출발 4.5 (160) 최대 730원 적립 최대 730원 적립 10" [ref=e1508]:
+                - /url: /vp/products/8774083190?itemId=25524131861&vendorItemId=92451118338&q=아침 간편식&searchId=5033d28e9930160&sourceType=search&itemsCount=36&searchRank=16&rank=16
+                - figure [ref=e1509]:
+                  - img "미미스상회 꿀설기 (50gX40개), 2kg, 1개" [ref=e1510]
+                - generic [ref=e1511]:
+                  - generic [ref=e1513]: 미미스상회 꿀설기 (50gX40개), 2kg, 1개
+                  - generic [ref=e1514]:
+                    - generic [ref=e1515]:
+                      - generic [ref=e1516]: 할인
+                      - deletion [ref=e1517]: 21,950원
+                    - generic [ref=e1519]:
+                      - generic [ref=e1520]:
+                        - generic [ref=e1522]: 32%
+                        - img [ref=e1523]
+                      - generic [ref=e1525]: 14,750원
+                      - generic [ref=e1526]: (10g당 74원)
+                  - generic [ref=e1527]:
+                    - generic [ref=e1529]: 4/28(화) 도착 예정
+                    - generic [ref=e1530]: 무료배송 ∙ 오늘출발
+                  - generic [ref=e1532]:
+                    - generic "4.5" [ref=e1533]
+                    - generic [ref=e1540]: (160)
+                  - generic [ref=e1542]:
+                    - img "최대 730원 적립" [ref=e1543]
+                    - generic [ref=e1544]: 최대 730원 적립
+                  - generic [ref=e1545]: "10"
+            - listitem [ref=e1546] [cursor=pointer]:
+              - link "[약손떡방] 식대용 약식 약밥, 800g, 1박스 16,000원 (10g당 200원) 4/28(화) 도착 예정 무료배송 ∙ 오늘출발 4.5 (901) 최대 800원 적립 최대 800원 적립" [ref=e1547]:
+                - /url: /vp/products/8700787536?itemId=25265969196&vendorItemId=70168604719&q=아침 간편식&searchId=5033d28e9930160&sourceType=search&itemsCount=36&searchRank=17&rank=17
+                - figure [ref=e1548]:
+                  - img "[약손떡방] 식대용 약식 약밥, 800g, 1박스" [ref=e1549]
+                - generic [ref=e1550]:
+                  - generic [ref=e1552]: "[약손떡방] 식대용 약식 약밥, 800g, 1박스"
+                  - generic [ref=e1555]:
+                    - generic [ref=e1556]: 16,000원
+                    - generic [ref=e1557]: (10g당 200원)
+                  - generic [ref=e1558]:
+                    - generic [ref=e1560]: 4/28(화) 도착 예정
+                    - generic [ref=e1561]: 무료배송 ∙ 오늘출발
+                  - generic [ref=e1563]:
+                    - generic "4.5" [ref=e1564]
+                    - generic [ref=e1571]: (901)
+                  - generic [ref=e1573]:
+                    - img "최대 800원 적립" [ref=e1574]
+                    - generic [ref=e1575]: 최대 800원 적립
+            - listitem [ref=e1576] [cursor=pointer]:
+              - link "뉴케어 구수한맛 미니 완전균형영양식, 150ml, 24개 48,000원 36% 30,400원 (10ml당 84원) 내일(일) 도착 보장 무료배송 5 (95,722) 최대 1,520원 적립 최대 1,520원 적립" [ref=e1577]:
+                - /url: /vp/products/7014727109?itemId=22949914951&vendorItemId=86014198724&q=아침 간편식&searchId=5033d28e9930160&sourceType=search&itemsCount=36&searchRank=18&rank=18
+                - figure [ref=e1578]:
+                  - img "뉴케어 구수한맛 미니 완전균형영양식, 150ml, 24개" [ref=e1579]
+                - generic [ref=e1580]:
+                  - generic [ref=e1582]: 뉴케어 구수한맛 미니 완전균형영양식, 150ml, 24개
+                  - generic [ref=e1583]:
+                    - deletion [ref=e1585]: 48,000원
+                    - generic [ref=e1587]:
+                      - generic [ref=e1588]: 36%
+                      - generic [ref=e1589]: 30,400원
+                      - generic [ref=e1590]: (10ml당 84원)
+                  - generic [ref=e1591]:
+                    - generic [ref=e1595]: 내일(일) 도착 보장
+                    - generic [ref=e1596]: 무료배송
+                  - generic [ref=e1598]:
+                    - generic "5" [ref=e1599]
+                    - generic [ref=e1606]: (95,722)
+                  - generic [ref=e1608]:
+                    - img "최대 1,520원 적립" [ref=e1609]
+                    - generic [ref=e1610]: 최대 1,520원 적립
+            - listitem [ref=e1611] [cursor=pointer]:
+              - link "한우물 볶음밥 3종 4봉씩 1세트 12봉 햄야채 김치 새우 볶음밥, 250g, 12개 19,900원 (100g당 663원) 4/29(수) 도착 예정 무료배송 4.5 (2,256) 최대 995원 적립 최대 995원 적립" [ref=e1612]:
+                - /url: /vp/products/6069684347?itemId=11200106731&vendorItemId=3119718690&q=아침 간편식&searchId=5033d28e9930160&sourceType=search&itemsCount=36&searchRank=19&rank=19
+                - figure [ref=e1613]:
+                  - img "한우물 볶음밥 3종 4봉씩 1세트 12봉 햄야채 김치 새우 볶음밥, 250g, 12개" [ref=e1614]
+                - generic [ref=e1615]:
+                  - generic [ref=e1617]: 한우물 볶음밥 3종 4봉씩 1세트 12봉 햄야채 김치 새우 볶음밥, 250g, 12개
+                  - generic [ref=e1620]:
+                    - generic [ref=e1621]: 19,900원
+                    - generic [ref=e1622]: (100g당 663원)
+                  - generic [ref=e1623]:
+                    - generic [ref=e1625]: 4/29(수) 도착 예정
+                    - generic [ref=e1626]: 무료배송
+                  - generic [ref=e1628]:
+                    - generic "4.5" [ref=e1629]
+                    - generic [ref=e1636]: (2,256)
+                  - generic [ref=e1638]:
+                    - img "최대 995원 적립" [ref=e1639]
+                    - generic [ref=e1640]: 최대 995원 적립
+            - listitem [ref=e1641] [cursor=pointer]:
+              - link "방탄푸드 닭가슴살 곤약 볶음밥 도시락 230g 4종 8+1팩 (김치볶음 2팩 + 숯불고기 2팩 + 미트볼 2팩 + 제육볶음 3팩) / FMD 컵밥 식단, 1개 쿠폰할인 · 6일 남음 50,000원 40% 29,900원 (100g당 13,000원) 4/29(수) 도착 예정 무료배송 4.5 (1,659) 최대 1,495원 적립 최대 1,495원 적립" [ref=e1642]:
+                - /url: /vp/products/8801484376?itemId=25628998174&vendorItemId=81357315238&q=아침 간편식&searchId=5033d28e9930160&sourceType=search&itemsCount=36&searchRank=20&rank=20
+                - figure [ref=e1643]:
+                  - img "방탄푸드 닭가슴살 곤약 볶음밥 도시락 230g 4종 8+1팩 (김치볶음 2팩 + 숯불고기 2팩 + 미트볼 2팩 + 제육볶음 3팩) / FMD 컵밥 식단, 1개" [ref=e1644]
+                - generic [ref=e1645]:
+                  - generic [ref=e1647]: 방탄푸드 닭가슴살 곤약 볶음밥 도시락 230g 4종 8+1팩 (김치볶음 2팩 + 숯불고기 2팩 + 미트볼 2팩 + 제육볶음 3팩) / FMD 컵밥 식단, 1개
+                  - generic [ref=e1648]:
+                    - generic [ref=e1649]:
+                      - generic [ref=e1650]: 쿠폰할인
+                      - generic [ref=e1651]: · 6일 남음
+                      - deletion [ref=e1652]: 50,000원
+                    - generic [ref=e1654]:
+                      - generic [ref=e1655]:
+                        - generic [ref=e1657]: 40%
+                        - img [ref=e1658]
+                      - generic [ref=e1660]: 29,900원
+                      - generic [ref=e1661]: (100g당 13,000원)
+                  - generic [ref=e1662]:
+                    - generic [ref=e1664]: 4/29(수) 도착 예정
+                    - generic [ref=e1665]: 무료배송
+                  - generic [ref=e1667]:
+                    - generic "4.5" [ref=e1668]
+                    - generic [ref=e1675]: (1,659)
+                  - generic [ref=e1677]:
+                    - img "최대 1,495원 적립" [ref=e1678]
+                    - generic [ref=e1679]: 최대 1,495원 적립
+            - listitem [ref=e1680] [cursor=pointer]:
+              - link "[보양식 추천] 김하진의 뼈없는 갈비탕 800g x 5팩, 5개 할인 31,900원 18% 26,110원 (100g당 653원) 4/29(수) 도착 예정 무료배송 ∙ 무료반품 4 (366) 최대 1,305원 적립 최대 1,305원 적립 AD" [ref=e1681]:
+                - /url: /vp/products/8840053151?itemId=26947471669&vendorItemId=94718054052&sourceType=srp_product_ads&clickEventId=e8d7ae00-407b-11f1-a55d-4c19880b2e07&korePlacement=15&koreSubPlacement=22&clickEventId=e8d7ae00-407b-11f1-a55d-4c19880b2e07&korePlacement=15&koreSubPlacement=22
+                - figure [ref=e1682]:
+                  - img "[보양식 추천] 김하진의 뼈없는 갈비탕 800g x 5팩, 5개" [ref=e1683]
+                - generic [ref=e1684]:
+                  - generic [ref=e1686]: "[보양식 추천] 김하진의 뼈없는 갈비탕 800g x 5팩, 5개"
+                  - generic [ref=e1687]:
+                    - generic [ref=e1688]:
+                      - generic [ref=e1689]: 할인
+                      - deletion [ref=e1690]: 31,900원
+                    - generic [ref=e1692]:
+                      - generic [ref=e1693]: 18%
+                      - generic [ref=e1694]: 26,110원
+                      - generic [ref=e1695]: (100g당 653원)
+                  - generic [ref=e1696]:
+                    - generic [ref=e1698]: 4/29(수) 도착 예정
+                    - generic [ref=e1699]: 무료배송 ∙ 무료반품
+                  - generic [ref=e1701]:
+                    - generic "4" [ref=e1702]
+                    - generic [ref=e1709]: (366)
+                  - generic [ref=e1711]:
+                    - img "최대 1,305원 적립" [ref=e1712]
+                    - generic [ref=e1713]: 최대 1,305원 적립
+                  - generic [ref=e1714]:
+                    - generic [ref=e1715]: AD
+                    - img [ref=e1717]
+            - listitem [ref=e1721] [cursor=pointer]:
+              - link "애슐리 주먹밥 4종 세트 20개입(김치콘치즈+버터와규+치즈갈릭스테이크+치즈케이준치킨) 삼각김밥 / 냉동김밥, 1개, 500g 할인 31,310원 15% 26,420원 (100g당 5,284원) 4/28(화) 도착 예정 무료배송 ∙ 오늘출발 4.5 (3,987) 최대 1,321원 적립 최대 1,321원 적립 AD" [ref=e1722]:
+                - /url: /vp/products/7934652199?itemId=21838159119&vendorItemId=88886552234&sourceType=srp_product_ads&clickEventId=e8d7d510-407b-11f1-8051-5b35eeaacd16&korePlacement=15&koreSubPlacement=24&clickEventId=e8d7d510-407b-11f1-8051-5b35eeaacd16&korePlacement=15&koreSubPlacement=24
+                - figure [ref=e1723]:
+                  - img "애슐리 주먹밥 4종 세트 20개입(김치콘치즈+버터와규+치즈갈릭스테이크+치즈케이준치킨) 삼각김밥 / 냉동김밥, 1개, 500g" [ref=e1724]
+                - generic [ref=e1725]:
+                  - generic [ref=e1727]: 애슐리 주먹밥 4종 세트 20개입(김치콘치즈+버터와규+치즈갈릭스테이크+치즈케이준치킨) 삼각김밥 / 냉동김밥, 1개, 500g
+                  - generic [ref=e1728]:
+                    - generic [ref=e1729]:
+                      - generic [ref=e1730]: 할인
+                      - deletion [ref=e1731]: 31,310원
+                    - generic [ref=e1733]:
+                      - generic [ref=e1734]:
+                        - generic [ref=e1736]: 15%
+                        - img [ref=e1737]
+                      - generic [ref=e1739]: 26,420원
+                      - generic [ref=e1740]: (100g당 5,284원)
+                  - generic [ref=e1741]:
+                    - generic [ref=e1743]: 4/28(화) 도착 예정
+                    - generic [ref=e1744]: 무료배송 ∙ 오늘출발
+                  - generic [ref=e1746]:
+                    - generic "4.5" [ref=e1747]
+                    - generic [ref=e1754]: (3,987)
+                  - generic [ref=e1756]:
+                    - img "최대 1,321원 적립" [ref=e1757]
+                    - generic [ref=e1758]: 최대 1,321원 적립
+                  - generic [ref=e1759]:
+                    - generic [ref=e1760]: AD
+                    - img [ref=e1762]
+            - listitem [ref=e1766] [cursor=pointer]:
+              - link "리얼 한입 치즈케이크 미니 대용량 아침 식사대용 빵, 1박스, 900g 할인 27,900원 27% 20,210원 (10g당 225원) 내일(일) 도착 보장 무료배송 4.5 (28) 최대 1,010원 적립 최대 1,010원 적립" [ref=e1767]:
+                - /url: /vp/products/9394733664?itemId=27900741429&vendorItemId=94934552907&q=아침 간편식&searchId=5033d28e9930160&sourceType=search&itemsCount=36&searchRank=23&rank=23
+                - figure [ref=e1768]:
+                  - img "리얼 한입 치즈케이크 미니 대용량 아침 식사대용 빵, 1박스, 900g" [ref=e1769]
+                - generic [ref=e1770]:
+                  - generic [ref=e1772]: 리얼 한입 치즈케이크 미니 대용량 아침 식사대용 빵, 1박스, 900g
+                  - generic [ref=e1773]:
+                    - generic [ref=e1774]:
+                      - generic [ref=e1775]: 할인
+                      - deletion [ref=e1776]: 27,900원
+                    - generic [ref=e1778]:
+                      - generic [ref=e1779]:
+                        - generic [ref=e1781]: 27%
+                        - img [ref=e1782]
+                      - generic [ref=e1784]: 20,210원
+                      - generic [ref=e1785]: (10g당 225원)
+                  - generic [ref=e1786]:
+                    - generic [ref=e1790]: 내일(일) 도착 보장
+                    - generic [ref=e1791]: 무료배송
+                  - generic [ref=e1793]:
+                    - generic "4.5" [ref=e1794]
+                    - generic [ref=e1801]: (28)
+                  - generic [ref=e1803]:
+                    - img "최대 1,010원 적립" [ref=e1804]
+                    - generic [ref=e1805]: 최대 1,010원 적립
+            - listitem [ref=e1806] [cursor=pointer]:
+              - link "애슐리 주먹밥 4종 세트 20개입(김치콘치즈+버터와규+치즈갈릭스테이크+치즈케이준치킨) 삼각김밥 / 냉동김밥, 1개, 500g 할인 31,310원 15% 26,420원 (100g당 5,284원) 4/28(화) 도착 예정 무료배송 ∙ 오늘출발 4.5 (3,987) 최대 1,321원 적립 최대 1,321원 적립" [ref=e1807]:
+                - /url: /vp/products/7934652199?itemId=21838159119&vendorItemId=88886552234&q=아침 간편식&searchId=5033d28e9930160&sourceType=search&itemsCount=36&searchRank=24&rank=24
+                - figure [ref=e1808]:
+                  - img "애슐리 주먹밥 4종 세트 20개입(김치콘치즈+버터와규+치즈갈릭스테이크+치즈케이준치킨) 삼각김밥 / 냉동김밥, 1개, 500g" [ref=e1809]
+                - generic [ref=e1810]:
+                  - generic [ref=e1812]: 애슐리 주먹밥 4종 세트 20개입(김치콘치즈+버터와규+치즈갈릭스테이크+치즈케이준치킨) 삼각김밥 / 냉동김밥, 1개, 500g
+                  - generic [ref=e1813]:
+                    - generic [ref=e1814]:
+                      - generic [ref=e1815]: 할인
+                      - deletion [ref=e1816]: 31,310원
+                    - generic [ref=e1818]:
+                      - generic [ref=e1819]:
+                        - generic [ref=e1821]: 15%
+                        - img [ref=e1822]
+                      - generic [ref=e1824]: 26,420원
+                      - generic [ref=e1825]: (100g당 5,284원)
+                  - generic [ref=e1826]:
+                    - generic [ref=e1828]: 4/28(화) 도착 예정
+                    - generic [ref=e1829]: 무료배송 ∙ 오늘출발
+                  - generic [ref=e1831]:
+                    - generic "4.5" [ref=e1832]
+                    - generic [ref=e1839]: (3,987)
+                  - generic [ref=e1841]:
+                    - img "최대 1,321원 적립" [ref=e1842]
+                    - generic [ref=e1843]: 최대 1,321원 적립
+            - listitem [ref=e1844] [cursor=pointer]:
+              - link "비비고 국 탕 8종 세트, 4kg, 1세트 24,070원 (100g당 602원) 4/29(수) 도착 예정 무료배송 5 (2,794) 최대 1,204원 적립 최대 1,204원 적립" [ref=e1845]:
+                - /url: /vp/products/8243989000?itemId=13011746121&vendorItemId=88824689135&q=아침 간편식&searchId=5033d28e9930160&sourceType=search&itemsCount=36&searchRank=25&rank=25
+                - figure [ref=e1846]:
+                  - img "비비고 국 탕 8종 세트, 4kg, 1세트" [ref=e1847]
+                - generic [ref=e1848]:
+                  - generic [ref=e1850]: 비비고 국 탕 8종 세트, 4kg, 1세트
+                  - generic [ref=e1853]:
+                    - generic [ref=e1854]: 24,070원
+                    - generic [ref=e1855]: (100g당 602원)
+                  - generic [ref=e1856]:
+                    - generic [ref=e1858]: 4/29(수) 도착 예정
+                    - generic [ref=e1859]: 무료배송
+                  - generic [ref=e1861]:
+                    - generic "5" [ref=e1862]
+                    - generic [ref=e1869]: (2,794)
+                  - generic [ref=e1871]:
+                    - img "최대 1,204원 적립" [ref=e1872]
+                    - generic [ref=e1873]: 최대 1,204원 적립
+            - listitem [ref=e1874] [cursor=pointer]:
+              - link "[화랑] 아침대용 촉촉한 호박꿀설기 개별포장 간편식 건강간식 전통떡, 20개, 50g 할인 20,000원 40% 11,850원 (10g당 119원) 4/28(화) 도착 예정 무료배송 ∙ 오늘출발 4 (529) 최대 593원 적립 최대 593원 적립" [ref=e1875]:
+                - /url: /vp/products/8834380516?itemId=25743866357&vendorItemId=92732268009&q=아침 간편식&searchId=5033d28e9930160&sourceType=search&itemsCount=36&searchRank=26&rank=26
+                - figure [ref=e1876]:
+                  - img "[화랑] 아침대용 촉촉한 호박꿀설기 개별포장 간편식 건강간식 전통떡, 20개, 50g" [ref=e1877]
+                - generic [ref=e1878]:
+                  - generic [ref=e1881]:
+                    - text: "[화랑]"
+                    - mark [ref=e1882]: 아침
+                    - text: 대용 촉촉한 호박꿀설기 개별포장
+                    - mark [ref=e1883]: 간편식
+                    - text: 건강간식 전통떡, 20개, 50g
+                  - generic [ref=e1884]:
+                    - generic [ref=e1885]:
+                      - generic [ref=e1886]: 할인
+                      - deletion [ref=e1887]: 20,000원
+                    - generic [ref=e1889]:
+                      - generic [ref=e1890]: 40%
+                      - generic [ref=e1891]: 11,850원
+                      - generic [ref=e1892]: (10g당 119원)
+                  - generic [ref=e1893]:
+                    - generic [ref=e1895]: 4/28(화) 도착 예정
+                    - generic [ref=e1896]: 무료배송 ∙ 오늘출발
+                  - generic [ref=e1898]:
+                    - generic "4" [ref=e1899]
+                    - generic [ref=e1906]: (529)
+                  - generic [ref=e1908]:
+                    - img "최대 593원 적립" [ref=e1909]
+                    - generic [ref=e1910]: 최대 593원 적립
+            - listitem [ref=e1911] [cursor=pointer]:
+              - link "먹켓단 오뚜기 컵밥 골라담기 12종, 12개, 310g 30,000원 (100g당 806원) 4/28(화) 도착 예정 무료배송 ∙ 오늘출발 5 (2,337) 최대 1,500원 적립 최대 1,500원 적립" [ref=e1912]:
+                - /url: /vp/products/9087970301?itemId=17836155583&vendorItemId=88422040135&q=아침 간편식&searchId=5033d28e9930160&sourceType=search&itemsCount=36&searchRank=27&rank=27
+                - figure [ref=e1913]:
+                  - img "먹켓단 오뚜기 컵밥 골라담기 12종, 12개, 310g" [ref=e1914]
+                - generic [ref=e1915]:
+                  - generic [ref=e1917]: 먹켓단 오뚜기 컵밥 골라담기 12종, 12개, 310g
+                  - generic [ref=e1920]:
+                    - generic [ref=e1921]: 30,000원
+                    - generic [ref=e1922]: (100g당 806원)
+                  - generic [ref=e1923]:
+                    - generic [ref=e1925]: 4/28(화) 도착 예정
+                    - generic [ref=e1926]: 무료배송 ∙ 오늘출발
+                  - generic [ref=e1928]:
+                    - generic "5" [ref=e1929]
+                    - generic [ref=e1936]: (2,337)
+                  - generic [ref=e1938]:
+                    - img "최대 1,500원 적립" [ref=e1939]
+                    - generic [ref=e1940]: 최대 1,500원 적립
+            - listitem [ref=e1941] [cursor=pointer]:
+              - link "담터 검은콩 검은참깨 흑미 미숫가루, 20g, 40개 13,380원 (100g당 1,673원) 내일(일) 도착 보장 와우는 무료배송 ∙ 무료반품 4.5 (4,220) 최대 669원 적립 최대 669원 적립" [ref=e1942]:
+                - /url: /vp/products/1369907283?itemId=2402334768&vendorItemId=70397195556&q=아침 간편식&searchId=5033d28e9930160&sourceType=search&itemsCount=36&searchRank=28&rank=28
+                - figure [ref=e1943]:
+                  - img "담터 검은콩 검은참깨 흑미 미숫가루, 20g, 40개" [ref=e1944]
+                - generic [ref=e1945]:
+                  - generic [ref=e1947]: 담터 검은콩 검은참깨 흑미 미숫가루, 20g, 40개
+                  - generic [ref=e1950]:
+                    - generic [ref=e1951]: 13,380원
+                    - generic [ref=e1952]: (100g당 1,673원)
+                  - generic [ref=e1953]:
+                    - generic [ref=e1957]: 내일(일) 도착 보장
+                    - generic [ref=e1958]: 와우는 무료배송 ∙ 무료반품
+                  - generic [ref=e1960]:
+                    - generic "4.5" [ref=e1961]
+                    - generic [ref=e1968]: (4,220)
+                  - generic [ref=e1970]:
+                    - img "최대 669원 적립" [ref=e1971]
+                    - generic [ref=e1972]: 최대 669원 적립
+            - listitem [ref=e1973] [cursor=pointer]:
+              - link "보리담은_당일생산 국산팥 찰보리빵 실속형 아침대용 간편식 사무실 회사 간식 대용량, 30개, 28g 17,900원 22% 13,900원 (10g당 165원) 4/29(수) 도착 예정 무료배송 4.5 (12,670) 최대 695원 적립 최대 695원 적립" [ref=e1974]:
+                - /url: /vp/products/8579401661?itemId=27751977666&vendorItemId=83453535684&q=아침 간편식&searchId=5033d28e9930160&sourceType=search&itemsCount=36&searchRank=29&rank=29
+                - figure [ref=e1975]:
+                  - img "보리담은_당일생산 국산팥 찰보리빵 실속형 아침대용 간편식 사무실 회사 간식 대용량, 30개, 28g" [ref=e1976]
+                - generic [ref=e1977]:
+                  - generic [ref=e1980]:
+                    - text: 보리담은_당일생산 국산팥 찰보리빵 실속형
+                    - mark [ref=e1981]: 아침
+                    - text: 대용
+                    - mark [ref=e1982]: 간편식
+                    - text: 사무실 회사 간식 대용량, 30개, 28g
+                  - generic [ref=e1983]:
+                    - deletion [ref=e1985]: 17,900원
+                    - generic [ref=e1987]:
+                      - generic [ref=e1988]: 22%
+                      - generic [ref=e1989]: 13,900원
+                      - generic [ref=e1990]: (10g당 165원)
+                  - generic [ref=e1991]:
+                    - generic [ref=e1993]: 4/29(수) 도착 예정
+                    - generic [ref=e1994]: 무료배송
+                  - generic [ref=e1996]:
+                    - generic "4.5" [ref=e1997]
+                    - generic [ref=e2004]: (12,670)
+                  - generic [ref=e2006]:
+                    - img "최대 695원 적립" [ref=e2007]
+                    - generic [ref=e2008]: 최대 695원 적립
+            - listitem [ref=e2009] [cursor=pointer]:
+              - link "애슐리 크리스피 핫도그 4종 세트 16개입 (통모짜4+포테이토4+소시지탱글4+모짜탱글4) 간식 피시방, 1개 할인 35,700원 40% 21,390원 4/29(수) 도착 예정 무료배송 4.5 (2,302) 최대 1,070원 적립 최대 1,070원 적립" [ref=e2010]:
+                - /url: /vp/products/8289750900?itemId=23973808901&vendorItemId=90995127112&q=아침 간편식&searchId=5033d28e9930160&sourceType=search&itemsCount=36&searchRank=30&rank=30
+                - figure [ref=e2011]:
+                  - img "애슐리 크리스피 핫도그 4종 세트 16개입 (통모짜4+포테이토4+소시지탱글4+모짜탱글4) 간식 피시방, 1개" [ref=e2012]
+                - generic [ref=e2013]:
+                  - generic [ref=e2015]: 애슐리 크리스피 핫도그 4종 세트 16개입 (통모짜4+포테이토4+소시지탱글4+모짜탱글4) 간식 피시방, 1개
+                  - generic [ref=e2016]:
+                    - generic [ref=e2017]:
+                      - generic [ref=e2018]: 할인
+                      - deletion [ref=e2019]: 35,700원
+                    - generic [ref=e2021]:
+                      - generic [ref=e2022]:
+                        - generic [ref=e2024]: 40%
+                        - img [ref=e2025]
+                      - generic [ref=e2027]: 21,390원
+                  - generic [ref=e2028]:
+                    - generic [ref=e2030]: 4/29(수) 도착 예정
+                    - generic [ref=e2031]: 무료배송
+                  - generic [ref=e2033]:
+                    - generic "4.5" [ref=e2034]
+                    - generic [ref=e2041]: (2,302)
+                  - generic [ref=e2043]:
+                    - img "최대 1,070원 적립" [ref=e2044]
+                    - generic [ref=e2045]: 최대 1,070원 적립
+            - listitem [ref=e2046] [cursor=pointer]:
+              - link "봄날인터내셔널 햇고구마를 구워 만든 군고구마바, 22g, 10개 8,900원 (100g당 4,045원) 내일(일) 도착 보장 와우는 무료배송 ∙ 무료반품 ∙ 새벽도착 4.5 (15,536) 최대 356원 적립 최대 356원 적립" [ref=e2047]:
+                - /url: /vp/products/6758617810?itemId=26494296740&vendorItemId=93469110052&q=아침 간편식&searchId=5033d28e9930160&sourceType=search&itemsCount=36&searchRank=31&rank=31
+                - figure [ref=e2048]:
+                  - img "봄날인터내셔널 햇고구마를 구워 만든 군고구마바, 22g, 10개" [ref=e2049]
+                - generic [ref=e2050]:
+                  - generic [ref=e2052]: 봄날인터내셔널 햇고구마를 구워 만든 군고구마바, 22g, 10개
+                  - generic [ref=e2055]:
+                    - generic [ref=e2056]: 8,900원
+                    - generic [ref=e2057]: (100g당 4,045원)
+                  - generic [ref=e2058]:
+                    - generic [ref=e2062]: 내일(일) 도착 보장
+                    - generic [ref=e2063]: 와우는 무료배송 ∙ 무료반품 ∙ 새벽도착
+                  - generic [ref=e2065]:
+                    - generic "4.5" [ref=e2066]
+                    - generic [ref=e2073]: (15,536)
+                  - generic [ref=e2075]:
+                    - img "최대 356원 적립" [ref=e2076]
+                    - generic [ref=e2077]: 최대 356원 적립
+            - listitem [ref=e2078] [cursor=pointer]:
+              - link "햇반컵반 철판제육덮밥 256g 3p + 스팸김치덮밥 251g 3p + 직화불고기덮밥 258g 3p + 김치날치알밥 188g 3p, 1세트 28,390원 (100g당 11,311원) 4/29(수) 도착 예정 무료배송 5 (2,746) 최대 1,420원 적립 최대 1,420원 적립" [ref=e2079]:
+                - /url: /vp/products/8500636410?itemId=24607123656&vendorItemId=87551427694&q=아침 간편식&searchId=5033d28e9930160&sourceType=search&itemsCount=36&searchRank=32&rank=32
+                - figure [ref=e2080]:
+                  - img "햇반컵반 철판제육덮밥 256g 3p + 스팸김치덮밥 251g 3p + 직화불고기덮밥 258g 3p + 김치날치알밥 188g 3p, 1세트" [ref=e2081]
+                - generic [ref=e2082]:
+                  - generic [ref=e2084]: 햇반컵반 철판제육덮밥 256g 3p + 스팸김치덮밥 251g 3p + 직화불고기덮밥 258g 3p + 김치날치알밥 188g 3p, 1세트
+                  - generic [ref=e2087]:
+                    - generic [ref=e2088]: 28,390원
+                    - generic [ref=e2089]: (100g당 11,311원)
+                  - generic [ref=e2090]:
+                    - generic [ref=e2092]: 4/29(수) 도착 예정
+                    - generic [ref=e2093]: 무료배송
+                  - generic [ref=e2095]:
+                    - generic "5" [ref=e2096]
+                    - generic [ref=e2103]: (2,746)
+                  - generic [ref=e2105]:
+                    - img "최대 1,420원 적립" [ref=e2106]
+                    - generic [ref=e2107]: 최대 1,420원 적립
+            - listitem [ref=e2108] [cursor=pointer]:
+              - link "애슐리 주먹밥 맛보기세트 10개입 (김치콘치즈100g x 2개+버터와규100g x 2개+치즈갈릭스테이크100g x 2개+치즈케이준치킨100g x2개+데리참치마요100g x 2개 ) 할인 19,890원 20% 15,750원 4/29(수) 도착 예정 무료배송 4.5 (1,567) 최대 788원 적립 최대 788원 적립" [ref=e2109]:
+                - /url: /vp/products/8760598729?itemId=25473487473&vendorItemId=91934491763&q=아침 간편식&searchId=5033d28e9930160&sourceType=search&itemsCount=36&searchRank=33&rank=33
+                - figure [ref=e2110]:
+                  - img "애슐리 주먹밥 맛보기세트 10개입 (김치콘치즈100g x 2개+버터와규100g x 2개+치즈갈릭스테이크100g x 2개+치즈케이준치킨100g x2개+데리참치마요100g x 2개 )" [ref=e2111]
+                - generic [ref=e2112]:
+                  - generic [ref=e2114]: 애슐리 주먹밥 맛보기세트 10개입 (김치콘치즈100g x 2개+버터와규100g x 2개+치즈갈릭스테이크100g x 2개+치즈케이준치킨100g x2개+데리참치마요100g x 2개 )
+                  - generic [ref=e2115]:
+                    - generic [ref=e2116]:
+                      - generic [ref=e2117]: 할인
+                      - deletion [ref=e2118]: 19,890원
+                    - generic [ref=e2120]:
+                      - generic [ref=e2121]:
+                        - generic [ref=e2123]: 20%
+                        - img [ref=e2124]
+                      - generic [ref=e2126]: 15,750원
+                  - generic [ref=e2127]:
+                    - generic [ref=e2129]: 4/29(수) 도착 예정
+                    - generic [ref=e2130]: 무료배송
+                  - generic [ref=e2132]:
+                    - generic "4.5" [ref=e2133]
+                    - generic [ref=e2140]: (1,567)
+                  - generic [ref=e2142]:
+                    - img "최대 788원 적립" [ref=e2143]
+                    - generic [ref=e2144]: 최대 788원 적립
+            - listitem [ref=e2145] [cursor=pointer]:
+              - link "부드럽고 촉촉한 한입 카스테라 빵 딸기맛, 1박스, 1kg 할인 24,900원 34% 16,280원 (10g당 163원) 내일(일) 도착 보장 무료배송 4.5 (493) 최대 814원 적립 최대 814원 적립" [ref=e2146]:
+                - /url: /vp/products/8891676801?itemId=28170511931&vendorItemId=95125421885&q=아침 간편식&searchId=5033d28e9930160&sourceType=search&itemsCount=36&searchRank=34&rank=34
+                - figure [ref=e2147]:
+                  - img "부드럽고 촉촉한 한입 카스테라 빵 딸기맛, 1박스, 1kg" [ref=e2148]
+                - generic [ref=e2149]:
+                  - generic [ref=e2151]: 부드럽고 촉촉한 한입 카스테라 빵 딸기맛, 1박스, 1kg
+                  - generic [ref=e2152]:
+                    - generic [ref=e2153]:
+                      - generic [ref=e2154]: 할인
+                      - deletion [ref=e2155]: 24,900원
+                    - generic [ref=e2157]:
+                      - generic [ref=e2158]:
+                        - generic [ref=e2160]: 34%
+                        - img [ref=e2161]
+                      - generic [ref=e2163]: 16,280원
+                      - generic [ref=e2164]: (10g당 163원)
+                  - generic [ref=e2165]:
+                    - generic [ref=e2169]: 내일(일) 도착 보장
+                    - generic [ref=e2170]: 무료배송
+                  - generic [ref=e2172]:
+                    - generic "4.5" [ref=e2173]
+                    - generic [ref=e2180]: (493)
+                  - generic [ref=e2182]:
+                    - img "최대 814원 적립" [ref=e2183]
+                    - generic [ref=e2184]: 최대 814원 적립
+            - listitem [ref=e2185] [cursor=pointer]:
+              - link "케어웰 밸런스N 당뇨식 트리플 케어, 18개, 200ml 41,650원 30% 28,800원 (10ml당 80원) 내일(일) 도착 보장 무료배송 5 (1,844) 최대 1,440원 적립 최대 1,440원 적립 AD" [ref=e2186]:
+                - /url: /vp/products/8442148966?itemId=25014405560&vendorItemId=91434163960&sourceType=srp_product_ads&clickEventId=e8d7d510-407b-11f1-8713-97f946398840&korePlacement=15&koreSubPlacement=25&clickEventId=e8d7d510-407b-11f1-8713-97f946398840&korePlacement=15&koreSubPlacement=25
+                - figure [ref=e2187]:
+                  - img "케어웰 밸런스N 당뇨식 트리플 케어, 18개, 200ml" [ref=e2188]
+                - generic [ref=e2189]:
+                  - generic [ref=e2191]: 케어웰 밸런스N 당뇨식 트리플 케어, 18개, 200ml
+                  - generic [ref=e2192]:
+                    - deletion [ref=e2194]: 41,650원
+                    - generic [ref=e2196]:
+                      - generic [ref=e2197]: 30%
+                      - generic [ref=e2198]: 28,800원
+                      - generic [ref=e2199]: (10ml당 80원)
+                  - generic [ref=e2200]:
+                    - generic [ref=e2204]: 내일(일) 도착 보장
+                    - generic [ref=e2205]: 무료배송
+                  - generic [ref=e2207]:
+                    - generic "5" [ref=e2208]
+                    - generic [ref=e2215]: (1,844)
+                  - generic [ref=e2217]:
+                    - img "최대 1,440원 적립" [ref=e2218]
+                    - generic [ref=e2219]: 최대 1,440원 적립
+                  - generic [ref=e2220]:
+                    - generic [ref=e2221]: AD
+                    - img [ref=e2223]
+          - button "next" [ref=e2227] [cursor=pointer]:
+            - img [ref=e2228]
+          - generic [ref=e2232]:
+            - generic "이전" [ref=e2233]
+            - link "1" [ref=e2234] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/search?q=%EC%95%84%EC%B9%A8+%EA%B0%84%ED%8E%B8%EC%8B%9D&traceId=moe1mcg8&channel=user&page=1
+            - link "2" [ref=e2235] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/search?q=%EC%95%84%EC%B9%A8+%EA%B0%84%ED%8E%B8%EC%8B%9D&traceId=moe1mcg8&channel=user&page=2
+            - link "3" [ref=e2236] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/search?q=%EC%95%84%EC%B9%A8+%EA%B0%84%ED%8E%B8%EC%8B%9D&traceId=moe1mcg8&channel=user&page=3
+            - link "4" [ref=e2237] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/search?q=%EC%95%84%EC%B9%A8+%EA%B0%84%ED%8E%B8%EC%8B%9D&traceId=moe1mcg8&channel=user&page=4
+            - link "5" [ref=e2238] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/search?q=%EC%95%84%EC%B9%A8+%EA%B0%84%ED%8E%B8%EC%8B%9D&traceId=moe1mcg8&channel=user&page=5
+            - link "6" [ref=e2239] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/search?q=%EC%95%84%EC%B9%A8+%EA%B0%84%ED%8E%B8%EC%8B%9D&traceId=moe1mcg8&channel=user&page=6
+            - link "7" [ref=e2240] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/search?q=%EC%95%84%EC%B9%A8+%EA%B0%84%ED%8E%B8%EC%8B%9D&traceId=moe1mcg8&channel=user&page=7
+            - link "8" [ref=e2241] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/search?q=%EC%95%84%EC%B9%A8+%EA%B0%84%ED%8E%B8%EC%8B%9D&traceId=moe1mcg8&channel=user&page=8
+            - link "9" [ref=e2242] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/search?q=%EC%95%84%EC%B9%A8+%EA%B0%84%ED%8E%B8%EC%8B%9D&traceId=moe1mcg8&channel=user&page=9
+            - link "10" [ref=e2243] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/search?q=%EC%95%84%EC%B9%A8+%EA%B0%84%ED%8E%B8%EC%8B%9D&traceId=moe1mcg8&channel=user&page=10
+            - link "다음" [ref=e2244] [cursor=pointer]:
+              - /url: https://www.coupang.com/np/search?q=%EC%95%84%EC%B9%A8+%EA%B0%84%ED%8E%B8%EC%8B%9D&traceId=moe1mcg8&channel=user&page=2
+  - contentinfo [ref=e2245]:
+    - generic [ref=e2246]:
+      - generic [ref=e2247]:
+        - link "회사소개" [ref=e2248] [cursor=pointer]:
+          - /url: https://news.coupang.com/
+        - link "Investor Relations" [ref=e2249] [cursor=pointer]:
+          - /url: https://ir.aboutcoupang.com/overview/default.aspx
+        - link "인재채용" [ref=e2250] [cursor=pointer]:
+          - /url: https://rocketyourcareer.kr.coupang.com
+        - link "입점/제휴문의" [ref=e2251] [cursor=pointer]:
+          - /url: https://marketplace.coupangcorp.com/s/?utm_source=button_pc&utm_medium=non_paid&utm_campaign=onsite_ca&utm_id=coupang_app?inflow=WEB_FOOTER_B
+        - link "공지사항" [ref=e2252] [cursor=pointer]:
+          - /url: https://mc.coupang.com/ssr/desktop/contact/notice
+        - link "고객의 소리" [ref=e2253] [cursor=pointer]:
+          - /url: https://mc.coupang.com/ssr/desktop/contact/voc
+        - link "이용약관" [ref=e2254] [cursor=pointer]:
+          - /url: https://www.coupang.com/np/policies/terms
+        - link "개인정보 처리방침" [ref=e2255] [cursor=pointer]:
+          - /url: https://privacy.coupang.com/ko/center/coupang
+          - strong [ref=e2256]: 개인정보 처리방침
+        - link "정보보호/개인정보보호 인증" [ref=e2257] [cursor=pointer]:
+          - /url: https://privacy.coupang.com/ko/security/status
+        - link "쿠팡페이 이용약관" [ref=e2258] [cursor=pointer]:
+          - /url: https://rocketpay.coupang.com/rocketpay/operationTerms/coupangPcFooter
+        - link "신뢰관리센터" [ref=e2259] [cursor=pointer]:
+          - /url: https://www.coupang.com/np/safety
+        - link "제휴마케팅" [ref=e2260] [cursor=pointer]:
+          - /url: https://partners.coupang.com/
+        - link "광고안내" [ref=e2261] [cursor=pointer]:
+          - /url: https://ads.coupang.com
+      - paragraph [ref=e2265] [cursor=pointer]: Global Site
+    - generic [ref=e2267]:
+      - generic [ref=e2268]:
+        - link "COUPANG" [ref=e2269] [cursor=pointer]:
+          - /url: https://www.coupang.com/
+        - generic [ref=e2270]:
+          - text: "상호명 및 호스팅 서비스 제공 : 쿠팡(주)"
+          - text: "대표이사 : 로저스 해롤드 린(Rogers Harold Lynn)"
+          - text: 서울시 송파구 송파대로 570
+          - text: "사업자 등록번호 : 120-88-00767"
+          - text: "통신판매업신고 : 2017-서울송파-0680"
+          - link "사업자정보 확인 >" [ref=e2271] [cursor=pointer]:
+            - /url: http://www.ftc.go.kr/info/bizinfo/communicationViewPopup.jsp?wrkr_no=1208800767
+      - 'link "365고객센터 | 전자금융거래분쟁처리담당 1577-7011 (유료) 서울시 송파구 송파대로 570 email : help@coupang.com" [ref=e2273] [cursor=pointer]':
+        - /url: https://mc.coupang.com/ssr/desktop/contact/inquiry
+        - strong [ref=e2274]: 365고객센터
+        - text: "| 전자금융거래분쟁처리담당"
+        - emphasis [ref=e2275]: 1577-7011 (유료)
+        - text: 서울시 송파구 송파대로 570
+        - text: "email : help@coupang.com"
+      - paragraph [ref=e2276]:
+        - strong [ref=e2277]: 채무지급보증 안내
+        - generic [ref=e2278]:
+          - text: 당사는 고객님이 현금 결제한 금액에 대해
+          - text: 채무지급보증 계약을 체결하여
+          - text: 안전거래를 보장하고 있습니다.
+        - link "서비스 가입사실 확인 >" [ref=e2279] [cursor=pointer]:
+          - /url: https://www.coupang.com/np/etc/popWooriService
+    - generic [ref=e2285]:
+      - paragraph [ref=e2286]:
+        - text: 사이버몰 내 판매되는 상품 중에는 쿠팡에 등록한 개별 판매자가 판매하는 마켓플레이스(오픈마켓) 상품이 포함되어 있습니다.
+        - text: 마켓플레이스(오픈마켓) 상품의 경우 쿠팡은 통신판매중개자이며 통신판매의 당사자가 아닙니다.
+        - text: 쿠팡은 마켓플레이스(오픈마켓) 상품, 거래정보 및 거래 등에 대하여 책임을 지지 않습니다.
+        - text: 쿠팡은 소비자 보호와 안전거래를 위해 신뢰관리센터(CM112@coupang.com)를 운영하고 있으며, 관련 분쟁이 발생할 경우 별도의 분쟁 처리절차에 의거 분쟁이 처리됩니다.
+        - text: Copyright © Coupang Corp. 2010-2025 All Rights Reserved.
+      - list [ref=e2287]:
+        - listitem [ref=e2288]:
+          - link [ref=e2289] [cursor=pointer]:
+            - /url: https://www.facebook.com/Coupang.korea
+        - listitem [ref=e2290]:
+          - link [ref=e2291] [cursor=pointer]:
+            - /url: https://news.coupang.com/
+        - listitem [ref=e2292]:
+          - link [ref=e2293] [cursor=pointer]:
+            - /url: https://www.instagram.com/coupang
+  - alert [ref=e2294]
