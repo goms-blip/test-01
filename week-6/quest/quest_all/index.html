@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Week 6 · Quest All — 5개 미션 통합 허브</title>
+  <meta name="description" content="6주차 5개 과제 통합 페이지 — 당근마켓 클론 · 쇼핑몰 · 유료 콘텐츠 미니앱 · 베이킹 재료 사전 · 경쟁 리서치" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['"Inter"', '"Noto Sans KR"', 'system-ui', 'sans-serif'] },
+          colors: {
+            brand: {
+              50: '#FFF7ED', 100: '#FFEDD5', 200: '#FED7AA', 300: '#FDBA74',
+              400: '#FB923C', 500: '#F97316', 600: '#EA580C', 700: '#C2410C',
+              800: '#9A3412', 900: '#7C2D12',
+            },
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    body { font-family: 'Inter', 'Noto Sans KR', system-ui, sans-serif; }
+    .card-hover { transition: transform .25s cubic-bezier(.4,0,.2,1), box-shadow .25s, border-color .25s; }
+    .card-hover:hover { transform: translateY(-4px); box-shadow: 0 24px 48px -16px rgba(249,115,22,.28); }
+    .grad-1 { background: linear-gradient(135deg, #F97316 0%, #FBBF24 100%); }
+    .grad-2 { background: linear-gradient(135deg, #FB6B36 0%, #F2994A 100%); }
+    .grad-3 { background: linear-gradient(135deg, #2563EB 0%, #06B6D4 100%); }
+    .grad-4 { background: linear-gradient(135deg, #DB2777 0%, #F472B6 100%); }
+    .grad-5 { background: linear-gradient(135deg, #14B8A6 0%, #22C55E 100%); }
+    @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+    .float { animation: float 3s ease-in-out infinite; }
+    @keyframes fadeUp { from { opacity:0; transform: translateY(12px); } to { opacity:1; transform: translateY(0); } }
+    .fade-up { animation: fadeUp .6s ease both; }
+    .stagger > *:nth-child(1) { animation-delay: .05s; }
+    .stagger > *:nth-child(2) { animation-delay: .10s; }
+    .stagger > *:nth-child(3) { animation-delay: .15s; }
+    .stagger > *:nth-child(4) { animation-delay: .20s; }
+    .stagger > *:nth-child(5) { animation-delay: .25s; }
+    .badge-dot::before {
+      content: ''; display: inline-block; width: 6px; height: 6px;
+      border-radius: 999px; background: currentColor; margin-right: 6px;
+      vertical-align: middle;
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen antialiased">
+  <main class="max-w-6xl mx-auto px-5 sm:px-8 py-12 sm:py-20">
+
+    <!-- Header -->
+    <header class="mb-14 sm:mb-20 fade-up">
+      <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-50 text-brand-700 text-xs font-semibold tracking-wider uppercase mb-5">
+        <span class="text-base float inline-block">🥕</span> Week 6 · Quest All
+      </div>
+      <h1 class="text-4xl sm:text-6xl font-black tracking-tight leading-[1.05] text-slate-900">
+        실시간 채팅 · 결제 · 리서치가<br />
+        <span class="bg-clip-text text-transparent bg-gradient-to-r from-brand-600 via-orange-500 to-amber-500">하나로 합쳐지는 한 주</span>
+      </h1>
+      <p class="mt-6 text-base sm:text-lg text-slate-600 max-w-2xl leading-relaxed">
+        당근마켓 클론 · 쇼핑몰 · 유료 콘텐츠 미니앱 · 베이킹 재료 사전 기획 · Chrome 경쟁 리서치 —
+        6주차에 만든 5개 미션을 한 화면에 모았습니다.
+      </p>
+      <div class="mt-7 flex flex-wrap gap-2.5 text-xs">
+        <span class="px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-600">Next.js 15 (App Router)</span>
+        <span class="px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-600">Express 4 / Node 22</span>
+        <span class="px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-600">Supabase (Auth · DB · Storage · Realtime)</span>
+        <span class="px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-600">Toss Payments · ImageKit</span>
+        <span class="px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-600">Chrome DevTools MCP</span>
+        <span class="px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-600">Tailwind CSS</span>
+        <span class="px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-600">Vercel</span>
+      </div>
+    </header>
+
+    <!-- Cards -->
+    <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 stagger">
+
+      <!-- ① 당근마켓 클론 -->
+      <a href="https://carrot-market-clone-five.vercel.app/" target="_blank" rel="noopener noreferrer"
+         class="card-hover fade-up group block bg-white rounded-2xl border border-slate-200/70 overflow-hidden">
+        <div class="grad-1 h-32 flex items-center justify-center text-5xl">🥕</div>
+        <div class="p-6">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[11px] tracking-wider uppercase text-slate-400 font-semibold">01 · Auth + Storage + Realtime</span>
+            <span class="badge-dot text-emerald-500 text-xs font-medium">LIVE</span>
+          </div>
+          <h3 class="text-lg font-bold text-slate-900 mb-1.5">당근마켓 클론</h3>
+          <p class="text-sm text-slate-600 leading-relaxed mb-3">
+            Next.js 15 + Supabase. 동네 설정 · 상품 등록(이미지 3장) · 카테고리 필터 · 실시간 1:1 채팅 · 본인 글 RLS.
+          </p>
+          <div class="text-xs text-slate-500 group-hover:text-brand-600 transition">
+            carrot-market-clone-five.vercel.app →
+          </div>
+        </div>
+      </a>
+
+      <!-- ② shoppingmall -->
+      <a href="https://shoppingmall-pearl.vercel.app/" target="_blank" rel="noopener noreferrer"
+         class="card-hover fade-up group block bg-white rounded-2xl border border-slate-200/70 overflow-hidden">
+        <div class="grad-2 h-32 flex items-center justify-center text-5xl">🛒</div>
+        <div class="p-6">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[11px] tracking-wider uppercase text-slate-400 font-semibold">02 · Cart + Toss + ImageKit</span>
+            <span class="badge-dot text-emerald-500 text-xs font-medium">LIVE</span>
+          </div>
+          <h3 class="text-lg font-bold text-slate-900 mb-1.5">Shoppingmall</h3>
+          <p class="text-sm text-slate-600 leading-relaxed mb-3">
+            커피향 가득한 5월의 풍경. 상품 옵션 · 장바구니 · Toss Payments 결제 · 관리자 주문 관리 · ImageKit 이미지.
+          </p>
+          <div class="text-xs text-slate-500 group-hover:text-brand-600 transition">
+            shoppingmall-pearl.vercel.app →
+          </div>
+        </div>
+      </a>
+
+      <!-- ③ mini_app — 유료 콘텐츠 잠금 해제 -->
+      <a href="https://miniapp-weld-six.vercel.app/" target="_blank" rel="noopener noreferrer"
+         class="card-hover fade-up group block bg-white rounded-2xl border border-slate-200/70 overflow-hidden">
+        <div class="grad-3 h-32 flex items-center justify-center text-5xl">🔓</div>
+        <div class="p-6">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[11px] tracking-wider uppercase text-slate-400 font-semibold">03 · Toss Payments + Access Right</span>
+            <span class="badge-dot text-emerald-500 text-xs font-medium">LIVE</span>
+          </div>
+          <h3 class="text-lg font-bold text-slate-900 mb-1.5">베이킹 지식 상점</h3>
+          <p class="text-sm text-slate-600 leading-relaxed mb-3">
+            유료 콘텐츠 단건 결제 마이크로 SaaS. scrypt 해시 인증 + Bearer 토큰, 결제 후 즉시 잠금 해제 · 마이 라이브러리.
+          </p>
+          <div class="text-xs text-slate-500 group-hover:text-brand-600 transition">
+            miniapp-weld-six.vercel.app →
+          </div>
+        </div>
+      </a>
+
+      <!-- ④ personal_project — 베이킹 재료 사전 기획 -->
+      <a href="https://github.com/goms-blip/test-01/tree/main/week-6/quest/personal_project" target="_blank" rel="noopener noreferrer"
+         class="card-hover fade-up group block bg-white rounded-2xl border border-slate-200/70 overflow-hidden">
+        <div class="grad-4 h-32 flex items-center justify-center text-5xl">🧁</div>
+        <div class="p-6">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[11px] tracking-wider uppercase text-slate-400 font-semibold">04 · Mission + Audiences</span>
+            <span class="badge-dot text-fuchsia-500 text-xs font-medium">PRD</span>
+          </div>
+          <h3 class="text-lg font-bold text-slate-900 mb-1.5">베이킹 재료 사전</h3>
+          <p class="text-sm text-slate-600 leading-relaxed mb-3">
+            "박력분이 뭐지?"에서 30분 헤매는 초보자를 30초로 — 9항목 정형 + 한국 마트 구매처 + 비교 모드 기획.
+          </p>
+          <div class="text-xs text-slate-500 group-hover:text-brand-600 transition">
+            MISSION · AUDIENCES · WORK_HISTORY 보기 →
+          </div>
+        </div>
+      </a>
+
+      <!-- ⑤ chrome_research — 경쟁 리서치 -->
+      <a href="https://github.com/goms-blip/test-01/tree/main/week-6/quest/chrome_research" target="_blank" rel="noopener noreferrer"
+         class="card-hover fade-up group block bg-white rounded-2xl border border-slate-200/70 overflow-hidden">
+        <div class="grad-5 h-32 flex items-center justify-center text-5xl">🔎</div>
+        <div class="p-6">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-[11px] tracking-wider uppercase text-slate-400 font-semibold">05 · Chrome DevTools MCP</span>
+            <span class="badge-dot text-sky-500 text-xs font-medium">4 SCREENSHOTS</span>
+          </div>
+          <h3 class="text-lg font-bold text-slate-900 mb-1.5">Chrome 경쟁 리서치</h3>
+          <p class="text-sm text-slate-600 leading-relaxed mb-3">
+            만개의레시피 · King Arthur · Naver 검색 · 광고 슬롯을 실사이트 방문 + 풀페이지 캡처로 검증한 리서치.
+          </p>
+          <div class="text-xs text-slate-500 group-hover:text-brand-600 transition">
+            research.md · 스크린샷 4장 →
+          </div>
+        </div>
+      </a>
+
+    </section>
+
+    <!-- Stats -->
+    <section class="mt-16 sm:mt-24 grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6 fade-up">
+      <div class="bg-white rounded-2xl border border-slate-200/70 p-5">
+        <div class="text-3xl font-black text-slate-900 tabular-nums">5</div>
+        <div class="text-xs text-slate-500 mt-1">완성한 미션</div>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-200/70 p-5">
+        <div class="text-3xl font-black text-slate-900 tabular-nums">3</div>
+        <div class="text-xs text-slate-500 mt-1">Vercel 배포</div>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-200/70 p-5">
+        <div class="text-3xl font-black text-slate-900 tabular-nums">2</div>
+        <div class="text-xs text-slate-500 mt-1">Toss Payments 연동</div>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-200/70 p-5">
+        <div class="text-3xl font-black text-slate-900 tabular-nums">4</div>
+        <div class="text-xs text-slate-500 mt-1">리서치 캡처</div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="mt-20 pt-8 border-t border-slate-200 text-center text-xs text-slate-500">
+      <div class="mb-3 space-x-3">
+        <a class="hover:text-brand-600 transition" href="https://github.com/goms-blip/test-01" target="_blank" rel="noopener noreferrer">GitHub Repo</a>
+        <span>·</span>
+        <a class="hover:text-brand-600 transition" href="https://questall.vercel.app/" target="_blank" rel="noopener noreferrer">Week 4</a>
+        <span>·</span>
+        <a class="hover:text-brand-600 transition" href="https://github.com/goms-blip/test-01/tree/main/week-5/quest/quest_all" target="_blank" rel="noopener noreferrer">Week 5</a>
+      </div>
+      <div>© 2026 Week-6 Quest All — 실시간 · 결제 · 리서치 통합 과제</div>
+    </footer>
+
+  </main>
+</body>
+</html>
