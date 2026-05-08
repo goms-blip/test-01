@@ -3,25 +3,19 @@
 [] 잘 부탁드립니다. 
 
 ### 과제물 전체 하나의 링크
-- https://week5-questall.vercel.app
+- https://week-6-quest-all.vercel.app
 
-### [MCP+Notion] 내 노션 AI 비서 만들기
-- 폴더안에 readme.md파일에 링크 있습니다. 
+### [Payment+File] 쇼핑몰 완성 (이미지 + 결제 + 마이페이지)
+- https://shoppingmall-dxhqk6ogi-384s-projects.vercel.app/
 
-### [MCP+Chrome] 관심 분야 자동 리서치 에이전트
-- 폴더안에 readme.md파일에 링크 있습니다. 
+### [Research] 경쟁 서비스 3곳 크롬 MCP 리서치
+- 폴더안에 있습니다. 
 
-### [Server+DB] 가계부 앱
+### [Planning] 개인 프로젝트 기획서 3종 (MISSION / DEV / AUDIENCES)
+- 폴더안에 있습니다. 
 
-### [Agent+DB] 내 가계부 DB를 분석하는 에이전트
+### [Payment] 유료 콘텐츠 잠금 해제 미니앱
+https://miniapp-weld-six.vercel.app/#/
 
-### [Auth] 커뮤니티 앱
-https://communityapp-gray.vercel.app/
-
-### [Auth + DB] 쇼핑몰 (결제 기능제외)
-https://shoppingmall-pearl.vercel.app/
-
-### [Context+Agent+DB] 나를 아는 AI 에이전트
-
-### [Auth+MCP+DB+App] 나만의 AI 대시보드
-https://personal-ai-dashboard-seven.vercel.app/
+### [Final] 당근마켓 클론
+- https://carrot-market-clone-five.vercel.app/
