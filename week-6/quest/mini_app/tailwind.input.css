@@ -1,0 +1,10 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 잠금 본문 블러 효과 — 기존 index.html <style>의 .blur-locked 이전 */
+.blur-locked {
+  filter: blur(6px);
+  user-select: none;
+  pointer-events: none;
+}

@@ -1,0 +1,129 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]: ₩
+      - generic [ref=e5]:
+        - generic [ref=e6]: My Ledger
+        - generic [ref=e7]: 나만의 가계부
+    - generic [ref=e8]:
+      - generic [ref=e9]: ○ 데모 모드 (localStorage)
+      - generic [ref=e10]: 2026.04.28
+  - main [ref=e11]:
+    - generic [ref=e12]:
+      - generic [ref=e13]:
+        - generic [ref=e14]: 총 잔액
+        - generic [ref=e15]: ₩ -200,000
+        - generic [ref=e16]:
+          - generic [ref=e17]:
+            - generic [ref=e18]: 수입
+            - generic [ref=e19]: ₩ 1,000,000
+          - generic [ref=e20]:
+            - generic [ref=e21]: 지출
+            - generic [ref=e22]: ₩ 1,200,000
+      - generic [ref=e24]:
+        - generic [ref=e25]:
+          - heading "새 내역 추가" [level=2] [ref=e26]
+          - tablist [ref=e27]:
+            - button "지출" [ref=e28] [cursor=pointer]
+            - button "수입" [ref=e29] [cursor=pointer]
+        - generic [ref=e30]: 금액
+        - generic [ref=e31]:
+          - generic [ref=e32]: ₩
+          - textbox "0" [ref=e33]
+        - generic [ref=e34]:
+          - generic [ref=e35]:
+            - text: 날짜
+            - textbox [ref=e36]: 2026-04-28
+          - generic [ref=e37]:
+            - text: 카테고리
+            - combobox [ref=e38]:
+              - option "식비" [selected]
+              - option "교통"
+              - option "주거"
+              - option "구독료"
+              - option "보험"
+              - option "세금"
+              - option "저축"
+              - option "경조사"
+              - option "쇼핑"
+              - option "문화"
+              - option "의료"
+              - option "교육"
+              - option "기타"
+        - generic [ref=e39]:
+          - text: 메모
+          - textbox "예) 점심 김치찌개" [ref=e40]
+        - generic [ref=e41]:
+          - img "화난 돼지저금통" [ref=e42]
+          - generic [ref=e43]:
+            - generic [ref=e44]: 잠깐! 이번에 또 쓰는 거예요?
+            - generic [ref=e45]: 지출이 수입의 120% 에 도달했어요. 꼭 필요한 소비인지 한 번 더 생각해 봐요.
+        - button "저장하기" [ref=e46] [cursor=pointer]
+    - generic [ref=e47]:
+      - generic [ref=e48]:
+        - generic [ref=e50]:
+          - heading "카테고리별 지출" [level=2] [ref=e51]
+          - paragraph [ref=e52]:
+            - text: SQL
+            - code [ref=e53]: GROUP BY category
+            - text: 결과
+        - list [ref=e57]:
+          - listitem [ref=e58]:
+            - generic [ref=e59]:
+              - generic [ref=e61]: 주거
+              - generic [ref=e62]: 1건
+            - generic [ref=e63]: ₩ 700,000
+          - listitem [ref=e64]:
+            - generic [ref=e65]:
+              - generic [ref=e67]: 식비
+              - generic [ref=e68]: 1건
+            - generic [ref=e69]: ₩ 300,000
+          - listitem [ref=e70]:
+            - generic [ref=e71]:
+              - generic [ref=e73]: 쇼핑
+              - generic [ref=e74]: 1건
+            - generic [ref=e75]: ₩ 200,000
+      - generic [ref=e76]:
+        - generic [ref=e77]:
+          - heading "내역" [level=2] [ref=e78]
+          - generic [ref=e79]:
+            - button "전체" [ref=e80] [cursor=pointer]
+            - button "수입" [ref=e81] [cursor=pointer]
+            - button "지출" [ref=e82] [cursor=pointer]
+        - generic [ref=e83]:
+          - generic [ref=e84]:
+            - generic [ref=e87]:
+              - generic [ref=e88]:
+                - generic [ref=e89]: 급여
+                - generic [ref=e90]: 수입
+              - generic [ref=e91]: 2026-04-28 · 월급
+            - generic [ref=e92]:
+              - generic [ref=e93]: + ₩ 1,000,000
+              - button "삭제" [ref=e94] [cursor=pointer]
+          - generic [ref=e95]:
+            - generic [ref=e98]:
+              - generic [ref=e99]:
+                - generic [ref=e100]: 주거
+                - generic [ref=e101]: 지출
+              - generic [ref=e102]: 2026-04-27 · 월세
+            - generic [ref=e103]:
+              - generic [ref=e104]: − ₩ 700,000
+              - button "삭제" [ref=e105] [cursor=pointer]
+          - generic [ref=e106]:
+            - generic [ref=e109]:
+              - generic [ref=e110]:
+                - generic [ref=e111]: 식비
+                - generic [ref=e112]: 지출
+              - generic [ref=e113]: 2026-04-26 · 외식
+            - generic [ref=e114]:
+              - generic [ref=e115]: − ₩ 300,000
+              - button "삭제" [ref=e116] [cursor=pointer]
+          - generic [ref=e117]:
+            - generic [ref=e120]:
+              - generic [ref=e121]:
+                - generic [ref=e122]: 쇼핑
+                - generic [ref=e123]: 지출
+              - generic [ref=e124]: 2026-04-25 · 옷
+            - generic [ref=e125]:
+              - generic [ref=e126]: − ₩ 200,000
+              - button "삭제" [ref=e127] [cursor=pointer]

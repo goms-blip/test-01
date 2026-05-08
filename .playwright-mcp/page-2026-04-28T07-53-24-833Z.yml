@@ -1,0 +1,73 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]: ₩
+      - generic [ref=e5]:
+        - generic [ref=e6]: My Ledger
+        - generic [ref=e7]: 나만의 가계부
+    - generic [ref=e8]:
+      - generic [ref=e9]: ○ 데모 모드 (localStorage)
+      - generic [ref=e10]: 2026.04.28
+  - main [ref=e11]:
+    - generic [ref=e12]:
+      - generic [ref=e13]:
+        - generic [ref=e14]: 총 잔액
+        - generic [ref=e15]: ₩ 0
+        - generic [ref=e16]:
+          - generic [ref=e17]:
+            - generic [ref=e18]: 수입
+            - generic [ref=e19]: ₩ 0
+          - generic [ref=e20]:
+            - generic [ref=e21]: 지출
+            - generic [ref=e22]: ₩ 0
+      - generic [ref=e24]:
+        - generic [ref=e25]:
+          - heading "새 내역 추가" [level=2] [ref=e26]
+          - tablist [ref=e27]:
+            - button "지출" [ref=e28] [cursor=pointer]
+            - button "수입" [ref=e29] [cursor=pointer]
+        - generic [ref=e30]: 금액
+        - generic [ref=e31]:
+          - generic [ref=e32]: ₩
+          - textbox "0" [ref=e33]
+        - generic [ref=e34]:
+          - generic [ref=e35]:
+            - text: 날짜
+            - textbox [ref=e36]: 2026-04-28
+          - generic [ref=e37]:
+            - text: 카테고리
+            - combobox [ref=e38]:
+              - option "식비" [selected]
+              - option "교통"
+              - option "주거"
+              - option "구독료"
+              - option "경조사"
+              - option "쇼핑"
+              - option "문화"
+              - option "의료"
+              - option "교육"
+              - option "기타"
+        - generic [ref=e39]:
+          - text: 메모
+          - textbox "예) 점심 김치찌개" [ref=e40]
+        - button "저장하기" [ref=e41] [cursor=pointer]
+    - generic [ref=e42]:
+      - generic [ref=e43]:
+        - generic [ref=e44]:
+          - generic [ref=e45]:
+            - heading "카테고리별 지출" [level=2] [ref=e46]
+            - paragraph [ref=e47]:
+              - text: SQL
+              - code [ref=e48]: GROUP BY category
+              - text: 결과
+          - generic [ref=e49]: 데이터 없음
+        - list [ref=e53]:
+          - listitem [ref=e54]: 아직 지출 내역이 없어요.
+      - generic [ref=e55]:
+        - generic [ref=e56]:
+          - heading "내역" [level=2] [ref=e57]
+          - generic [ref=e58]:
+            - button "전체" [ref=e59] [cursor=pointer]
+            - button "수입" [ref=e60] [cursor=pointer]
+            - button "지출" [ref=e61] [cursor=pointer]
+        - generic [ref=e63]: 표시할 내역이 없어요.

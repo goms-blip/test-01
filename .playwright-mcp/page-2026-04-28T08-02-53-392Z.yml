@@ -1,0 +1,163 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e3]:
+      - generic [ref=e4]: ₩
+      - generic [ref=e5]:
+        - generic [ref=e6]: My Ledger
+        - generic [ref=e7]: 나만의 가계부
+    - generic [ref=e8]:
+      - generic [ref=e9]: ○ 데모 모드 (localStorage)
+      - generic [ref=e10]: 2026.04.28
+  - main [ref=e11]:
+    - generic [ref=e12]:
+      - generic [ref=e13]:
+        - generic [ref=e14]: 총 잔액
+        - generic [ref=e15]: ₩ 2,868,600
+        - generic [ref=e16]:
+          - generic [ref=e17]:
+            - generic [ref=e18]: 수입
+            - generic [ref=e19]: ₩ 3,200,000
+          - generic [ref=e20]:
+            - generic [ref=e21]: 지출
+            - generic [ref=e22]: ₩ 331,400
+      - generic [ref=e24]:
+        - generic [ref=e25]:
+          - heading "새 내역 추가" [level=2] [ref=e26]
+          - tablist [ref=e27]:
+            - button "지출" [ref=e28] [cursor=pointer]
+            - button "수입" [ref=e29] [cursor=pointer]
+        - generic [ref=e30]: 금액
+        - generic [ref=e31]:
+          - generic [ref=e32]: ₩
+          - textbox "0" [ref=e33]
+        - generic [ref=e34]:
+          - generic [ref=e35]:
+            - text: 날짜
+            - textbox [ref=e36]: 2026-04-28
+          - generic [ref=e37]:
+            - text: 카테고리
+            - combobox [ref=e38]:
+              - option "식비" [selected]
+              - option "교통"
+              - option "주거"
+              - option "구독료"
+              - option "경조사"
+              - option "쇼핑"
+              - option "문화"
+              - option "의료"
+              - option "교육"
+              - option "기타"
+        - generic [ref=e39]:
+          - text: 메모
+          - textbox "예) 점심 김치찌개" [ref=e40]
+        - button "저장하기" [ref=e41] [cursor=pointer]
+    - generic [ref=e42]:
+      - generic [ref=e43]:
+        - generic [ref=e45]:
+          - heading "카테고리별 지출" [level=2] [ref=e46]
+          - paragraph [ref=e47]:
+            - text: SQL
+            - code [ref=e48]: GROUP BY category
+            - text: 결과
+        - list [ref=e52]:
+          - listitem [ref=e53]:
+            - generic [ref=e54]:
+              - generic [ref=e56]: 주거
+              - generic [ref=e57]: 1건
+            - generic [ref=e58]: ₩ 120,000
+          - listitem [ref=e59]:
+            - generic [ref=e60]:
+              - generic [ref=e62]: 경조사
+              - generic [ref=e63]: 1건
+            - generic [ref=e64]: ₩ 100,000
+          - listitem [ref=e65]:
+            - generic [ref=e66]:
+              - generic [ref=e68]: 교통
+              - generic [ref=e69]: 1건
+            - generic [ref=e70]: ₩ 45,000
+          - listitem [ref=e71]:
+            - generic [ref=e72]:
+              - generic [ref=e74]: 쇼핑
+              - generic [ref=e75]: 1건
+            - generic [ref=e76]: ₩ 38,000
+          - listitem [ref=e77]:
+            - generic [ref=e78]:
+              - generic [ref=e80]: 구독료
+              - generic [ref=e81]: 1건
+            - generic [ref=e82]: ₩ 15,900
+          - listitem [ref=e83]:
+            - generic [ref=e84]:
+              - generic [ref=e86]: 식비
+              - generic [ref=e87]: 1건
+            - generic [ref=e88]: ₩ 12,500
+      - generic [ref=e89]:
+        - generic [ref=e90]:
+          - heading "내역" [level=2] [ref=e91]
+          - generic [ref=e92]:
+            - button "전체" [ref=e93] [cursor=pointer]
+            - button "수입" [ref=e94] [cursor=pointer]
+            - button "지출" [ref=e95] [cursor=pointer]
+        - generic [ref=e96]:
+          - generic [ref=e97]:
+            - generic [ref=e100]:
+              - generic [ref=e101]:
+                - generic [ref=e102]: 기타
+                - generic [ref=e103]: 수입
+              - generic [ref=e104]: 2026-04-28 · 4월 월급
+            - generic [ref=e105]:
+              - generic [ref=e106]: + ₩ 3,200,000
+              - button "삭제" [ref=e107] [cursor=pointer]
+          - generic [ref=e108]:
+            - generic [ref=e111]:
+              - generic [ref=e112]:
+                - generic [ref=e113]: 식비
+                - generic [ref=e114]: 지출
+              - generic [ref=e115]: 2026-04-28 · 점심
+            - generic [ref=e116]:
+              - generic [ref=e117]: − ₩ 12,500
+              - button "삭제" [ref=e118] [cursor=pointer]
+          - generic [ref=e119]:
+            - generic [ref=e122]:
+              - generic [ref=e123]:
+                - generic [ref=e124]: 교통
+                - generic [ref=e125]: 지출
+              - generic [ref=e126]: 2026-04-27 · 주유
+            - generic [ref=e127]:
+              - generic [ref=e128]: − ₩ 45,000
+              - button "삭제" [ref=e129] [cursor=pointer]
+          - generic [ref=e130]:
+            - generic [ref=e133]:
+              - generic [ref=e134]:
+                - generic [ref=e135]: 주거
+                - generic [ref=e136]: 지출
+              - generic [ref=e137]: 2026-04-26 · 전기/가스
+            - generic [ref=e138]:
+              - generic [ref=e139]: − ₩ 120,000
+              - button "삭제" [ref=e140] [cursor=pointer]
+          - generic [ref=e141]:
+            - generic [ref=e144]:
+              - generic [ref=e145]:
+                - generic [ref=e146]: 구독료
+                - generic [ref=e147]: 지출
+              - generic [ref=e148]: 2026-04-25 · 넷플릭스
+            - generic [ref=e149]:
+              - generic [ref=e150]: − ₩ 15,900
+              - button "삭제" [ref=e151] [cursor=pointer]
+          - generic [ref=e152]:
+            - generic [ref=e155]:
+              - generic [ref=e156]:
+                - generic [ref=e157]: 경조사
+                - generic [ref=e158]: 지출
+              - generic [ref=e159]: 2026-04-23 · 결혼식 축의금
+            - generic [ref=e160]:
+              - generic [ref=e161]: − ₩ 100,000
+              - button "삭제" [ref=e162] [cursor=pointer]
+          - generic [ref=e163]:
+            - generic [ref=e166]:
+              - generic [ref=e167]:
+                - generic [ref=e168]: 쇼핑
+                - generic [ref=e169]: 지출
+              - generic [ref=e170]: 2026-04-22 · 티셔츠
+            - generic [ref=e171]:
+              - generic [ref=e172]: − ₩ 38,000
+              - button "삭제" [ref=e173] [cursor=pointer]

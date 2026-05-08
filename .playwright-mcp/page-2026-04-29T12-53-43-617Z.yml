@@ -1,0 +1,150 @@
+- generic [ref=e2]:
+  - banner [ref=e3]:
+    - generic [ref=e5]:
+      - generic [ref=e6]: 2026.04.29.
+      - generic [ref=e7]: A small place for one-line thoughts
+      - generic [ref=e8]:
+        - generic [ref=e9]: 서울, 18°
+        - generic [ref=e10]: vol.04
+    - generic [ref=e11]:
+      - link "광장 +" [ref=e12] [cursor=pointer]:
+        - /url: "#top"
+        - generic [ref=e13]: 광장
+        - generic [ref=e14]: +
+      - navigation [ref=e15]:
+        - link "Feed" [ref=e16] [cursor=pointer]:
+          - /url: "#feed"
+        - link "Compose" [ref=e17] [cursor=pointer]:
+          - /url: "#write"
+        - link "Stack" [ref=e18] [cursor=pointer]:
+          - /url: "#features"
+      - generic [ref=e19]:
+        - button "Login" [ref=e193] [cursor=pointer]
+        - button "Submission" [active] [ref=e194] [cursor=pointer]
+    - generic [ref=e23]: → Auth · Postgres RLS · 모두의 광장에 오늘의 한 줄을 남겨보세요. 누구나 읽고, 내 글은 나만 고치고 지웁니다.→ Auth · Postgres RLS · 모두의 광장에 오늘의 한 줄을 남겨보세요. 누구나 읽고, 내 글은 나만 고치고 지웁니다.→ Auth · Postgres RLS · 모두의 광장에 오늘의 한 줄을 남겨보세요. 누구나 읽고, 내 글은 나만 고치고 지웁니다.→ Auth · Postgres RLS · 모두의 광장에 오늘의 한 줄을 남겨보세요. 누구나 읽고, 내 글은 나만 고치고 지웁니다.→ Auth · Postgres RLS · 모두의 광장에 오늘의 한 줄을 남겨보세요. 누구나 읽고, 내 글은 나만 고치고 지웁니다.→ Auth · Postgres RLS · 모두의 광장에 오늘의 한 줄을 남겨보세요. 누구나 읽고, 내 글은 나만 고치고 지웁니다.
+  - main [ref=e24]:
+    - generic [ref=e25]:
+      - generic [ref=e26]:
+        - heading "Now Reading" [level=2] [ref=e27]
+        - generic [ref=e28]: today · 7 notes
+      - generic [ref=e29]:
+        - article [ref=e30] [cursor=pointer]:
+          - generic [ref=e31]:
+            - img [ref=e32]:
+              - generic [ref=e34]: ”
+            - generic:
+              - generic:
+                - generic: NOTE / 01
+            - generic [ref=e35]:
+              - generic [ref=e36]: FEATURED · 1
+              - heading "세대를 관통하는 한 줄, 오래된 의자" [level=2] [ref=e37]
+              - generic [ref=e38]: 2026.04.29
+        - generic [ref=e39]:
+          - article [ref=e40] [cursor=pointer]:
+            - generic [ref=e41]:
+              - img [ref=e42]
+              - generic:
+                - generic:
+                  - generic: NOTE / 02
+              - generic [ref=e56]:
+                - heading "비율로 쓴 계율" [level=3] [ref=e57]
+                - generic [ref=e58]: 2026.04.29
+          - article [ref=e59] [cursor=pointer]:
+            - generic [ref=e60]:
+              - img [ref=e61]:
+                - generic [ref=e63]: ”
+              - generic:
+                - generic:
+                  - generic: NOTE / 03
+              - generic [ref=e64]:
+                - heading "벽에서 면으로, 작은 파빌리온" [level=3] [ref=e65]
+                - generic [ref=e66]: 2026.04.29
+    - generic [ref=e195]:
+      - generic [ref=e197]: +
+      - generic [ref=e198]:
+        - generic [ref=e199]: 로그인하면 글쓰기 칸이 열려요
+        - generic [ref=e200]: 상단 Submission 버튼을 눌러주세요.
+    - generic [ref=e83]:
+      - generic [ref=e85]:
+        - generic [ref=e86]:
+          - generic [ref=e87]: ──── FEED · ORDER BY created_at desc
+          - heading "Latest Notes" [level=2] [ref=e88]
+        - generic [ref=e89]: 4 more
+      - generic [ref=e90]:
+        - article [ref=e91] [cursor=pointer]:
+          - generic [ref=e92]:
+            - img [ref=e93]
+            - generic:
+              - generic:
+                - generic: NOTE / 04
+              - generic: "04"
+          - generic [ref=e99]:
+            - heading "광장 첫 글, 안녕하세요" [level=3] [ref=e100]
+            - generic [ref=e101]: 2026.04.28
+            - generic [ref=e102]:
+              - generic [ref=e103]: host
+              - generic [ref=e104]: Note
+        - article [ref=e105] [cursor=pointer]:
+          - generic [ref=e106]:
+            - img [ref=e107]
+            - generic:
+              - generic:
+                - generic: NOTE / 05
+              - generic: "05"
+          - generic [ref=e115]:
+            - heading "신체를 해방하는 단 하나의 면" [level=3] [ref=e116]
+            - generic [ref=e117]: 2026.04.26
+            - generic [ref=e118]:
+              - generic [ref=e119]: yui
+              - generic [ref=e120]: Note
+        - article [ref=e121] [cursor=pointer]:
+          - generic [ref=e122]:
+            - img [ref=e123]
+            - generic:
+              - generic:
+                - generic: NOTE / 06
+              - generic: "06"
+          - generic [ref=e137]:
+            - heading "재료의 두 번째 인생" [level=3] [ref=e138]
+            - generic [ref=e139]: 2026.04.25
+            - generic [ref=e140]:
+              - generic [ref=e141]: han
+              - generic [ref=e142]: Note
+        - article [ref=e143] [cursor=pointer]:
+          - generic [ref=e144]:
+            - img [ref=e145]
+            - generic:
+              - generic:
+                - generic: NOTE / 07
+              - generic: "07"
+          - generic [ref=e159]:
+            - heading "일요일의 스무 페이지" [level=3] [ref=e160]
+            - generic [ref=e161]: 2026.04.23
+            - generic [ref=e162]:
+              - generic [ref=e163]: min
+              - generic [ref=e164]: Note
+    - generic [ref=e165]:
+      - generic [ref=e167]:
+        - generic [ref=e168]:
+          - generic [ref=e169]: "01"
+          - generic [ref=e170]: Authentication
+          - generic [ref=e171]: Supabase Auth 의 이메일+비밀번호. 영문·숫자 10자 이상.
+        - generic [ref=e172]:
+          - generic [ref=e173]: "02"
+          - generic [ref=e174]: Postgres + RLS
+          - generic [ref=e175]: auth.uid() = user_id 정책 4개로 권한 보장.
+        - generic [ref=e176]:
+          - generic [ref=e177]: "03"
+          - generic [ref=e178]: Compose
+          - generic [ref=e179]: 로그인 사용자만 글 작성. 본인 글만 수정·삭제.
+        - generic [ref=e180]:
+          - generic [ref=e181]: "04"
+          - generic [ref=e182]: Magazine Layout
+          - generic [ref=e183]: Design+ 풍 비대칭 그리드 + 4:3 추상 커버.
+      - generic [ref=e185]: "# 현재 광장에 글 7개 · created_at desc"
+    - generic [ref=e188]:
+      - generic [ref=e189]:
+        - generic [ref=e190]: 광장+
+        - generic [ref=e191]: Auth · Postgres RLS · React + Tailwind · Pretendard
+      - generic [ref=e192]: © 2026 quest/community_app
+  - generic [ref=e201]: 로그아웃 되었어요

@@ -1,0 +1,54 @@
+- generic [ref=e3]:
+  - status [ref=e29]:
+    - generic [ref=e30]:
+      - generic [ref=e31]: ✓
+      - generic [ref=e32]: 2개의 이미지를 추가했어요.
+      - button "닫기" [ref=e33] [cursor=pointer]: ×
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - generic [ref=e7]: IM
+        - generic [ref=e8]:
+          - heading "이미지 업로드 테스트" [level=1] [ref=e9]
+          - paragraph [ref=e10]: 드래그 앤 드롭 · 미리보기 · ImageKit 업로드
+      - generic [ref=e11]: 2개
+  - main [ref=e12]:
+    - generic [ref=e14]:
+      - img [ref=e16]
+      - generic [ref=e18]:
+        - paragraph [ref=e19]: 이미지를 끌어다 놓거나 클릭해 선택하세요
+        - paragraph [ref=e20]: PNG · JPG · GIF · WEBP · 최대 10MB
+      - button "파일 선택" [active] [ref=e21] [cursor=pointer]
+    - generic [ref=e34]:
+      - generic [ref=e35]: 2개 선택됨·총 332.4 KB
+      - generic [ref=e36]:
+        - button "모두 지우기" [ref=e37] [cursor=pointer]
+        - button "전체 업로드" [ref=e38] [cursor=pointer]
+    - generic [ref=e39]:
+      - generic [ref=e40]:
+        - generic [ref=e41]:
+          - img "test-image-1.png" [ref=e42]
+          - button "test-image-1.png 제거" [ref=e43] [cursor=pointer]: ×
+          - generic [ref=e45]: PNG
+        - generic [ref=e46]:
+          - generic [ref=e47]:
+            - paragraph [ref=e48]: test-image-1.png
+            - generic [ref=e49]: 대기
+          - paragraph [ref=e50]: 151.2 KB
+          - generic [ref=e52]:
+            - button "업로드" [ref=e53] [cursor=pointer]
+            - button "제거" [ref=e54] [cursor=pointer]
+      - generic [ref=e55]:
+        - generic [ref=e56]:
+          - img "test-image-2.png" [ref=e57]
+          - button "test-image-2.png 제거" [ref=e58] [cursor=pointer]: ×
+          - generic [ref=e60]: PNG
+        - generic [ref=e61]:
+          - generic [ref=e62]:
+            - paragraph [ref=e63]: test-image-2.png
+            - generic [ref=e64]: 대기
+          - paragraph [ref=e65]: 181.2 KB
+          - generic [ref=e67]:
+            - button "업로드" [ref=e68] [cursor=pointer]
+            - button "제거" [ref=e69] [cursor=pointer]
+  - contentinfo [ref=e28]: ImageKit 직접 업로드 · 서버 인증 후 브라우저에서 바로 전송됩니다.
