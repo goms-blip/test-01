@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Business Card V2 Vertical — Front</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #111111;
+    --ink-2: #2b2b2b;
+    --grey: #6e6e73;
+    --grey-2: #a1a1a6;
+    --paper: #ffffff;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--paper);
+    font-family: "Inter", "Noto Sans KR", system-ui, sans-serif;
+    font-feature-settings: "tnum";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: geometricPrecision;
+  }
+  /* 591×1063 = 50×90mm @ 300dpi (portrait) */
+  .card {
+    width: 591px;
+    height: 1063px;
+    background: var(--paper);
+    position: relative;
+    overflow: hidden;
+  }
+  .stack {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 0 60px;
+  }
+  .hairline {
+    display: inline-block;
+    width: 55px;
+    height: 1px;
+    background: var(--ink);
+    margin-bottom: 36px;
+  }
+  .ko { font-family: "Noto Sans KR", "Inter", sans-serif; }
+  .en { font-family: "Inter", "Noto Sans KR", sans-serif; }
+  .name-ko {
+    font-weight: 700;
+    font-size: 34px;
+    line-height: 1.1;
+    letter-spacing: -0.005em;
+    color: var(--ink);
+  }
+  .name-en {
+    margin-top: 10px;
+    font-weight: 500;
+    font-size: 20px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--grey);
+  }
+  .tagline {
+    margin-top: 56px;
+    font-weight: 400;
+    font-size: 20px;
+    letter-spacing: 0.005em;
+    color: var(--ink);
+  }
+  .contact {
+    margin-top: 80px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+  .contact .row {
+    font-weight: 400;
+    font-size: 20px;
+    letter-spacing: 0.005em;
+    color: var(--ink-2);
+  }
+  /* small bottom dash signature */
+  .dash {
+    position: absolute;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 1px;
+    background: var(--grey-2);
+  }
+  /* tiny top dash (mirror of bottom) */
+  .dash-top {
+    position: absolute;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 1px;
+    background: var(--grey-2);
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <span class="dash-top"></span>
+    <div class="stack">
+      <span class="hairline"></span>
+      <div class="name-ko ko">오승훈</div>
+      <div class="name-en en">OH SEUNG HUN</div>
+      <div class="tagline ko">AI를 활용하려고 노력하는</div>
+      <div class="contact">
+        <div class="row en">+82-10-8565-7487</div>
+        <div class="row en">osh384@gmail.com</div>
+      </div>
+    </div>
+    <span class="dash"></span>
+  </div>
+</body>
+</html>

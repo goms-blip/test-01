@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>Business Card V2 Square — Back</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #111111; }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--ink);
+    font-family: "Inter", system-ui, sans-serif;
+    font-feature-settings: "tnum";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: geometricPrecision;
+  }
+  .card {
+    width: 591px;
+    height: 591px;
+    background: var(--ink);
+    position: relative;
+    overflow: hidden;
+    color: #ffffff;
+  }
+  .top-rule, .bottom-rule {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 28px;
+    height: 1px;
+    background: rgba(255,255,255,0.5);
+  }
+  .top-rule { top: 44px; }
+  .bottom-rule { bottom: 44px; }
+  .center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .label {
+    font-weight: 500;
+    font-size: 16px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.9);
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <span class="top-rule"></span>
+    <div class="center">
+      <span class="label">AI · TRYING · LEARNING</span>
+    </div>
+    <span class="bottom-rule"></span>
+  </div>
+</body>
+</html>
