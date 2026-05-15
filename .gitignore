@@ -25,6 +25,9 @@ week-7/Quest/New_Menu_Poster/.env
 *.mov
 *.webm
 
+# Exception: small demo recordings that should ship with the repo
+!week-7/Quest/o_house_v2/scripts/demo/out/o_house_v2_demo.mp4
+
 # Temporary generation outputs
 _tmp_gen/
 
