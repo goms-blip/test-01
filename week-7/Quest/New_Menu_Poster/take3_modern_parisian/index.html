@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=1080, initial-scale=1" />
+<title>Café Frappé Amande — Été 2026 · Modern Parisian Summer Editorial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper: #F4EFE8;
+    --ink: #1A2A4F;
+    --coral: #E26B4A;
+    --ink-soft: rgba(26, 42, 79, 0.62);
+    --coral-soft: rgba(226, 107, 74, 0.85);
+  }
+
+  html, body { margin: 0; padding: 0; background: #2a2a2a; }
+  body {
+    font-family: 'Inter', sans-serif;
+    color: var(--ink);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .poster {
+    width: 1080px;
+    height: 1350px;
+    background: var(--paper);
+    position: relative;
+    overflow: hidden;
+    background-image:
+      radial-gradient(circle at 18% 0%, rgba(255, 252, 246, 0.7), transparent 55%),
+      radial-gradient(circle at 100% 100%, rgba(226, 107, 74, 0.06), transparent 60%);
+  }
+
+  /* Eyebrow strip */
+  .eyebrow {
+    position: absolute;
+    top: 64px; left: 80px; right: 80px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 12px;
+    letter-spacing: 0.36em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    z-index: 3;
+  }
+  .eyebrow .dot {
+    width: 6px; height: 6px;
+    background: var(--coral);
+    border-radius: 50%;
+    display: inline-block;
+    margin: 0 14px -1px;
+  }
+  .eyebrow .brand {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0.02em;
+    font-size: 18px;
+    color: var(--ink);
+  }
+
+  /* Big headline */
+  .headline {
+    position: absolute;
+    top: 114px; left: 80px; right: 80px;
+    z-index: 3;
+  }
+  .headline .h1 {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 500;
+    font-size: 172px;
+    line-height: 0.84;
+    letter-spacing: -0.02em;
+    color: var(--ink);
+    margin: 0;
+  }
+  .headline .h1 em {
+    font-style: italic;
+    color: var(--coral);
+    font-weight: 600;
+  }
+  .headline .h1 .small {
+    font-style: normal;
+    font-weight: 500;
+    font-size: 120px;
+    letter-spacing: -0.015em;
+  }
+  .headline .sub {
+    margin-top: 4px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    letter-spacing: 0.34em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .headline .sub .rule {
+    flex: 0 0 64px;
+    height: 1px;
+    background: var(--coral);
+  }
+
+  /* Hero image — must occupy 50%+ of poster area */
+  .hero {
+    position: absolute;
+    left: 80px;
+    right: 80px;
+    top: 418px;
+    bottom: 154px;
+    background: #fff;
+    border: 1px solid rgba(226, 107, 74, 0.25);
+    overflow: hidden;
+    z-index: 2;
+  }
+  .hero img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 58% 62%;
+    display: block;
+  }
+  .hero .badge {
+    position: absolute;
+    top: 22px; left: 22px;
+    padding: 8px 14px;
+    background: var(--coral);
+    color: #fff;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    z-index: 4;
+  }
+  .hero .credit {
+    position: absolute;
+    bottom: 14px; right: 18px;
+    padding: 6px 12px;
+    background: rgba(244, 239, 232, 0.92);
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 14px;
+    color: var(--ink);
+    letter-spacing: 0.04em;
+    z-index: 4;
+  }
+
+  /* Bottom info row */
+  .info {
+    position: absolute;
+    left: 80px; right: 80px; bottom: 78px;
+    display: grid;
+    grid-template-columns: 1.5fr auto auto;
+    column-gap: 36px;
+    align-items: end;
+    z-index: 3;
+  }
+  .info .name {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-weight: 400;
+    font-size: 44px;
+    color: var(--ink);
+    line-height: 1.0;
+  }
+  .info .name .ko {
+    margin-top: 6px;
+    display: block;
+    font-family: 'Inter', sans-serif;
+    font-style: normal;
+    font-weight: 400;
+    font-size: 13px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .info .price {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 500;
+    font-size: 56px;
+    color: var(--coral);
+    line-height: 1.0;
+    text-align: right;
+  }
+  .info .season {
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    text-align: right;
+    line-height: 1.6;
+  }
+  .info .season strong {
+    color: var(--ink);
+    font-weight: 600;
+  }
+
+  /* Footer rule + CTA */
+  .footer-rule {
+    position: absolute;
+    left: 80px; right: 80px; bottom: 56px;
+    height: 1px;
+    background: var(--coral);
+    opacity: 0.5;
+    z-index: 3;
+  }
+  .footer {
+    position: absolute;
+    left: 80px; right: 80px; bottom: 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    z-index: 3;
+  }
+  .footer .cta {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    text-transform: none;
+    letter-spacing: 0.04em;
+    color: var(--coral);
+    font-size: 17px;
+  }
+
+  /* Corner ornament — single coral cross top-right */
+  .cross {
+    position: absolute;
+    top: 30px; right: 30px;
+    width: 14px; height: 14px;
+    color: var(--coral);
+    z-index: 4;
+  }
+  .cross svg { width: 100%; height: 100%; }
+</style>
+</head>
+<body>
+  <article class="poster">
+    <div class="cross">
+      <svg viewBox="0 0 14 14"><line x1="7" y1="0" x2="7" y2="14" stroke="currentColor" stroke-width="1"/><line x1="0" y1="7" x2="14" y2="7" stroke="currentColor" stroke-width="1"/></svg>
+    </div>
+
+    <header class="eyebrow">
+      <div>
+        <span>Nº 02</span>
+        <span class="dot"></span>
+        <span>Été MMXXVI</span>
+      </div>
+      <div class="brand">Café Crème d'amande</div>
+    </header>
+
+    <section class="headline">
+      <h1 class="h1">L'<em>été</em>,<br /><span class="small">en amande.</span></h1>
+      <div class="sub">
+        <span class="rule"></span>
+        <span>Édition Saisonnière — disponible jusqu'au 31 août</span>
+      </div>
+    </section>
+
+    <figure class="hero">
+      <span class="badge">Nouveauté</span>
+      <img src="images/hero_frappe_amande_v2.png" alt="Café Frappé Amande" />
+      <span class="credit">— servi glacé, 16oz —</span>
+    </figure>
+
+    <section class="info">
+      <div class="name">
+        Café Frappé Amande
+        <span class="ko">카페 프라페 아망드 · 시그니처 라떼의 여름판</span>
+      </div>
+      <div class="season">
+        Saison Limitée<br /><strong>06.01 — 08.31</strong>
+      </div>
+      <div class="price">₩ 8,500</div>
+    </section>
+
+    <div class="footer-rule"></div>
+    <footer class="footer">
+      <div>@creme.damande · 12, Rue de Séongsu</div>
+      <div class="cta">— venez le déguster aujourd'hui —</div>
+      <div>08:00 – 22:00</div>
+    </footer>
+  </article>
+</body>
+</html>

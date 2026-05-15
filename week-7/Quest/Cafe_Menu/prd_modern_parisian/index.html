@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=1080, initial-scale=1" />
+<title>Café Crème d'amande — La Carte (Modern Parisian Editorial)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --paper: #F4EFE8;
+    --ink: #1A2A4F;
+    --gold: #B68A5E;
+    --ink-soft: rgba(26, 42, 79, 0.62);
+    --gold-soft: rgba(182, 138, 94, 0.35);
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #2a2a2a;
+    font-family: 'Inter', sans-serif;
+    color: var(--ink);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body { display: flex; align-items: center; justify-content: center; padding: 24px; }
+
+  .menu {
+    width: 1080px;
+    height: 1350px;
+    background: var(--paper);
+    position: relative;
+    padding: 64px 72px 56px;
+    box-sizing: border-box;
+    overflow: hidden;
+    background-image:
+      radial-gradient(circle at 20% 0%, rgba(255, 252, 246, 0.7), transparent 50%),
+      radial-gradient(circle at 100% 100%, rgba(182, 138, 94, 0.07), transparent 55%);
+  }
+
+  /* Top eyebrow row */
+  .eyebrow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'Inter', sans-serif;
+    font-weight: 500;
+    font-size: 11px;
+    letter-spacing: 0.32em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .eyebrow .left,
+  .eyebrow .right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .eyebrow .dot {
+    width: 5px; height: 5px;
+    background: var(--gold);
+    border-radius: 50%;
+  }
+
+  /* Big wordmark */
+  .wordmark {
+    margin-top: 22px;
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 400;
+    font-style: italic;
+    font-size: 92px;
+    line-height: 1.0;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .wordmark .roman {
+    font-style: normal;
+    font-weight: 300;
+    letter-spacing: 0.04em;
+    font-size: 86px;
+  }
+  .tagline {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .tagline .rule {
+    flex: 0 0 64px;
+    height: 1px;
+    background: var(--gold);
+  }
+
+  .hero-rule {
+    margin: 28px 0 22px;
+    height: 1px;
+    background: var(--ink);
+    opacity: 0.85;
+  }
+
+  /* Main editorial grid */
+  .grid {
+    display: grid;
+    grid-template-columns: 540px 1fr;
+    column-gap: 44px;
+    align-items: start;
+  }
+
+  /* Signature card */
+  .signature {
+    position: relative;
+    background: #fff;
+    border: 1px solid var(--gold-soft);
+  }
+  .signature .photo {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    display: block;
+  }
+  .signature .label {
+    position: absolute;
+    top: 18px; left: 18px;
+    padding: 6px 12px;
+    background: var(--ink);
+    color: var(--paper);
+    font-size: 10px;
+    letter-spacing: 0.34em;
+    text-transform: uppercase;
+  }
+  .signature .caption {
+    padding: 22px 22px 24px;
+    border-top: 1px solid var(--gold-soft);
+  }
+  .signature .caption .num {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 13px;
+    letter-spacing: 0.3em;
+    color: var(--gold);
+    text-transform: uppercase;
+  }
+  .signature .caption .name {
+    margin-top: 6px;
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    font-size: 32px;
+    line-height: 1.1;
+    color: var(--ink);
+  }
+  .signature .caption .desc {
+    margin-top: 8px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 300;
+    font-size: 13px;
+    line-height: 1.55;
+    color: var(--ink-soft);
+  }
+  .signature .caption .price-row {
+    margin-top: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .signature .caption .price-row .meta {
+    font-family: 'Inter', sans-serif;
+    font-size: 10px;
+    letter-spacing: 0.32em;
+    color: var(--gold);
+    text-transform: uppercase;
+  }
+  .signature .caption .price-row .price {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 500;
+    font-size: 30px;
+    color: var(--ink);
+  }
+
+  /* Right column: categories */
+  .col-right { display: flex; flex-direction: column; gap: 30px; }
+
+  .cat h2 {
+    margin: 0;
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 400;
+    font-style: italic;
+    font-size: 28px;
+    color: var(--ink);
+  }
+  .cat h2 .roman {
+    font-family: 'Inter', sans-serif;
+    font-style: normal;
+    font-weight: 500;
+    font-size: 11px;
+    letter-spacing: 0.34em;
+    color: var(--gold);
+  }
+
+  .cat .underline {
+    margin: 10px 0 14px;
+    height: 1px;
+    background: var(--gold-soft);
+  }
+
+  .items { display: flex; flex-direction: column; gap: 16px; }
+  .item {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: baseline;
+    column-gap: 12px;
+  }
+  .item .name {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 500;
+    font-size: 18px;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+  .item .name .ko {
+    margin-left: 8px;
+    font-family: 'Inter', sans-serif;
+    font-weight: 300;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    color: var(--ink-soft);
+  }
+  .item .leader {
+    border-bottom: 1px dotted var(--gold-soft);
+    transform: translateY(-5px);
+    min-width: 16px;
+  }
+  .item .price {
+    font-family: 'Cormorant Garamond', serif;
+    font-weight: 500;
+    font-size: 18px;
+    color: var(--ink);
+    text-align: right;
+    min-width: 70px;
+  }
+
+  /* Bottom row: pâtisseries with thumbnails */
+  .patisseries-row {
+    margin-top: 18px;
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    column-gap: 28px;
+    align-items: start;
+  }
+  .patisseries-row .thumb-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .patisseries-row .thumb {
+    width: 160px;
+    height: 160px;
+    object-fit: cover;
+    display: block;
+    border: 1px solid var(--gold-soft);
+  }
+  .patisseries-row .body {
+    display: flex;
+    flex-direction: column;
+  }
+  .patisseries-row .items-2col {
+    margin-top: 8px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 36px;
+    row-gap: 10px;
+  }
+
+  /* Footer */
+  footer {
+    position: absolute;
+    left: 72px; right: 72px; bottom: 36px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'Inter', sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    padding-top: 18px;
+    border-top: 1px solid var(--gold-soft);
+  }
+  footer .center {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    text-transform: none;
+    letter-spacing: 0.02em;
+    color: var(--gold);
+    font-size: 13px;
+  }
+
+  /* Tiny ornaments — small + sign in corners */
+  .corner {
+    position: absolute;
+    width: 14px; height: 14px;
+    color: var(--gold);
+    opacity: 0.6;
+  }
+  .corner svg { width: 100%; height: 100%; }
+  .corner.tl { top: 24px; left: 24px; }
+  .corner.tr { top: 24px; right: 24px; }
+  .corner.bl { bottom: 24px; left: 24px; }
+  .corner.br { bottom: 24px; right: 24px; }
+
+</style>
+</head>
+<body>
+  <main class="menu" id="menu">
+    <!-- Corner ornaments -->
+    <div class="corner tl"><svg viewBox="0 0 14 14"><line x1="7" y1="0" x2="7" y2="14" stroke="currentColor" stroke-width="0.8"/><line x1="0" y1="7" x2="14" y2="7" stroke="currentColor" stroke-width="0.8"/></svg></div>
+    <div class="corner tr"><svg viewBox="0 0 14 14"><line x1="7" y1="0" x2="7" y2="14" stroke="currentColor" stroke-width="0.8"/><line x1="0" y1="7" x2="14" y2="7" stroke="currentColor" stroke-width="0.8"/></svg></div>
+    <div class="corner bl"><svg viewBox="0 0 14 14"><line x1="7" y1="0" x2="7" y2="14" stroke="currentColor" stroke-width="0.8"/><line x1="0" y1="7" x2="14" y2="7" stroke="currentColor" stroke-width="0.8"/></svg></div>
+    <div class="corner br"><svg viewBox="0 0 14 14"><line x1="7" y1="0" x2="7" y2="14" stroke="currentColor" stroke-width="0.8"/><line x1="0" y1="7" x2="14" y2="7" stroke="currentColor" stroke-width="0.8"/></svg></div>
+
+    <!-- Eyebrow -->
+    <div class="eyebrow">
+      <div class="left">
+        <span>Édition Printemps</span>
+        <span class="dot"></span>
+        <span>Vol. II</span>
+      </div>
+      <div class="right">
+        <span>MMXXVI</span>
+        <span class="dot"></span>
+        <span>Paris · Séoul</span>
+      </div>
+    </div>
+
+    <!-- Wordmark -->
+    <h1 class="wordmark"><span class="roman">CAFÉ</span> <em>Crème d'amande</em></h1>
+    <div class="tagline">
+      <span class="rule"></span>
+      <span>La carte du jour — patisserie &amp; torréfaction</span>
+    </div>
+
+    <div class="hero-rule"></div>
+
+    <!-- Main grid -->
+    <section class="grid">
+      <!-- LEFT: signature card -->
+      <article class="signature">
+        <span class="label">La Signature</span>
+        <img class="photo" src="images/signature_latte_v2.png" alt="Crème d'amande Latte" />
+        <div class="caption">
+          <div class="num">No. 01 · Notre Spécialité</div>
+          <div class="name">Crème d'amande Latte</div>
+          <div class="desc">하우스 라떼에 자체 제조한 아몬드 프랄린 크렘과 토스티드 아몬드 향을 더한 시그니처. 1잔에 8g의 시칠리아산 통아몬드가 들어갑니다.</div>
+          <div class="price-row">
+            <span class="meta">Servi chaud · 12oz</span>
+            <span class="price">₩ 8,500</span>
+          </div>
+        </div>
+      </article>
+
+      <!-- RIGHT: two stacked categories -->
+      <div class="col-right">
+        <section class="cat">
+          <h2><span class="roman">I.</span> Cafés <span class="roman" style="margin-left:auto;">Torréfaction maison</span></h2>
+          <div class="underline"></div>
+          <div class="items">
+            <div class="item"><span class="name">Espresso <span class="ko">에스프레소</span></span><span class="leader"></span><span class="price">4,500</span></div>
+            <div class="item"><span class="name">Espresso Macchiato <span class="ko">마키아토</span></span><span class="leader"></span><span class="price">5,000</span></div>
+            <div class="item"><span class="name">Café Allongé <span class="ko">아메리카노</span></span><span class="leader"></span><span class="price">5,500</span></div>
+            <div class="item"><span class="name">Latté Vanille <span class="ko">바닐라 라떼</span></span><span class="leader"></span><span class="price">6,500</span></div>
+            <div class="item"><span class="name">Café Noisette <span class="ko">헤이즐넛 라떼</span></span><span class="leader"></span><span class="price">6,800</span></div>
+          </div>
+        </section>
+
+        <section class="cat">
+          <h2><span class="roman">II.</span> Boissons <span class="roman" style="margin-left:auto;">Glacées &amp; chaudes</span></h2>
+          <div class="underline"></div>
+          <div class="items">
+            <div class="item"><span class="name">Thé Jasmin <span class="ko">자스민 차</span></span><span class="leader"></span><span class="price">5,500</span></div>
+            <div class="item"><span class="name">Chocolat Chaud <span class="ko">핫 초콜릿</span></span><span class="leader"></span><span class="price">7,000</span></div>
+            <div class="item"><span class="name">Citron Pressé <span class="ko">레몬에이드</span></span><span class="leader"></span><span class="price">6,000</span></div>
+            <div class="item"><span class="name">Sirop d'Orgeat Soda <span class="ko">오르자트 소다</span></span><span class="leader"></span><span class="price">6,500</span></div>
+          </div>
+        </section>
+      </div>
+    </section>
+
+    <!-- Pâtisseries row -->
+    <section class="patisseries-row">
+      <div class="thumb-stack">
+        <img class="thumb" src="images/cat_patisseries.png" alt="Pâtisseries" />
+      </div>
+      <div class="body">
+        <h2 style="margin:0; display:flex; align-items:baseline; gap:14px; font-family:'Cormorant Garamond', serif; font-style:italic; font-size:28px;">
+          <span style="font-family:'Inter', sans-serif; font-style:normal; font-weight:500; font-size:11px; letter-spacing:0.34em; color:var(--gold);">III.</span>
+          Pâtisseries
+          <span style="margin-left:auto; font-family:'Inter', sans-serif; font-style:normal; font-weight:500; font-size:11px; letter-spacing:0.34em; color:var(--gold);">Préparé sur place</span>
+        </h2>
+        <div style="height:1px; background:var(--gold-soft); margin:10px 0 8px;"></div>
+        <div class="items-2col" style="row-gap:14px;">
+          <div class="item"><span class="name">Canelé de Bordeaux <span class="ko">까눌레</span></span><span class="leader"></span><span class="price">4,500</span></div>
+          <div class="item"><span class="name">Financier aux Amandes <span class="ko">아몬드 피낭시에</span></span><span class="leader"></span><span class="price">4,800</span></div>
+          <div class="item"><span class="name">Madeleine Citron <span class="ko">레몬 마들렌</span></span><span class="leader"></span><span class="price">4,500</span></div>
+          <div class="item"><span class="name">Mille-feuille Vanille <span class="ko">밀푀유</span></span><span class="leader"></span><span class="price">8,000</span></div>
+          <div class="item"><span class="name">Tarte aux Amandes <span class="ko">아몬드 타르트</span></span><span class="leader"></span><span class="price">9,500</span></div>
+          <div class="item"><span class="name">Éclair Café <span class="ko">커피 에끌레르</span></span><span class="leader"></span><span class="price">6,800</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+      <div>12, Rue de Séongsu · Séoul</div>
+      <div class="center">— ouvert tous les jours —</div>
+      <div>08:00 – 22:00 · @creme.damande</div>
+    </footer>
+  </main>
+</body>
+</html>

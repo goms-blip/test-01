@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>말차 마들렌 — 썸네일 후보 10컷</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI', sans-serif; }
+    .fade-in { animation: fadeIn .18s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: scale(.98); } to { opacity: 1; transform: scale(1); } }
+  </style>
+</head>
+<body class="bg-neutral-950 text-neutral-100 min-h-screen">
+  <div id="root"></div>
+  <script type="text/babel">
+    // ========================================
+    // React Hooks
+    // ========================================
+    const { useState, useEffect, useCallback, useMemo } = React;
+
+    // ========================================
+    // 데이터 (frame metadata)
+    // ========================================
+    const VIDEO = {
+      title: '밤 크림 가득한 말차 마들렌 만들기 | Matcha Marron Madeleine',
+      url: 'https://www.youtube.com/watch?v=K6y1Oj4MGP8',
+      videoId: 'K6y1Oj4MGP8',
+      duration: 592.214,
+      durationLabel: '9:52',
+    };
+
+    // 최종 썸네일 (frame_09.jpg 베이스 + PIL 합성, 1920×1080 PNG)
+    // - frame_10(잘라먹은 컷) 폐기 → frame_09(글레이즈 액션 컷)으로 교체.
+    // - 메인/서브 박스 + 노랑 콜아웃 스티커("윤기 살짝"/"GENTLE GLOSS") + 곡선 화살표 + ✨ 반짝임.
+    // - **자막바는 마스킹이 아닌 크롭+업스케일**로 화면 밖으로 밀어냄(좌우 124px씩 + 하단 140px 컷).
+    //   좌상단 브러시(노란 솔/오렌지)는 보존 — 액션감 핵심.
+    // - 우상단 워터마크는 별도 흰 사각형 마스킹 후 우리 라벨로 덮어쓰기.
+    // - ?v=3 쿼리스트링: 이전 마스킹 버전 캐시 잔상 제거.
+    const FINAL_THUMBNAILS = [
+      { id: 'kr', label: '한국어 (KR)', file: 'thumbnail_kr.png', desc: '말차 × 밤 · 밤크림 가득한 마들렌 · 윤기 살짝', lang: 'kr' },
+      { id: 'en', label: 'English (EN)', file: 'thumbnail_en.png', desc: 'MATCHA × MARRON · Chestnut Cream Madeleines · GENTLE GLOSS', lang: 'en' },
+    ];
+    const THUMB_CACHE_BUST = 'v=3';
+
+    // 추출된 10개 프레임의 타임스탬프(초). ffmpeg scene-detection(thr=0.4)으로
+    // 98개 후보 중 영상 전체에 고르게 분포된 10개를 선별한 결과.
+    const FRAMES = [
+      { idx: 1,  t:  38.800, note: '재료 — 버터 큐브 (Matcha Madeleine Batter)' },
+      { idx: 2,  t:  82.733, note: '말차 가루 체에 치기' },
+      { idx: 3,  t: 148.733, note: '반죽 휘퍼링' },
+      { idx: 4,  t: 204.700, note: '반죽을 짤주머니로 패닝' },
+      { idx: 5,  t: 276.133, note: '오븐에서 부풀어 오르는 마들렌' },
+      { idx: 6,  t: 330.567, note: '구워진 마들렌 — 갈색 옆면' },
+      { idx: 7,  t: 385.500, note: '밤 크림(마롱) 만들기' },
+      { idx: 8,  t: 444.267, note: '마들렌 속 채우기 — 짤주머니' },
+      { idx: 9,  t: 502.633, note: '말차 럼 글레이즈 마무리' },
+      { idx: 10, t: 563.700, note: '완성 컷 — 플레이팅' },
+    ];
+
+    // ========================================
+    // 유틸
+    // ========================================
+    const formatTime = (s) => {
+      const m = Math.floor(s / 60);
+      const sec = Math.floor(s % 60);
+      return `${m}:${String(sec).padStart(2, '0')}`;
+    };
+
+    const frameSrc = (idx) => `frame_${String(idx).padStart(2, '0')}.jpg`;
+
+    const ytJumpUrl = (videoId, t) =>
+      `https://www.youtube.com/watch?v=${videoId}&t=${Math.floor(t)}s`;
+
+    // ========================================
+    // Design System
+    // ========================================
+    function Badge({ children, className = '' }) {
+      return (
+        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-neutral-800 text-neutral-200 border border-neutral-700 ${className}`}>
+          {children}
+        </span>
+      );
+    }
+
+    function Button({ children, variant = 'primary', size = 'md', className = '', ...rest }) {
+      const base = 'inline-flex items-center justify-center gap-1.5 rounded-md font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-neutral-950 disabled:opacity-50 disabled:cursor-not-allowed';
+      const variants = {
+        primary: 'bg-emerald-600 hover:bg-emerald-500 text-white focus:ring-emerald-500',
+        secondary: 'bg-neutral-800 hover:bg-neutral-700 text-neutral-100 border border-neutral-700 focus:ring-neutral-500',
+        ghost: 'bg-transparent hover:bg-neutral-800 text-neutral-300 focus:ring-neutral-600',
+      };
+      const sizes = {
+        sm: 'text-xs px-2.5 py-1',
+        md: 'text-sm px-3.5 py-1.5',
+        lg: 'text-base px-5 py-2.5',
+      };
+      return (
+        <button className={`${base} ${variants[variant]} ${sizes[size]} ${className}`} {...rest}>
+          {children}
+        </button>
+      );
+    }
+
+    function Card({ children, className = '', ...rest }) {
+      return (
+        <div className={`bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden ${className}`} {...rest}>
+          {children}
+        </div>
+      );
+    }
+
+    function Modal({ isOpen, onClose, children }) {
+      useEffect(() => {
+        if (!isOpen) return;
+        const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+        document.addEventListener('keydown', onKey);
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+          document.removeEventListener('keydown', onKey);
+          document.body.style.overflow = prev;
+        };
+      }, [isOpen, onClose]);
+
+      if (!isOpen) return null;
+      return (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm fade-in"
+          onClick={onClose}
+        >
+          <div
+            className="relative max-w-6xl w-full max-h-[92vh] overflow-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {children}
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 공통 컴포넌트
+    // ========================================
+    function Header() {
+      return (
+        <header className="border-b border-neutral-800 bg-neutral-950/80 backdrop-blur sticky top-0 z-40">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 text-xs text-neutral-400 mb-1">
+                <span>YouTube 썸네일 후보</span>
+                <span className="text-neutral-600">·</span>
+                <span>scene-detection 10컷</span>
+              </div>
+              <h1 className="text-base sm:text-lg font-semibold truncate">{VIDEO.title}</h1>
+              <a
+                href={VIDEO.url}
+                target="_blank"
+                rel="noreferrer noopener"
+                className="text-xs text-emerald-400 hover:text-emerald-300 break-all"
+              >
+                {VIDEO.url}
+              </a>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Badge>전체 {VIDEO.durationLabel}</Badge>
+              <Badge>최종 2 + 후보 10</Badge>
+              <Badge>1920×1080</Badge>
+            </div>
+          </div>
+        </header>
+      );
+    }
+
+    // ========================================
+    // 페이지 컴포넌트
+    // ========================================
+    function ThumbnailCard({ frame, onOpen }) {
+      return (
+        <Card className="group hover:border-emerald-700 transition-colors">
+          <button
+            type="button"
+            onClick={() => onOpen(frame)}
+            className="block w-full text-left focus:outline-none"
+            aria-label={`프레임 ${frame.idx} 크게 보기`}
+          >
+            <div className="relative aspect-video bg-neutral-800">
+              <img
+                src={frameSrc(frame.idx)}
+                alt={`Frame ${frame.idx} — ${frame.note}`}
+                className="w-full h-full object-cover group-hover:opacity-90 transition-opacity"
+                loading="lazy"
+              />
+              <div className="absolute top-2 left-2">
+                <span className="bg-black/70 text-white text-xs font-mono px-2 py-1 rounded">
+                  #{String(frame.idx).padStart(2, '0')}
+                </span>
+              </div>
+              <div className="absolute bottom-2 right-2">
+                <span className="bg-black/70 text-white text-xs font-mono px-2 py-1 rounded">
+                  {formatTime(frame.t)}
+                </span>
+              </div>
+            </div>
+          </button>
+          <div className="p-3 flex items-center justify-between gap-2">
+            <p className="text-sm text-neutral-300 truncate" title={frame.note}>{frame.note}</p>
+            <a
+              href={ytJumpUrl(VIDEO.videoId, frame.t)}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="text-xs text-neutral-400 hover:text-emerald-400 shrink-0"
+              title="해당 시점으로 YouTube 열기"
+            >
+              열기 ↗
+            </a>
+          </div>
+        </Card>
+      );
+    }
+
+    function FinalThumbnailCard({ item, onOpen }) {
+      const tone = item.lang === 'kr'
+        ? 'bg-emerald-900/40 text-emerald-300 border-emerald-800/60'
+        : 'bg-sky-900/40 text-sky-300 border-sky-800/60';
+      return (
+        <Card className="group hover:border-emerald-600 transition-colors">
+          <button
+            type="button"
+            onClick={() => onOpen(item)}
+            className="block w-full text-left focus:outline-none"
+            aria-label={`${item.label} 크게 보기`}
+          >
+            <div className="relative aspect-video bg-neutral-800">
+              <img
+                src={`${item.file}?${THUMB_CACHE_BUST}`}
+                alt={item.label}
+                className="w-full h-full object-cover group-hover:opacity-95 transition-opacity"
+                loading="lazy"
+              />
+              <div className="absolute top-2 left-2">
+                <span className={`text-xs font-semibold px-2 py-1 rounded border ${tone}`}>
+                  {item.label}
+                </span>
+              </div>
+              <div className="absolute bottom-2 right-2">
+                <span className="bg-black/70 text-white text-[10px] font-mono px-2 py-1 rounded">
+                  1920×1080
+                </span>
+              </div>
+            </div>
+          </button>
+          <div className="p-3 flex items-center justify-between gap-2">
+            <p className="text-xs text-neutral-300 truncate" title={item.desc}>{item.desc}</p>
+            <a
+              href={item.file}
+              download={item.file}
+              className="text-xs text-neutral-400 hover:text-emerald-400 shrink-0"
+              title="다운로드"
+            >
+              ↓ PNG
+            </a>
+          </div>
+        </Card>
+      );
+    }
+
+    function FinalThumbnailsSection() {
+      const [active, setActive] = useState(null);
+      return (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 pt-6">
+          <div className="mb-3 flex items-end justify-between gap-2">
+            <div>
+              <h2 className="text-lg font-semibold">최종 썸네일 (KR / EN)</h2>
+              <p className="text-sm text-neutral-400 mt-1">
+                <code className="text-emerald-400">frame_09.jpg</code> 베이스(글레이즈 액션 컷) + PIL 합성.
+                자막바는 <strong>크롭+업스케일</strong>로 화면 밖으로 밀어내고, 좌상단 브러시는 보존.
+                메인/서브 박스 + 노랑 콜아웃 스티커(윤기 살짝/GENTLE GLOSS) + 곡선 화살표 + ✨ 반짝임. 1920×1080 PNG.
+              </p>
+            </div>
+            <Badge className="bg-emerald-900/40 border-emerald-800 text-emerald-300">FINAL</Badge>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {FINAL_THUMBNAILS.map((it) => (
+              <FinalThumbnailCard key={it.id} item={it} onOpen={setActive} />
+            ))}
+          </div>
+
+          <Modal isOpen={!!active} onClose={() => setActive(null)}>
+            {active && (
+              <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
+                <div className="bg-black">
+                  <img src={`${active.file}?${THUMB_CACHE_BUST}`} alt={active.label} className="w-full h-auto max-h-[78vh] object-contain" />
+                </div>
+                <div className="p-4 flex items-center justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge>{active.label}</Badge>
+                      <Badge>1920×1080</Badge>
+                    </div>
+                    <p className="text-sm text-neutral-200">{active.desc}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <a href={active.file} download={active.file} className="inline-flex">
+                      <Button variant="secondary" size="sm">다운로드</Button>
+                    </a>
+                    <Button variant="ghost" size="sm" onClick={() => setActive(null)}>닫기</Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </Modal>
+        </section>
+      );
+    }
+
+    function GalleryPage() {
+      const [active, setActive] = useState(null);
+
+      const goPrev = useCallback(() => {
+        setActive((cur) => {
+          if (!cur) return cur;
+          const i = FRAMES.findIndex((f) => f.idx === cur.idx);
+          return FRAMES[(i - 1 + FRAMES.length) % FRAMES.length];
+        });
+      }, []);
+      const goNext = useCallback(() => {
+        setActive((cur) => {
+          if (!cur) return cur;
+          const i = FRAMES.findIndex((f) => f.idx === cur.idx);
+          return FRAMES[(i + 1) % FRAMES.length];
+        });
+      }, []);
+
+      useEffect(() => {
+        if (!active) return;
+        const onKey = (e) => {
+          if (e.key === 'ArrowLeft') goPrev();
+          else if (e.key === 'ArrowRight') goNext();
+        };
+        document.addEventListener('keydown', onKey);
+        return () => document.removeEventListener('keydown', onKey);
+      }, [active, goPrev, goNext]);
+
+      return (
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
+          <div className="mb-3 flex items-end justify-between gap-2">
+            <h2 className="text-lg font-semibold">후보 프레임 10컷</h2>
+            <Badge>scene-detection</Badge>
+          </div>
+          <div className="mb-4 text-sm text-neutral-400">
+            클릭하면 크게 볼 수 있어요 · 키보드 ← → 로 이동, Esc로 닫기
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {FRAMES.map((f) => (
+              <ThumbnailCard key={f.idx} frame={f} onOpen={setActive} />
+            ))}
+          </div>
+
+          <Modal isOpen={!!active} onClose={() => setActive(null)}>
+            {active && (
+              <div className="bg-neutral-900 border border-neutral-800 rounded-xl overflow-hidden">
+                <div className="relative bg-black">
+                  <img
+                    src={frameSrc(active.idx)}
+                    alt={`Frame ${active.idx} — ${active.note}`}
+                    className="w-full h-auto max-h-[78vh] object-contain"
+                  />
+                  <button
+                    onClick={goPrev}
+                    aria-label="이전"
+                    className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white w-10 h-10 rounded-full flex items-center justify-center"
+                  >
+                    ‹
+                  </button>
+                  <button
+                    onClick={goNext}
+                    aria-label="다음"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white w-10 h-10 rounded-full flex items-center justify-center"
+                  >
+                    ›
+                  </button>
+                </div>
+                <div className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Badge>#{String(active.idx).padStart(2, '0')}</Badge>
+                      <Badge>{formatTime(active.t)}</Badge>
+                      <Badge>{active.t.toFixed(2)}s</Badge>
+                    </div>
+                    <p className="text-sm text-neutral-200 truncate">{active.note}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <a
+                      href={frameSrc(active.idx)}
+                      download={frameSrc(active.idx)}
+                      className="inline-flex"
+                    >
+                      <Button variant="secondary" size="sm">다운로드</Button>
+                    </a>
+                    <a
+                      href={ytJumpUrl(VIDEO.videoId, active.t)}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      className="inline-flex"
+                    >
+                      <Button variant="primary" size="sm">YouTube에서 보기</Button>
+                    </a>
+                    <Button variant="ghost" size="sm" onClick={() => setActive(null)}>닫기</Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </Modal>
+        </main>
+      );
+    }
+
+    // ========================================
+    // App
+    // ========================================
+    function App() {
+      return (
+        <>
+          <Header />
+          <FinalThumbnailsSection />
+          <GalleryPage />
+          <footer className="max-w-7xl mx-auto px-4 sm:px-6 py-8 text-xs text-neutral-500">
+            ffmpeg scene-detection(thr=0.4)으로 추출한 후보 98개 중 영상 전체에 고르게 분포된 10컷을 선별했어요.
+          </footer>
+        </>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>

@@ -19,3 +19,10 @@ npm-debug.log*
 # Vector stores / caches
 .chroma_db/
 week-7/Quest/New_Menu_Poster/.env
+
+# Large source media (host externally — GitHub 100MB limit)
+*.mp4
+*.mov
+
+# Temporary generation outputs
+_tmp_gen/

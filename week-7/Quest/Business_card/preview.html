@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Business Card — 4 Variations · 오승훈</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <!-- Tailwind + React + Babel -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    :root {
+      --ink: #111111;
+      --ink-2: #2b2b2b;
+      --grey: #6e6e73;
+      --grey-2: #a1a1a6;
+      --rule: #d9d9dd;
+      --paper: #ffffff;
+      --page: #ededed;
+    }
+
+    html, body {
+      background: var(--page);
+      font-family: "Inter", "Noto Sans KR", system-ui, sans-serif;
+      font-feature-settings: "tnum";
+      color: var(--ink);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* Korean characters use Noto Sans KR, latin uses Inter (per char fallback) */
+    .ko { font-family: "Noto Sans KR", "Inter", system-ui, sans-serif; }
+    .en { font-family: "Inter", "Noto Sans KR", system-ui, sans-serif; }
+
+    .card {
+      width: 540px;
+      height: 300px; /* 1.8:1 ratio = 90×50mm */
+      background: var(--paper);
+      box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.25),
+                  0 1px 2px rgba(0, 0, 0, 0.04);
+      border-radius: 2px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card-dark {
+      background: var(--ink);
+      color: #fff;
+    }
+
+    .tracked-xs { letter-spacing: 0.28em; }
+    .tracked-sm { letter-spacing: 0.22em; }
+    .tracked-md { letter-spacing: 0.18em; }
+    .tracked-body { letter-spacing: 0.005em; }
+
+    .hairline {
+      display: inline-block;
+      height: 1px;
+      background: var(--ink);
+    }
+    .hairline-grey { background: var(--grey-2); }
+    .hairline-on-dark { background: rgba(255,255,255,0.6); }
+
+    .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--ink); display: inline-block; }
+    .dot-on-dark { background: #fff; }
+
+    /* small dash signature (—— like KLAMBI) */
+    .dash {
+      font-family: "Inter", monospace;
+      letter-spacing: 0.05em;
+      color: var(--grey);
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useMemo } = React;
+
+    // ========================================
+    // Constants — user content (do not change)
+    // ========================================
+    const C = {
+      koName: "오승훈",
+      enName: "OH SEUNG HUN",
+      tagline: "AI를 활용하려고 노력하는",
+      phone: "010-8565-7487",
+      email: "osh384@gmail.com",
+    };
+
+    // ========================================
+    // QR Placeholder — inline SVG, deterministic
+    // 21×21 module grid with 3 finder patterns
+    // ========================================
+    function QRPlaceholder({ size = 96, fg = "#111", bg = "#fff" }) {
+      const modules = 21;
+      const cell = size / modules;
+
+      // deterministic pseudo-random per cell using a seed
+      const seeded = (i, j) => {
+        const s = (i * 73856093) ^ (j * 19349663) ^ 0x9e3779b1;
+        return ((s & 0xffff) / 0xffff) > 0.52;
+      };
+
+      // finder pattern: 7×7 block at (r,c). Outer 7×7 ring + inner 3×3 filled.
+      const inFinder = (i, j) => {
+        const isFinderAt = (r, c) =>
+          i >= r && i <= r + 6 && j >= c && j <= c + 6;
+        return isFinderAt(0, 0) || isFinderAt(0, modules - 7) || isFinderAt(modules - 7, 0);
+      };
+      const finderFill = (i, j) => {
+        const localFill = (r, c) => {
+          if (!(i >= r && i <= r + 6 && j >= c && j <= c + 6)) return null;
+          const li = i - r, lj = j - c;
+          // outer ring
+          if (li === 0 || li === 6 || lj === 0 || lj === 6) return true;
+          // inner 3×3
+          if (li >= 2 && li <= 4 && lj >= 2 && lj <= 4) return true;
+          return false;
+        };
+        const a = localFill(0, 0);
+        if (a !== null) return a;
+        const b = localFill(0, modules - 7);
+        if (b !== null) return b;
+        const c = localFill(modules - 7, 0);
+        if (c !== null) return c;
+        return false;
+      };
+
+      // separator (1 cell quiet zone) around finders → blank
+      const inSeparator = (i, j) => {
+        const sepAt = (r, c) =>
+          ((i === r + 7 && j >= c && j <= c + 7) ||
+           (j === c + 7 && i >= r && i <= r + 7) ||
+           (i === r - 1 && j >= c - 1 && j <= c + 7) ||
+           (j === c - 1 && i >= r - 1 && i <= r + 7));
+        return sepAt(0, 0) || sepAt(0, modules - 7) || sepAt(modules - 7, 0);
+      };
+
+      const rects = [];
+      for (let i = 0; i < modules; i++) {
+        for (let j = 0; j < modules; j++) {
+          let on = false;
+          if (inFinder(i, j)) {
+            on = finderFill(i, j);
+          } else if (inSeparator(i, j)) {
+            on = false;
+          } else {
+            on = seeded(i, j);
+          }
+          if (on) {
+            rects.push(
+              <rect
+                key={`${i}-${j}`}
+                x={j * cell}
+                y={i * cell}
+                width={cell}
+                height={cell}
+                fill={fg}
+              />
+            );
+          }
+        }
+      }
+
+      return (
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width={size} height={size} fill={bg} />
+          {rects}
+        </svg>
+      );
+    }
+
+    // ========================================
+    // Abstract monochrome graphic for V3 front
+    // — 1mm grid + one black dot
+    // ========================================
+    function AbstractMonoPattern({ width = 189, height = 300 }) {
+      // ~1mm grid → at 540px = 90mm, 1mm = 6px
+      const step = 12;
+      const lines = [];
+      for (let x = step; x < width; x += step) {
+        lines.push(<line key={`v${x}`} x1={x} y1={0} x2={x} y2={height} stroke="#e2e2e6" strokeWidth="0.6" />);
+      }
+      for (let y = step; y < height; y += step) {
+        lines.push(<line key={`h${y}`} x1={0} y1={y} x2={width} y2={y} stroke="#e2e2e6" strokeWidth="0.6" />);
+      }
+      return (
+        <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} xmlns="http://www.w3.org/2000/svg">
+          <rect x="0" y="0" width={width} height={height} fill="#fafafa" />
+          {lines}
+          {/* one large outlined circle */}
+          <circle cx={width * 0.5} cy={height * 0.42} r="34" fill="none" stroke="#111" strokeWidth="1" />
+          {/* one solid dot inside */}
+          <circle cx={width * 0.5} cy={height * 0.42} r="3.5" fill="#111" />
+          {/* hairline at bottom */}
+          <line x1={width * 0.18} y1={height * 0.78} x2={width * 0.82} y2={height * 0.78} stroke="#111" strokeWidth="0.8" />
+        </svg>
+      );
+    }
+
+    // ========================================
+    // Caption (small label above each variation)
+    // ========================================
+    function Caption({ index, name }) {
+      return (
+        <div className="flex items-baseline gap-3 mb-4">
+          <span
+            className="en text-[10px] tracked-md uppercase"
+            style={{ color: "var(--grey)" }}
+          >
+            Variation {index}
+          </span>
+          <span className="hairline" style={{ width: 24 }} />
+          <span
+            className="en text-[11px] tracked-md uppercase"
+            style={{ color: "var(--ink)" }}
+          >
+            {name}
+          </span>
+        </div>
+      );
+    }
+
+    function FaceLabel({ children }) {
+      return (
+        <div
+          className="en text-[9px] tracked-md uppercase mb-3"
+          style={{ color: "var(--grey-2)" }}
+        >
+          {children}
+        </div>
+      );
+    }
+
+    // ========================================
+    // Variation 1 — KLAMBI minimal (white/white)
+    // ========================================
+    function V1Front() {
+      return (
+        <div className="card">
+          {/* top-left dot + OSH */}
+          <div className="absolute top-5 left-6 flex items-center gap-2">
+            <span className="dot" />
+            <span
+              className="en text-[9px] tracked-md uppercase"
+              style={{ color: "var(--ink)" }}
+            >
+              OSH
+            </span>
+          </div>
+          {/* top-right hairline */}
+          <div className="absolute top-7 right-6">
+            <span className="hairline" style={{ width: 36 }} />
+          </div>
+
+          {/* center stack */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <div className="ko text-[18px] font-bold tracking-[0.005em]" style={{ color: "var(--ink)" }}>
+              {C.koName}
+            </div>
+            <div
+              className="en text-[11px] tracked-md uppercase mt-2"
+              style={{ color: "var(--ink-2)" }}
+            >
+              {C.enName}
+            </div>
+            <div
+              className="ko text-[11px] mt-3 tracked-body"
+              style={{ color: "var(--grey)" }}
+            >
+              {C.tagline}
+            </div>
+          </div>
+
+          {/* bottom dash signature */}
+          <div className="absolute bottom-5 left-1/2 -translate-x-1/2">
+            <span className="dash en text-[10px]">——</span>
+          </div>
+        </div>
+      );
+    }
+
+    function V1Back() {
+      return (
+        <div className="card">
+          {/* top dash */}
+          <div className="absolute top-5 left-1/2 -translate-x-1/2">
+            <span className="dash en text-[10px]">——</span>
+          </div>
+          {/* center */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <div
+              className="en text-[14px] tracked-md uppercase"
+              style={{ color: "var(--ink)" }}
+            >
+              OSH
+            </div>
+            <div
+              className="ko text-[9px] mt-3 tracked-sm"
+              style={{ color: "var(--grey)" }}
+            >
+              {C.tagline}
+            </div>
+          </div>
+          {/* bottom dash */}
+          <div className="absolute bottom-5 left-1/2 -translate-x-1/2">
+            <span className="dash en text-[10px]">——</span>
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // Variation 2 — Black back (white front, ink back)
+    // ========================================
+    function V2Front() {
+      return (
+        <div className="card">
+          {/* fully centered stack */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center px-10 text-center">
+            <div className="mb-4">
+              <span className="hairline" style={{ width: 28 }} />
+            </div>
+            <div className="ko text-[17px] font-bold leading-tight" style={{ color: "var(--ink)" }}>
+              {C.koName}
+            </div>
+            <div
+              className="en text-[11px] tracked-md uppercase mt-1"
+              style={{ color: "var(--grey)" }}
+            >
+              {C.enName}
+            </div>
+            <div
+              className="ko text-[11px] mt-5 tracked-body"
+              style={{ color: "var(--ink)" }}
+            >
+              {C.tagline}
+            </div>
+
+            <div className="mt-8 flex flex-col items-center gap-1">
+              <div className="en text-[11px] tracked-body" style={{ color: "var(--ink-2)" }}>
+                +82-10-8565-7487
+              </div>
+              <div className="en text-[11px] tracked-body" style={{ color: "var(--ink-2)" }}>
+                {C.email}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function V2Back() {
+      return (
+        <div className="card card-dark">
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span
+              className="en text-[11px] tracked-xs uppercase"
+              style={{ color: "rgba(255,255,255,0.9)" }}
+            >
+              AI · TRYING · LEARNING
+            </span>
+          </div>
+          {/* subtle top hairline */}
+          <div className="absolute top-6 left-1/2 -translate-x-1/2">
+            <span className="hairline hairline-on-dark" style={{ width: 24, opacity: 0.5 }} />
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // Variation 3 — AFANA half-image (35/65 split)
+    // ========================================
+    function V3Front() {
+      return (
+        <div className="card flex">
+          {/* left graphic 35% */}
+          <div className="w-[35%] h-full">
+            <AbstractMonoPattern width={189} height={300} />
+          </div>
+          {/* right info 65% */}
+          <div className="flex-1 relative pr-8 pl-8">
+            {/* OSH° top-right */}
+            <div className="absolute top-5 right-8">
+              <span
+                className="en text-[9px] tracked-md uppercase"
+                style={{ color: "var(--grey)" }}
+              >
+                OSH°
+              </span>
+            </div>
+            <div className="absolute inset-0 flex flex-col justify-center pl-8 pr-8">
+              <div className="ko text-[18px] font-bold" style={{ color: "var(--ink)" }}>
+                {C.koName}
+              </div>
+              <div
+                className="en text-[10px] tracked-md uppercase mt-1"
+                style={{ color: "var(--grey)" }}
+              >
+                {C.enName}
+              </div>
+              <div className="mt-4">
+                <span className="hairline" style={{ width: 18 }} />
+              </div>
+              <div className="ko text-[11px] mt-4 tracked-body" style={{ color: "var(--ink-2)" }}>
+                {C.tagline}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function V3Back() {
+      return (
+        <div className="card flex">
+          {/* left 35% black with QR */}
+          <div className="w-[35%] h-full flex items-center justify-center" style={{ background: "var(--ink)" }}>
+            <div style={{ background: "#fff", padding: 8, borderRadius: 1 }}>
+              <QRPlaceholder size={104} fg="#111" bg="#fff" />
+            </div>
+          </div>
+          {/* right 65% */}
+          <div className="flex-1 relative pl-9 pr-8">
+            <div className="absolute inset-0 flex flex-col justify-center pl-9 pr-8">
+              <div className="flex items-baseline gap-3">
+                <span
+                  className="en text-[9px] tracked-md uppercase"
+                  style={{ color: "var(--grey)" }}
+                >
+                  Phone
+                </span>
+                <span className="hairline" style={{ width: 14 }} />
+                <span className="en text-[12px] tracked-body" style={{ color: "var(--ink)" }}>
+                  {C.phone}
+                </span>
+              </div>
+              <div className="flex items-baseline gap-3 mt-3">
+                <span
+                  className="en text-[9px] tracked-md uppercase"
+                  style={{ color: "var(--grey)" }}
+                >
+                  Email
+                </span>
+                <span className="hairline" style={{ width: 14 }} />
+                <span className="en text-[12px] tracked-body" style={{ color: "var(--ink)" }}>
+                  {C.email}
+                </span>
+              </div>
+            </div>
+            {/* bottom right label */}
+            <div className="absolute bottom-5 right-8">
+              <span
+                className="en text-[9px] tracked-md uppercase"
+                style={{ color: "var(--grey-2)" }}
+              >
+                {C.enName}
+              </span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // Variation 4 — Editorial dash (extreme minimal)
+    // ========================================
+    function V4Front() {
+      return (
+        <div className="card">
+          <div className="absolute inset-0 flex flex-col items-center justify-center px-10">
+            <div className="ko text-[18px] font-bold" style={{ color: "var(--ink)" }}>
+              {C.koName}
+            </div>
+            <div
+              className="en text-[10px] tracked-md uppercase mt-2"
+              style={{ color: "var(--ink-2)" }}
+            >
+              {C.enName}
+            </div>
+            <div className="mt-5">
+              <span className="dash en text-[10px]">——</span>
+            </div>
+            <div className="ko text-[11px] mt-5 tracked-body" style={{ color: "var(--ink)" }}>
+              {C.tagline}
+            </div>
+            <div className="mt-5">
+              <span className="dash en text-[10px]">——</span>
+            </div>
+            <div className="en text-[11px] mt-5 tracked-body" style={{ color: "var(--ink-2)" }}>
+              {C.phone} · {C.email}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function V4Back() {
+      return (
+        <div className="card">
+          {/* top-left dot + OSH */}
+          <div className="absolute top-5 left-6 flex items-center gap-2">
+            <span className="dot" />
+            <span
+              className="en text-[9px] tracked-md uppercase"
+              style={{ color: "var(--ink)" }}
+            >
+              OSH
+            </span>
+          </div>
+
+          {/* center: hairline + QR + label */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="hairline mb-6" style={{ width: 60 }} />
+            <div style={{ padding: 0 }}>
+              <QRPlaceholder size={60} fg="#111" bg="#fff" />
+            </div>
+            <div
+              className="en text-[9px] tracked-md uppercase mt-4"
+              style={{ color: "var(--grey)" }}
+            >
+              PORTFOLIO
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // Variation Block — front + back
+    // ========================================
+    function VariationBlock({ index, name, Front, Back }) {
+      return (
+        <section className="mb-20">
+          <Caption index={index} name={name} />
+          <div className="flex flex-wrap gap-10">
+            <div>
+              <FaceLabel>Front</FaceLabel>
+              <Front />
+            </div>
+            <div>
+              <FaceLabel>Back</FaceLabel>
+              <Back />
+            </div>
+          </div>
+        </section>
+      );
+    }
+
+    // ========================================
+    // App
+    // ========================================
+    function App() {
+      return (
+        <div className="min-h-screen px-10 py-16">
+          {/* Header */}
+          <header className="mb-16">
+            <h1 className="en text-[22px] font-medium tracking-[0.005em]" style={{ color: "var(--ink)" }}>
+              Business Card — 4 Variations
+            </h1>
+            <p
+              className="ko text-[12px] mt-2 tracked-body"
+              style={{ color: "var(--grey)" }}
+            >
+              오승훈 · 90×50mm
+            </p>
+            <div className="mt-6">
+              <span className="hairline" style={{ width: 80 }} />
+            </div>
+          </header>
+
+          <main>
+            <VariationBlock index={1} name="KLAMBI minimal" Front={V1Front} Back={V1Back} />
+            <VariationBlock index={2} name="Black back" Front={V2Front} Back={V2Back} />
+            <VariationBlock index={3} name="AFANA half-image" Front={V3Front} Back={V3Back} />
+            <VariationBlock index={4} name="Editorial dash" Front={V4Front} Back={V4Back} />
+          </main>
+
+          <footer className="mt-10 pt-8 border-t" style={{ borderColor: "var(--rule)" }}>
+            <p className="en text-[10px] tracked-md uppercase" style={{ color: "var(--grey-2)" }}>
+              Preview · Black · White · Grey only
+            </p>
+          </footer>
+        </div>
+      );
+    }
+
+    // ========================================
+    // Render
+    // ========================================
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, "Pretendard", sans-serif;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center h-10 px-4 rounded-lg font-semibold text-sm transition;
+}
+.btn-primary { @apply bg-zinc-900 text-white hover:bg-zinc-800; }
+.btn-outline { @apply border border-zinc-300 text-zinc-900 hover:bg-zinc-50; }
+.btn-ghost   { @apply text-zinc-600 hover:bg-zinc-100; }
+.btn-lg      { @apply h-12 px-5 text-base; }
+
+.input {
+  @apply w-full h-11 px-3.5 rounded-lg border border-zinc-300 outline-none text-sm bg-white focus:border-zinc-900;
+}
+.label { @apply block text-sm font-medium text-zinc-700 mb-1.5; }
+.chip  { @apply px-3 h-8 inline-flex items-center text-xs font-semibold rounded-full border cursor-pointer; }
+.chip-on  { @apply border-zinc-900 bg-zinc-900 text-white; }
+.chip-off { @apply border-zinc-300 text-zinc-600 hover:bg-zinc-50; }
