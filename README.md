@@ -5,6 +5,8 @@
 ### [Design] 내 명함 만들기
 앞면 : https://github.com/goms-blip/test-01/blob/main/week-7/Quest/Business_card/business_card_front.png
 뒷면 : https://github.com/goms-blip/test-01/blob/main/week-7/Quest/Business_card/business_card_back.png
+디지털 명함 : https://griff-card.vercel.app
+저장소 링크 : https://github.com/goms-blip/test-01/tree/main/week-7/Quest/Business_card_digital
 "나를 한단어로 정의하면 - AI를 쓰면서 의미를 찾으려고 노력하는 사람" 
 
 ### [Design] 카페 메뉴판 만들기
