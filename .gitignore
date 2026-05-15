@@ -18,3 +18,4 @@ npm-debug.log*
 
 # Vector stores / caches
 .chroma_db/
+week-7/Quest/New_Menu_Poster/.env
