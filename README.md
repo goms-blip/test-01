@@ -4,9 +4,13 @@
 
 ### [Design] 내 명함 만들기
 앞면 : https://github.com/goms-blip/test-01/blob/main/week-7/Quest/Business_card/business_card_front.png
+
 뒷면 : https://github.com/goms-blip/test-01/blob/main/week-7/Quest/Business_card/business_card_back.png
+
 디지털 명함 : https://griff-card.vercel.app
+
 저장소 링크 : https://github.com/goms-blip/test-01/tree/main/week-7/Quest/Business_card_digital
+
 "나를 한단어로 정의하면 - AI를 쓰면서 의미를 찾으려고 노력하는 사람" 
 
 ### [Design] 카페 메뉴판 만들기
@@ -20,9 +24,15 @@ https://github.com/goms-blip/test-01/blob/main/week-7/Quest/New_Menu_Poster/prev
 https://o-house-v2.vercel.app/
 저장소 링크 : https://github.com/goms-blip/test-01/tree/main/week-7/Quest/o_house_v2
 
+데모영상 : https://github.com/goms-blip/test-01/blob/main/week-7/Quest/o_house_v2/scripts/demo/out/o_house_v2_demo.mp4
+
 ### [Final] 개인 프로젝트 v1 완성 — 끝까지 밀어붙이기 
 https://baking-dict.vercel.app/#/
+
 데모영상 : https://github.com/goms-blip/test-01/blob/main/week-7/Quest/personal_project/demo.mp4
+
 저장소 링크 : https://github.com/goms-blip/test-01/tree/main/week-7/Quest/personal_project
+
 썸네일 : https://github.com/goms-blip/test-01/blob/main/week-7/Quest/personal_project/thumbnail.png
+
 회고 한단락 : https://github.com/goms-blip/test-01/blob/main/week-7/Quest/personal_project/readme.md
