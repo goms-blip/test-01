@@ -26,3 +26,12 @@ week-7/Quest/New_Menu_Poster/.env
 
 # Temporary generation outputs
 _tmp_gen/
+
+# Playwright MCP snapshots / cache
+.playwright-mcp/
+
+# Claude harness runtime state
+.claude/scheduled_tasks.lock
+
+# Local zip backups
+*.zip
