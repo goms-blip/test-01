@@ -2,20 +2,17 @@
 
 [] 잘 부탁드립니다. 
 
-### 과제물 전체 하나의 링크
-- https://week-6-quest-all.vercel.app
+### [Design] 내 명함 만들기
+- 
 
-### [Payment+File] 쇼핑몰 완성 (이미지 + 결제 + 마이페이지)
-- https://shoppingmall-dxhqk6ogi-384s-projects.vercel.app
+### [Design] 카페 메뉴판 만들기
+- 
 
-### [Research] 경쟁 서비스 3곳 크롬 MCP 리서치
-- https://github.com/goms-blip/test-01/tree/main/week-6/quest/chrome_research
+### [Design] 카페 신메뉴 포스터 만들기
+- 
 
-### [Planning] 개인 프로젝트 기획서 3종 (MISSION / DEV / AUDIENCES)
-- https://github.com/goms-blip/test-01/tree/main/week-6/quest/personal_project
+### [Final] 오늘의집 클론 (구매기능 포함) 
+https://o-house-v2.vercel.app/
 
-### [Payment] 유료 콘텐츠 잠금 해제 미니앱
-https://miniapp-weld-six.vercel.app/#/
-
-### [Final] 당근마켓 클론
-https://carrot-market-clone-five.vercel.app
+### [Final] 개인 프로젝트 v1 완성 — 끝까지 밀어붙이기 
+https://baking-dict.vercel.app/#/
