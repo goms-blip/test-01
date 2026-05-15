@@ -1,5 +1,15 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Demo (1분 시연 영상)
+
+로그인 → 스토어 → 상품 상세 → 결제(Toss 위젯)까지의 흐름을 약 54초로 녹화한 영상입니다.
+
+[▶ o_house_v2_demo.mp4 보기](./scripts/demo/out/o_house_v2_demo.mp4)
+
+<video src="https://github.com/goms-blip/test-01/raw/main/week-7/Quest/o_house_v2/scripts/demo/out/o_house_v2_demo.mp4" controls width="720"></video>
+
+녹화 스크립트: [`scripts/demo/record.mjs`](./scripts/demo/record.mjs) · 작업 로그: [`scripts/demo/work_log.md`](./scripts/demo/work_log.md)
+
 ## Getting Started
 
 First, run the development server:
