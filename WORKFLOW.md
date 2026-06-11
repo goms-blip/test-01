@@ -11,6 +11,24 @@
 
 ## 2026-06-11
 
+### 18) 트랙(Track) + 강연자(speaker)
+- **지시:** 멀티 트랙(최대 4 등) 운영 지원, 사용자도 트랙별로 보기, 세션 폼 '설명'→'강연자'.
+- **처리:**
+  - `add_tracks_speaker.sql`: `tracks` 테이블(project 하위, RLS on·anon 정책 없음=server 전용) + `sessions.track_id`(FK set null)·`sessions.speaker`.
+  - server.js: 트랙 CRUD(`GET/POST /api/admin/projects/:pid/tracks`, `PATCH/DELETE /api/admin/tracks/:id`, 콘솔 보호). 세션 생성/수정이 track_id·speaker 저장. 매퍼에 speaker/track_id/track_name. 랜딩이 tracks 배열+세션 track_id/speaker 반환. 공개 세션 단건에 speaker/track_name. SQL 미실행 폴백(PGRST205/42703 방어).
+  - index.html: 프로젝트 상세에 "트랙 추가" 버튼+트랙 칩(삭제), 세션을 트랙별 섹션으로. 세션 모달 '세션 설명'→'강연자' + 트랙 드롭다운. 랜딩(사용자) 트랙 2개+ 시 트랙별 섹션(같은 시간대 구분), 카드에 강연자 표시.
+- **검증:** 트랙 2개 생성→세션 배정→랜딩/관리자 모두 트랙별 그룹핑+강연자 표시, 세션 모달 강연자/트랙 확인. 프로덕션 재배포.
+- **주의:** 테스트로 트랙 2개(Track A·메인홀/Track B·세미나실)·강연자 2명을 실데이터에 넣음 → 사용자가 실제 값으로 교체/삭제 가능.
+
+### 17) 짧은 코드 URL + 사용자 페이지 "전체 세션 보기" 버튼
+- **지시:** "긴 UUID 안 보이게 짧게" + "사용자 페이지에 전체(목록)로 가는 버튼 추가."
+- **처리:**
+  - `add_short_codes.sql`: projects/sessions에 `code`(6 hex, unique) 컬럼 + 백필.
+  - server.js: code 생성(생성 시 발급)·해석(uuid면 id, 아니면 code) 헬퍼. 신규 `GET /api/public/sessions/:codeOrId`(공개 세션+project_code). 랜딩·관리자 세션 라우트가 code/uuid 모두 수용. 매퍼에 code 추가.
+  - index.html: 단축 라우트 `#/s/:code`·`#/e/:code`·`#/a/:code`(기존 긴 라우트 유지). URL 생성부(사용자 URL/관리자 URL/행사 QR)가 code 사용(없으면 UUID 폴백). UserSessionPage에 "전체 세션 보기" 버튼 → `#/e/<project_code>`.
+  - SQL 미실행이어도 UUID 폴백으로 안 깨짐(42703 방어).
+- **검증:** 코드 발급(프로젝트 feb8a3, 세션 5d6eb7/6ab014), 로컬·라이브 단축 라우트 200, "전체 세션" 버튼 랜딩 이동 확인. 프로덕션 재배포.
+
 ### 16) 관리자 대시보드 URL에서 토큰 숨김
 - **지시:** "주소 뒤쪽 토큰값 안 보이게 삭제 가능하면 해줘."
 - **처리:** `AdminDashboardPage`가 진입 시 `?token=`을 `sessionStorage(qa_admin_token_:id)`에 저장 후 `history.replaceState`로 주소창에서 토큰 제거. 새로고침 시 sessionStorage에서 복원. `sessionToken`은 useMemo(URL 우선, 없으면 sessionStorage). tokenInfo도 sessionToken 기준.

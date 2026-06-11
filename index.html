@@ -591,7 +591,8 @@
       async createSession(projectId, payload) {
         return apiFetch(`/api/admin/projects/${projectId}/sessions`, { method: 'POST', console: true, body: {
           name: (payload.name || '').trim(),
-          description: (payload.description || '').trim(),
+          speaker: (payload.speaker || '').trim(),     // 강연자 (구 description 자리)
+          track_id: payload.track_id || null,          // 소속 트랙 (없으면 null)
           duration: (payload.duration || '').trim(),
           is_public: !!payload.is_public,
         }});
@@ -604,6 +605,25 @@
       //  반환 { removedQuestions } 형태 유지.
       async deleteSession(id) {
         return apiFetch(`/api/admin/sessions/${id}`, { method: 'DELETE', console: true });
+      },
+
+      // --- Tracks --- (✅ server.js 콘솔 경유, requireConsole)
+      //  add_tracks_speaker.sql 미실행이면 서버가 [] / 안내메시지로 방어한다.
+      async fetchTracks(projectId) {
+        return apiFetch(`/api/admin/projects/${projectId}/tracks`, { console: true });
+      },
+      async createTrack(projectId, name) {
+        return apiFetch(`/api/admin/projects/${projectId}/tracks`, {
+          method: 'POST', console: true, body: { name: (name || '').trim() },
+        });
+      },
+      async updateTrack(id, name) {
+        return apiFetch(`/api/admin/tracks/${id}`, {
+          method: 'PATCH', console: true, body: { name: (name || '').trim() },
+        });
+      },
+      async deleteTrack(id) {
+        return apiFetch(`/api/admin/tracks/${id}`, { method: 'DELETE', console: true });
       },
 
       // --- Questions ---
@@ -753,8 +773,15 @@
       //  행사 단일 QR → 랜딩 페이지(#/event/:projectId)에서 호출.
       //  반환: { project: { id, title }, sessions: [{ id, title, description, starts_at, ends_at, questionCount }] }
       //  세션은 공개(is_public=true)만, admin_token 등 민감정보는 서버가 제외한다.
-      async fetchLanding(projectId) {
-        return apiFetch(`/api/public/projects/${projectId}/landing`);
+      async fetchLanding(projectIdOrCode) {
+        return apiFetch(`/api/public/projects/${encodeURIComponent(projectIdOrCode)}/landing`);
+      },
+      // --- 공개 세션 단건 (✅ server.js 공개 라우트, 토큰 불필요) ---
+      //  사용자 페이지(#/s/:code | #/session/:id)가 세션 메타 + project_code 를 얻기 위해 호출.
+      //  반환: { id, code, title, description, starts_at, ends_at, project_id, project_code }
+      //  공개 세션만 반환(비공개/없음 → 404). admin_token 등 민감정보는 서버가 제외한다.
+      async fetchPublicSession(codeOrId) {
+        return apiFetch(`/api/public/sessions/${encodeURIComponent(codeOrId)}`);
       },
     };
 
@@ -1045,10 +1072,27 @@
     // ========================================
     // 🧩 Common Components
     // ========================================
-    const buildUserUrl = (sessionId) => `${location.origin}${location.pathname}#/session/${sessionId}`;
-    const buildAdminUrl = (sessionId, token) => `${location.origin}${location.pathname}#/admin/session/${sessionId}?token=${token}`;
+    // 라우트 params 에서 "code 또는 id" 식별자를 꺼낸다.
+    //  짧은 라우트(/s,/e,/a)는 params.code, 긴 라우트(/session,/event,/admin/session)는
+    //  params.sessionId / params.projectId 를 준다. 둘 다 지원하기 위한 정규화 헬퍼.
+    const sessionParam = (params) => params.code || params.sessionId || '';
+    const projectParam = (params) => params.code || params.projectId || '';
+
+    // URL 생성부 — 짧은 코드(short code) 우선. code 가 없으면(SQL 미실행) 긴 UUID 로 폴백.
+    //  사용자: #/s/<sessionCode>  /  관리자: #/a/<sessionCode>?token=  /  행사: #/e/<projectCode>
+    const buildUserUrl = (session) => {
+      const seg = session && session.code ? `/s/${session.code}` : `/session/${session && session.id}`;
+      return `${location.origin}${location.pathname}#${seg}`;
+    };
+    const buildAdminUrl = (session, token) => {
+      const seg = session && session.code ? `/a/${session.code}` : `/admin/session/${session && session.id}`;
+      return `${location.origin}${location.pathname}#${seg}?token=${token}`;
+    };
     // 행사(프로젝트) 단일 QR 이 가리키는 공개 랜딩 URL. window.location.origin 사용 → 배포 환경에서도 동작.
-    const buildEventUrl = (projectId) => `${window.location.origin}${location.pathname}#/event/${projectId}`;
+    const buildEventUrl = (project) => {
+      const seg = project && project.code ? `/e/${project.code}` : `/event/${project && project.id}`;
+      return `${window.location.origin}${location.pathname}#${seg}`;
+    };
 
     const useClipboard = () => {
       const toast = useToast();
@@ -1721,11 +1765,13 @@
       const copy = useClipboard();
       const [project, setProject] = useState(undefined); // undefined=loading
       const [sessions, setSessions] = useState(null);
+      const [tracks, setTracks] = useState([]);                 // 프로젝트 트랙 목록
       const [statsMap, setStatsMap] = useState({});
       const [modalOpen, setModalOpen] = useState(false);
       const [editOpen, setEditOpen] = useState(false);
       const [deleteOpen, setDeleteOpen] = useState(false);
       const [qrOpen, setQrOpen] = useState(false);              // 행사 QR 모달
+      const [trackModalOpen, setTrackModalOpen] = useState(false); // 트랙 추가 모달
       const [editSession, setEditSession] = useState(null);     // 수정 대상 세션
       const [deleteSession, setDeleteSession] = useState(null); // 삭제 대상 세션
 
@@ -1733,6 +1779,9 @@
         const p = await mockApi.fetchProject(params.projectId);
         setProject(p);
         if (!p) return;
+        // 트랙 목록(스키마 미적용이면 [] 반환). 실패해도 세션 로드는 계속.
+        try { setTracks(await mockApi.fetchTracks(params.projectId)); }
+        catch (e) { console.error('[admin] 트랙 로드 실패:', e); setTracks([]); }
         const list = await mockApi.fetchSessions(params.projectId);
         setSessions(list);
         const entries = await Promise.all(list.map(async (s) => [s.id, await mockApi.fetchSessionStats(s.id)]));
@@ -1745,6 +1794,19 @@
         await mockApi.createSession(params.projectId, payload);
         setModalOpen(false);
         await load();
+      };
+
+      const handleTrackCreated = async (name) => {
+        await mockApi.createTrack(params.projectId, name);
+        setTrackModalOpen(false);
+        await load();
+        toast.show('트랙을 추가했습니다', 'success');
+      };
+
+      const handleTrackDeleted = async (track) => {
+        await mockApi.deleteTrack(track.id);
+        await load();
+        toast.show('트랙을 삭제했습니다', 'success');
       };
 
       const handleEdited = async (payload) => {
@@ -1782,8 +1844,87 @@
         return { sessionCount: list.length, questionCount };
       }, [sessions, statsMap]);
 
+      // 트랙별 세션 그룹핑. 트랙이 2개 이상일 때만 섹션으로 나눈다.
+      //  각 트랙 섹션 + 트랙 미지정 섹션. 트랙 순서는 fetchTracks 의 sort_order 순.
+      const grouped = useMemo(() => {
+        const list = sessions || [];
+        if (tracks.length < 2) return null; // 평평한 목록 사용
+        const groups = tracks.map((t) => ({
+          track: t,
+          items: list.filter((s) => s.track_id === t.id),
+        }));
+        const unassigned = list.filter((s) => !s.track_id);
+        if (unassigned.length) groups.push({ track: null, items: unassigned });
+        return groups;
+      }, [sessions, tracks]);
+
       if (project === undefined) return <div className="min-h-screen bg-ink-50 dark:bg-ink-950"><Loading /></div>;
       if (project === null) return <NotFound />;
+
+      // 세션 카드 1개 렌더(트랙 섹션/평평한 목록 양쪽에서 재사용)
+      const renderSessionCard = (s) => {
+        const st = statsMap[s.id] || { total: 0, pending: 0, answered: 0, hidden: 0 };
+        const userUrl = buildUserUrl(s);
+        const adminUrl = buildAdminUrl(s, s.admin_token);
+        return (
+          <Card key={s.id} className="group p-5">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-base font-semibold text-ink-900 dark:text-ink-50 tracking-tightish">{s.name}</h3>
+                  {s.is_public
+                    ? <Badge color="accent">공개</Badge>
+                    : <Badge color="slate">비공개</Badge>}
+                  {s.track_name && <Badge color="indigo">{s.track_name}</Badge>}
+                </div>
+                {(s.speaker || s.duration) && (
+                  <p className="text-sm text-ink-500 dark:text-ink-400 mt-1">
+                    {s.duration && <span className="tabular-nums">{s.duration}</span>}
+                    {s.duration && s.speaker && <span className="mx-1.5 text-ink-300 dark:text-ink-600">·</span>}
+                    {s.speaker && <span>{s.speaker}</span>}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-1.5 shrink-0 opacity-60 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                <IconButton label="세션 수정" onClick={() => setEditSession(s)}>
+                  <PencilIcon className="w-4 h-4" />
+                </IconButton>
+                <IconButton label="세션 삭제" tone="danger" onClick={() => setDeleteSession(s)}>
+                  <TrashIcon className="w-4 h-4" />
+                </IconButton>
+              </div>
+            </div>
+
+            <div className="mt-4 grid grid-cols-4 divide-x divide-ink-100 dark:divide-ink-800 border-y border-ink-100 dark:border-ink-800">
+              <Stat label="질문" value={st.total} />
+              <Stat label="답변대기" value={st.pending} tone="amber" />
+              <Stat label="답변완료" value={st.answered} tone="accent" />
+              <Stat label="숨김" value={st.hidden} tone="muted" />
+            </div>
+
+            <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <UrlRow label="사용자 URL" url={userUrl}
+                onCopy={() => copy(userUrl, '사용자 URL이 복사되었습니다')} />
+              <UrlRow label="관리자 URL" url={adminUrl}
+                onCopy={() => copy(adminUrl, '관리자 URL이 복사되었습니다')} />
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              <Button variant="primary" size="sm"
+                onClick={() => navigate(s.code
+                  ? `/a/${s.code}?token=${s.admin_token}`
+                  : `/admin/session/${s.id}?token=${s.admin_token}`)}>
+                대시보드 열기
+              </Button>
+              <Button variant="secondary" size="sm"
+                onClick={() => navigate(s.code ? `/s/${s.code}` : `/session/${s.id}`)}>
+                사용자 화면 미리보기
+              </Button>
+              <ExcelButton size="sm" label="엑셀" kind="session" id={s.id} token={s.admin_token} />
+            </div>
+          </Card>
+        );
+      };
 
       return (
         <div className="min-h-screen bg-ink-50 dark:bg-ink-950">
@@ -1804,93 +1945,78 @@
                   <QrIcon className="w-4 h-4" /> 행사 QR
                 </Button>
                 <ExcelButton label="전체 Q&A" kind="project" id={params.projectId} />
+                <Button variant="secondary" onClick={() => setTrackModalOpen(true)}><PlusIcon /> 트랙 추가</Button>
                 <Button onClick={() => setModalOpen(true)}><PlusIcon /> 세션 만들기</Button>
               </>
             }
           />
           <div className="max-w-5xl mx-auto px-4 sm:px-6 py-7">
+            {/* 트랙 관리 패널 — 트랙이 1개 이상일 때만 노출(없으면 헤더의 "트랙 추가"만) */}
+            {tracks.length > 0 && (
+              <div className="mb-7">
+                <div className="flex items-baseline justify-between mb-3">
+                  <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-400 dark:text-ink-500">트랙</h2>
+                  <span className="text-xs text-ink-400 tabular-nums">{tracks.length}개</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {tracks.map((t) => (
+                    <div key={t.id}
+                      className="group inline-flex items-center gap-2 bg-white border border-ink-200 rounded-md pl-3 pr-1.5 py-1.5 dark:bg-ink-900 dark:border-ink-800">
+                      <span className="text-sm font-medium text-ink-700 dark:text-ink-200">{t.name}</span>
+                      <IconButton label="트랙 삭제" tone="danger" className="w-6 h-6"
+                        onClick={() => handleTrackDeleted(t)}>
+                        <TrashIcon className="w-3.5 h-3.5" />
+                      </IconButton>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {sessions === null ? (
               <Loading />
             ) : sessions.length === 0 ? (
               <EmptyState title="아직 세션이 없습니다"
                 desc="첫 번째 세션을 만들어 사용자/관리자 URL을 발급하세요."
                 action={<Button onClick={() => setModalOpen(true)}><PlusIcon /> 세션 만들기</Button>} />
+            ) : grouped ? (
+              <>
+                <div className="flex items-baseline justify-between mb-3">
+                  <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-400 dark:text-ink-500">세션</h2>
+                  <span className="text-xs text-ink-400 tabular-nums">{sessions.length}개</span>
+                </div>
+                <div className="space-y-7">
+                  {grouped.map((g) => (
+                    <div key={g.track ? g.track.id : 'unassigned'}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <h3 className="text-sm font-semibold text-ink-700 dark:text-ink-200 tracking-tightish">
+                          {g.track ? g.track.name : '미지정'}
+                        </h3>
+                        <span className="text-xs text-ink-400 tabular-nums">{g.items.length}개</span>
+                      </div>
+                      {g.items.length === 0 ? (
+                        <p className="text-sm text-ink-400 dark:text-ink-500 pl-0.5">이 트랙에 세션이 없습니다.</p>
+                      ) : (
+                        <div className="space-y-3">{g.items.map(renderSessionCard)}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
             ) : (
               <>
                 <div className="flex items-baseline justify-between mb-3">
                   <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-ink-400 dark:text-ink-500">세션</h2>
                   <span className="text-xs text-ink-400 tabular-nums">{sessions.length}개</span>
                 </div>
-                <div className="space-y-3">
-                  {sessions.map((s) => {
-                    const st = statsMap[s.id] || { total: 0, pending: 0, answered: 0, hidden: 0 };
-                    const userUrl = buildUserUrl(s.id);
-                    const adminUrl = buildAdminUrl(s.id, s.admin_token);
-                    return (
-                      <Card key={s.id} className="group p-5">
-                        <div className="flex items-start justify-between gap-3 flex-wrap">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h3 className="text-base font-semibold text-ink-900 dark:text-ink-50 tracking-tightish">{s.name}</h3>
-                              {s.is_public
-                                ? <Badge color="accent">공개</Badge>
-                                : <Badge color="slate">비공개</Badge>}
-                            </div>
-                            {(s.description || s.duration) && (
-                              <p className="text-sm text-ink-500 dark:text-ink-400 mt-1">
-                                {s.duration && <span className="tabular-nums">{s.duration}</span>}
-                                {s.duration && s.description && <span className="mx-1.5 text-ink-300 dark:text-ink-600">·</span>}
-                                {s.description}
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-1.5 shrink-0 opacity-60 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
-                            <IconButton label="세션 수정"
-                              onClick={() => setEditSession(s)}>
-                              <PencilIcon className="w-4 h-4" />
-                            </IconButton>
-                            <IconButton label="세션 삭제" tone="danger"
-                              onClick={() => setDeleteSession(s)}>
-                              <TrashIcon className="w-4 h-4" />
-                            </IconButton>
-                          </div>
-                        </div>
-
-                        <div className="mt-4 grid grid-cols-4 divide-x divide-ink-100 dark:divide-ink-800 border-y border-ink-100 dark:border-ink-800">
-                          <Stat label="질문" value={st.total} />
-                          <Stat label="답변대기" value={st.pending} tone="amber" />
-                          <Stat label="답변완료" value={st.answered} tone="accent" />
-                          <Stat label="숨김" value={st.hidden} tone="muted" />
-                        </div>
-
-                        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          <UrlRow label="사용자 URL" url={userUrl}
-                            onCopy={() => copy(userUrl, '사용자 URL이 복사되었습니다')} />
-                          <UrlRow label="관리자 URL" url={adminUrl}
-                            onCopy={() => copy(adminUrl, '관리자 URL이 복사되었습니다')} />
-                        </div>
-
-                        <div className="mt-4 flex flex-wrap gap-2">
-                          <Button variant="primary" size="sm"
-                            onClick={() => navigate(`/admin/session/${s.id}?token=${s.admin_token}`)}>
-                            대시보드 열기
-                          </Button>
-                          <Button variant="secondary" size="sm"
-                            onClick={() => navigate(`/session/${s.id}`)}>
-                            사용자 화면 미리보기
-                          </Button>
-                          <ExcelButton size="sm" label="엑셀" kind="session" id={s.id} token={s.admin_token} />
-                        </div>
-                      </Card>
-                    );
-                  })}
-                </div>
+                <div className="space-y-3">{sessions.map(renderSessionCard)}</div>
               </>
             )}
           </div>
-          <SessionFormModal isOpen={modalOpen} onClose={() => setModalOpen(false)} onSubmit={handleCreated} />
+          <SessionFormModal isOpen={modalOpen} onClose={() => setModalOpen(false)} onSubmit={handleCreated} tracks={tracks} />
           <SessionFormModal mode="edit" session={editSession} isOpen={!!editSession}
-            onClose={() => setEditSession(null)} onSubmit={handleSessionEdited} />
+            onClose={() => setEditSession(null)} onSubmit={handleSessionEdited} tracks={tracks} />
+          <TrackFormModal isOpen={trackModalOpen} onClose={() => setTrackModalOpen(false)} onSubmit={handleTrackCreated} />
           <DeleteSessionModal isOpen={!!deleteSession} onClose={() => setDeleteSession(null)}
             onConfirm={handleSessionDeleted} session={deleteSession}
             questionCount={deleteSession ? ((statsMap[deleteSession.id] || {}).total || 0) : 0} />
@@ -1900,7 +2026,7 @@
             onConfirm={handleDeleted} project={project}
             sessionCount={delCounts.sessionCount} questionCount={delCounts.questionCount} />
           <QrCodeModal isOpen={qrOpen} onClose={() => setQrOpen(false)}
-            url={buildEventUrl(params.projectId)}
+            url={buildEventUrl(project)}
             title="행사 QR"
             fileName={`${(project.name || '행사').replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, '_')}_QR.png`} />
         </div>
@@ -1932,10 +2058,50 @@
       </div>
     );
 
+    // 트랙 추가 모달 — 이름만 입력. (멀티 트랙 병렬 운영 지원)
+    const TrackFormModal = ({ isOpen, onClose, onSubmit }) => {
+      const [name, setName] = useState('');
+      const [error, setError] = useState('');
+      const [submitting, setSubmitting] = useState(false);
+
+      useEffect(() => { if (isOpen) { setName(''); setError(''); } }, [isOpen]);
+
+      const submit = async () => {
+        if (!name.trim()) { setError('트랙 이름을 입력해 주세요'); return; }
+        setSubmitting(true);
+        try {
+          await onSubmit(name.trim());
+        } catch (e) {
+          setError(e.message || '트랙을 추가하지 못했습니다');
+          setSubmitting(false);
+          return;
+        }
+        setSubmitting(false);
+      };
+
+      return (
+        <Modal isOpen={isOpen} onClose={onClose} title="트랙 추가">
+          <div className="space-y-3">
+            <Input label="트랙 이름 *" placeholder="예: Track A · 메인홀"
+              value={name} onChange={(e) => setName(e.target.value)} error={error} />
+            <p className="text-xs text-ink-400 dark:text-ink-500">
+              여러 트랙을 만들면 같은 시간대 병렬 세션을 트랙별로 구분해 보여줍니다.
+            </p>
+          </div>
+          <div className="flex gap-2 justify-end mt-5">
+            <Button variant="secondary" onClick={onClose}>취소</Button>
+            <Button onClick={submit} disabled={submitting}>
+              {submitting ? <Spinner className="w-4 h-4" /> : '추가'}
+            </Button>
+          </div>
+        </Modal>
+      );
+    };
+
     // 생성/수정 겸용 모달. mode='create' | 'edit', session(수정 시 prefill 대상)
     // ⚠️ admin_token / session_id(URL)은 수정 대상이 아니므로 폼에 포함하지 않음 → URL 유지
-    const emptySessionForm = { name: '', description: '', duration: '', is_public: true };
-    const SessionFormModal = ({ isOpen, onClose, onSubmit, mode = 'create', session = null }) => {
+    const emptySessionForm = { name: '', speaker: '', track_id: '', duration: '', is_public: true };
+    const SessionFormModal = ({ isOpen, onClose, onSubmit, mode = 'create', session = null, tracks = [] }) => {
       const [form, setForm] = useState(emptySessionForm);
       const [error, setError] = useState('');
       const [submitting, setSubmitting] = useState(false);
@@ -1946,7 +2112,8 @@
         if (isEdit && session) {
           setForm({
             name: session.name || '',
-            description: session.description || '',
+            speaker: session.speaker || '',
+            track_id: session.track_id || '',
             duration: session.duration || '',
             is_public: !!session.is_public,
           });
@@ -1961,7 +2128,8 @@
       const submit = async () => {
         if (!form.name.trim()) { setError('세션명을 입력해 주세요'); return; }
         setSubmitting(true);
-        await onSubmit(form);
+        // track_id 빈 문자열 → null(트랙 없음)
+        await onSubmit({ ...form, track_id: form.track_id || null });
         setSubmitting(false);
       };
 
@@ -1970,8 +2138,19 @@
           <div className="space-y-3">
             <Input label="세션명 *" placeholder="예: 오프닝 키노트"
               value={form.name} onChange={update('name')} error={error} />
-            <Textarea label="세션 설명" placeholder="세션에 대한 간단한 설명" rows={3}
-              value={form.description} onChange={update('description')} />
+            <Input label="강연자" placeholder="예: 홍길동 (그리폰 CTO)"
+              value={form.speaker} onChange={update('speaker')} />
+            {tracks.length > 0 && (
+              <div>
+                <label className={labelCls}>트랙</label>
+                <select value={form.track_id} onChange={update('track_id')}
+                  className={`${fieldBase} ${fieldNormal}`}>
+                  <option value="">트랙 없음</option>
+                  {tracks.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+                <div className="mt-1" />
+              </div>
+            )}
             <Input label="진행 시간" placeholder="예: 10:00 ~ 11:00"
               value={form.duration} onChange={update('duration')} />
             <label className="flex items-center gap-2.5 cursor-pointer select-none py-1">
@@ -2069,11 +2248,14 @@
       const [data, setData] = useState(undefined);  // undefined=loading, null=오류/없음
       const [error, setError] = useState('');
 
+      // 짧은 코드(/e/:code) 또는 긴 UUID(/event/:projectId) 모두 지원
+      const projectIdOrCode = projectParam(params);
+
       const load = useCallback(async () => {
         setData(undefined);
         setError('');
         try {
-          const res = await mockApi.fetchLanding(params.projectId);
+          const res = await mockApi.fetchLanding(projectIdOrCode);
           setData(res);
         } catch (e) {
           console.error('[event] 랜딩 로드 실패:', e);
@@ -2086,7 +2268,7 @@
             setError('error');
           }
         }
-      }, [params.projectId]);
+      }, [projectIdOrCode]);
 
       useEffect(() => { load(); }, [load]);
 
@@ -2106,6 +2288,46 @@
       }
 
       const { project, sessions } = data;
+      const tracks = data.tracks || [];
+
+      // 공개 세션 카드 1개 렌더(평평한 목록/트랙 섹션 양쪽 재사용)
+      const renderCard = (s) => {
+        const dur = landingDuration(s);
+        const sub = [dur, s.speaker].filter(Boolean);
+        return (
+          <button key={s.id} type="button"
+            onClick={() => navigate(s.code ? `/s/${s.code}` : `/session/${s.id}`)}
+            className="group w-full text-left bg-white border border-ink-200 rounded-lg p-5 transition active:scale-[0.99] hover:border-accent-400 hover:shadow-sm dark:bg-ink-900 dark:border-ink-800 dark:hover:border-accent-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/50 animate-fade-in-up">
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0 flex-1">
+                <h3 className="text-base font-semibold text-ink-900 dark:text-ink-50 tracking-tightish leading-snug">{s.title}</h3>
+                {sub.length > 0 && (
+                  <p className="text-sm text-ink-500 dark:text-ink-400 mt-1">
+                    {dur && <span className="tabular-nums">{dur}</span>}
+                    {dur && s.speaker && <span className="mx-1.5 text-ink-300 dark:text-ink-600">·</span>}
+                    {s.speaker && <span>{s.speaker}</span>}
+                  </p>
+                )}
+                <div className="mt-3 flex items-center gap-1.5 text-xs text-ink-400 dark:text-ink-500">
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
+                  <span className="tabular-nums">질문 {s.questionCount}</span>
+                </div>
+              </div>
+              <svg className="w-5 h-5 mt-0.5 shrink-0 text-ink-300 dark:text-ink-600 group-hover:text-accent-500 dark:group-hover:text-accent-400 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
+            </div>
+          </button>
+        );
+      };
+
+      // 트랙 2개 이상이면 트랙별 섹션으로 그룹핑(같은 시간대도 트랙으로 구분).
+      const grouped = tracks.length >= 2 ? (() => {
+        const groups = tracks.map((t) => ({
+          track: t, items: sessions.filter((s) => s.track_id === t.id),
+        })).filter((g) => g.items.length > 0); // 공개 세션 없는 트랙은 숨김
+        const unassigned = sessions.filter((s) => !s.track_id || !tracks.some((t) => t.id === s.track_id));
+        if (unassigned.length) groups.push({ track: null, items: unassigned });
+        return groups;
+      })() : null;
 
       return (
         <div className="min-h-screen bg-ink-50 dark:bg-ink-950">
@@ -2130,34 +2352,26 @@
             {sessions.length === 0 ? (
               <EmptyState title="공개된 세션이 없습니다"
                 desc="아직 공개된 세션이 없어요. 잠시 후 다시 확인해 주세요." />
+            ) : grouped ? (
+              <div className="space-y-7">
+                {grouped.map((g) => (
+                  <div key={g.track ? g.track.id : 'unassigned'}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span className="w-1.5 h-4 rounded-full bg-accent-500 dark:bg-accent-400" />
+                      <h3 className="text-base font-bold text-ink-900 dark:text-ink-50 tracking-tightish">
+                        {g.track ? g.track.name : '기타'}
+                      </h3>
+                      <span className="text-xs text-ink-400 tabular-nums">{g.items.length}개</span>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {g.items.map(renderCard)}
+                    </div>
+                  </div>
+                ))}
+              </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {sessions.map((s) => {
-                  const dur = landingDuration(s);
-                  return (
-                    <button key={s.id} type="button"
-                      onClick={() => navigate(`/session/${s.id}`)}
-                      className="group w-full text-left bg-white border border-ink-200 rounded-lg p-5 transition active:scale-[0.99] hover:border-accent-400 hover:shadow-sm dark:bg-ink-900 dark:border-ink-800 dark:hover:border-accent-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/50 animate-fade-in-up">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 flex-1">
-                          <h3 className="text-base font-semibold text-ink-900 dark:text-ink-50 tracking-tightish leading-snug">{s.title}</h3>
-                          {(dur || s.description) && (
-                            <p className="text-sm text-ink-500 dark:text-ink-400 mt-1">
-                              {dur && <span className="tabular-nums">{dur}</span>}
-                              {dur && s.description && <span className="mx-1.5 text-ink-300 dark:text-ink-600">·</span>}
-                              {s.description}
-                            </p>
-                          )}
-                          <div className="mt-3 flex items-center gap-1.5 text-xs text-ink-400 dark:text-ink-500">
-                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></svg>
-                            <span className="tabular-nums">질문 {s.questionCount}</span>
-                          </div>
-                        </div>
-                        <svg className="w-5 h-5 mt-0.5 shrink-0 text-ink-300 dark:text-ink-600 group-hover:text-accent-500 dark:group-hover:text-accent-400 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6" /></svg>
-                      </div>
-                    </button>
-                  );
-                })}
+                {sessions.map(renderCard)}
               </div>
             )}
           </div>
@@ -2169,31 +2383,74 @@
     // 📄 Page: 사용자 페이지  #/session/:sessionId  (모바일 우선)
     // ========================================
     const UserSessionPage = ({ params }) => {
+      const { navigate } = useRouter();
       const toast = useToast();
       const [session, setSession] = useState(undefined);
       const [questions, setQuestions] = useState(null);
       const [votedIds, setVotedIds] = useState([]);
       const [modalOpen, setModalOpen] = useState(false);
+      // 해석된 실제 session id (질문 조회/등록/좋아요/Realtime 에 사용). code 든 uuid 든 동일.
+      const [resolvedId, setResolvedId] = useState(null);
+      // 소속 행사 코드/ID — "전체 세션 보기" 버튼이 랜딩(#/e/<code>)으로 이동하기 위함.
+      const [projectCode, setProjectCode] = useState('');
+      const [projectId, setProjectId] = useState('');
       const voterKey = useMemo(() => getVoterKey(), []);
+
+      // 짧은 코드(/s/:code) 또는 긴 UUID(/session/:sessionId) 모두 지원
+      const codeOrId = sessionParam(params);
 
       const load = useCallback(async () => {
         try {
-          const s = await mockApi.fetchSession(params.sessionId);
-          setSession(s);
-          if (!s) return; // 비공개/없는 세션 → "세션을 찾을 수 없습니다" 빈 상태
-          const list = await mockApi.fetchQuestions(params.sessionId, 'user');
+          // ✅ 공개 세션 단건 엔드포인트로 메타 + 실제 id + project_code 확보(code/uuid 모두 해석).
+          const meta = await mockApi.fetchPublicSession(codeOrId);
+          // 사용자 페이지는 name/duration 을 쓰므로 매핑.
+          setSession(mapSessionRow(meta));
+          setResolvedId(meta.id);
+          setProjectCode(meta.project_code || '');
+          setProjectId(meta.project_id || '');
+          // 질문은 해석된 실제 session id 로 anon(sb) 직접 호출(기존 그대로).
+          const list = await mockApi.fetchQuestions(meta.id, 'user');
           setQuestions(list);
           setVotedIds(mockApi.getVotedIds(voterKey));
         } catch (e) {
           console.error('[user] 세션 로드 실패:', e);
-          // 로드 실패 시 스피너에 멈추지 않도록 빈 상태로 정리
+          // 404(비공개/없음) → "세션을 찾을 수 없습니다" 빈 상태
+          if (e && e.status === 404) {
+            setSession(null);
+            return;
+          }
+          // 그 외 오류: 스피너에 멈추지 않도록 빈 상태로 정리
           setSession((prev) => (prev === undefined ? null : prev));
           setQuestions((prev) => (prev === null ? [] : prev));
           toast.show('데이터를 불러오지 못했어요. 잠시 후 다시 시도해 주세요', 'error');
         }
-      }, [params.sessionId, voterKey, toast]);
+      }, [codeOrId, voterKey, toast]);
 
       useEffect(() => { load(); }, [load]);
+
+      // 🔴 Realtime: 해석된 실제 session id 로 questions 변경 구독 → 재조회.
+      useEffect(() => {
+        if (!resolvedId) return;
+        const channel = sb
+          .channel(`user-questions-${resolvedId}`)
+          .on('postgres_changes',
+            { event: '*', schema: 'public', table: 'questions', filter: `session_id=eq.${resolvedId}` },
+            async () => {
+              try {
+                const list = await mockApi.fetchQuestions(resolvedId, 'user');
+                setQuestions(list);
+              } catch (e) { console.error('[user] 질문 재조회 실패:', e); }
+            })
+          .subscribe();
+        return () => { sb.removeChannel(channel); };
+      }, [resolvedId]);
+
+      // "전체 세션 보기" → 소속 행사 랜딩으로. code 우선, 없으면 긴 UUID 폴백.
+      const goToEvent = () => {
+        if (projectCode) navigate(`/e/${projectCode}`);
+        else if (projectId) navigate(`/event/${projectId}`);
+      };
+      const canGoToEvent = !!(projectCode || projectId);
 
       const handleLike = async (qid) => {
         if (votedIds.includes(qid)) return; // 중복 방지
@@ -2229,7 +2486,7 @@
 
       const handleCreated = async (payload) => {
         try {
-          await mockApi.createQuestion(params.sessionId, payload);
+          await mockApi.createQuestion(resolvedId, payload);
           setModalOpen(false);
           toast.show('질문이 등록되었습니다', 'success');
           await load();
@@ -2257,12 +2514,37 @@
           {/* 모바일 우선 헤더 — 잉크 솔리드, 장식 최소화 */}
           <div className="bg-ink-900 dark:bg-ink-900 text-white sticky top-0 z-30 border-b border-ink-800">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-accent-400 text-[11px] font-semibold uppercase tracking-[0.14em]">Live Q&amp;A</p>
-                <h1 className="text-xl font-bold leading-tight mt-1 tracking-tightish truncate">{session.name}</h1>
-                {session.duration && <p className="text-ink-400 text-sm mt-1 tabular-nums">{session.duration}</p>}
+              <div className="flex items-start gap-3 min-w-0">
+                {/* ← 전체 세션 보기: 소속 행사 랜딩으로. 큰 터치 타깃, 질문하기 CTA 와 시각 분리. */}
+                {canGoToEvent && (
+                  <button onClick={goToEvent} aria-label="전체 세션 보기" title="전체 세션 보기"
+                    className="mt-0.5 shrink-0 w-9 h-9 rounded-md border border-ink-700 text-ink-300 hover:bg-ink-800 hover:text-white flex items-center justify-center focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/50">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+                  </button>
+                )}
+                <div className="min-w-0">
+                  <p className="text-accent-400 text-[11px] font-semibold uppercase tracking-[0.14em]">Live Q&amp;A</p>
+                  <h1 className="text-xl font-bold leading-tight mt-1 tracking-tightish truncate">{session.name}</h1>
+                  {(session.duration || session.speaker || session.track_name) && (
+                    <p className="text-ink-400 text-sm mt-1">
+                      {session.track_name && <span className="text-accent-400 font-medium">{session.track_name}</span>}
+                      {session.track_name && (session.duration || session.speaker) && <span className="mx-1.5 text-ink-600">·</span>}
+                      {session.duration && <span className="tabular-nums">{session.duration}</span>}
+                      {session.duration && session.speaker && <span className="mx-1.5 text-ink-600">·</span>}
+                      {session.speaker && <span>{session.speaker}</span>}
+                    </p>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-2 shrink-0">
+                {/* 데스크탑: 전체 세션 보기 secondary 버튼(아이콘 외에 라벨도 노출) */}
+                {canGoToEvent && (
+                  <button onClick={goToEvent}
+                    className="hidden md:inline-flex items-center gap-1.5 border border-ink-700 text-ink-300 hover:bg-ink-800 hover:text-white active:scale-[0.99] transition text-sm font-medium px-3.5 py-2 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500/50">
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+                    전체 세션
+                  </button>
+                )}
                 {/* 데스크탑 전용 헤더 CTA — 모바일에서는 하단 고정 바 사용 */}
                 <button onClick={() => setModalOpen(true)}
                   className="hidden md:inline-flex items-center gap-1.5 bg-white text-ink-900 hover:bg-ink-200 active:scale-[0.99] transition text-sm font-semibold px-4 py-2 rounded-lg shadow-sm dark:bg-accent-500 dark:text-white dark:hover:bg-accent-400">
@@ -2422,16 +2704,20 @@
     const AdminDashboardPage = ({ params }) => {
       const { query } = useRouter();
       const toast = useToast();
+      // 짧은 코드(/a/:code) 또는 긴 UUID(/admin/session/:sessionId) 모두 지원.
+      //  서버가 code↔id 를 해석하므로 admin 호출에는 codeOrId 를 그대로 넘긴다.
+      const codeOrId = sessionParam(params);
+      const isShort = !!params.code;   // 짧은 라우트 여부(주소창 토큰 제거 시 경로 재구성용)
       // 세션 admin_token: URL ?token= 으로 처음 받으면 sessionStorage 에 보관하고,
       // 주소창에서는 토큰을 숨긴다(아래 effect). 새로고침 시엔 sessionStorage 에서 복원.
-      const tokenKey = `qa_admin_token_${params.sessionId}`;
+      const tokenKey = `qa_admin_token_${codeOrId}`;
       const sessionToken = useMemo(() => {
         if (query.token) {
           try { sessionStorage.setItem(tokenKey, query.token); } catch (e) {}
           return query.token;
         }
         try { return sessionStorage.getItem(tokenKey) || ''; } catch (e) { return ''; }
-      }, [query.token, params.sessionId]);
+      }, [query.token, codeOrId]);
       const [session, setSession] = useState(undefined);
       const [questions, setQuestions] = useState(null);
       const [filter, setFilter] = useState('전체'); // 전체 | 답변대기 | 답변완료 | 숨김
@@ -2441,29 +2727,32 @@
       useEffect(() => { toastRef.current = toast; });
 
       // 🔒 주소창에서 ?token= 제거(토큰 노출 방지). 토큰은 위에서 이미 메모리/세션에 보관됨.
+      //  진입한 라우트 형태(짧은/긴)를 그대로 유지한 채 token 만 떼어낸다.
       useEffect(() => {
         if (query.token) {
-          try { history.replaceState(null, '', `#/admin/session/${params.sessionId}`); } catch (e) {}
+          const cleanPath = isShort ? `#/a/${codeOrId}` : `#/admin/session/${codeOrId}`;
+          try { history.replaceState(null, '', cleanPath); } catch (e) {}
         }
-      }, [query.token, params.sessionId]);
+      }, [query.token, codeOrId, isShort]);
 
-      // 질문만 다시 받아오는 함수 (Realtime refetch 용)
+      // 질문만 다시 받아오는 함수 (Realtime refetch 용). 서버가 code→id 해석.
       const refetchQuestions = useCallback(async () => {
         try {
-          const list = await mockApi.fetchQuestions(params.sessionId, 'admin', sessionToken);
+          const list = await mockApi.fetchQuestions(codeOrId, 'admin', sessionToken);
           setQuestions(list);
         } catch (e) {
           console.error('[admin] 질문 재조회 실패:', e);
         }
-      }, [params.sessionId, sessionToken]);
+      }, [codeOrId, sessionToken]);
 
       const load = useCallback(async () => {
         try {
           // ✅ 공개/비공개 무관: 서버(service_role) 라우트를 URL 세션 token 으로 호출.
-          const s = await mockApi.fetchAdminSession(params.sessionId, sessionToken);
+          //    code/uuid 모두 서버가 해석. 반환 세션은 실제 id 를 가짐(Realtime 구독에 사용).
+          const s = await mockApi.fetchAdminSession(codeOrId, sessionToken);
           setSession(s);
           if (!s) return;
-          const list = await mockApi.fetchQuestions(params.sessionId, 'admin', sessionToken);
+          const list = await mockApi.fetchQuestions(codeOrId, 'admin', sessionToken);
           setQuestions(list);
         } catch (e) {
           console.error('[admin] 세션/질문 로드 실패:', e);
@@ -2474,23 +2763,25 @@
         }
         // ⚠️ toast 를 deps 에 넣지 말 것: useToast() 가 매 렌더 새 객체라
         //    에러 시 toast 호출 → 리렌더 → load 재생성 → 재호출 무한루프가 됨. ref 로 안정화.
-      }, [params.sessionId, sessionToken]);
+      }, [codeOrId, sessionToken]);
 
       useEffect(() => { load(); }, [load]);
 
       // 🔴 Realtime: anon Supabase 클라이언트(sb)로 questions 변경 구독 → 재조회.
+      //  ⚠️ 필터에는 반드시 "해석된 실제 session id"(session.id)를 써야 함(code 로는 매칭 불가).
       //  RLS상 anon realtime 은 비숨김 질문의 신규/좋아요/답변 변경을 잡는다.
       //  본인의 숨김/답변 토글은 API 호출 후 로컬 refetch 로 이미 갱신되므로 충분.
+      const realSessionId = session && session.id;
       useEffect(() => {
-        if (!params.sessionId) return;
+        if (!realSessionId) return;
         const channel = sb
-          .channel(`admin-questions-${params.sessionId}`)
+          .channel(`admin-questions-${realSessionId}`)
           .on('postgres_changes',
-            { event: '*', schema: 'public', table: 'questions', filter: `session_id=eq.${params.sessionId}` },
+            { event: '*', schema: 'public', table: 'questions', filter: `session_id=eq.${realSessionId}` },
             () => { refetchQuestions(); })
           .subscribe();
         return () => { sb.removeChannel(channel); };
-      }, [params.sessionId, refetchQuestions]);
+      }, [realSessionId, refetchQuestions]);
 
       const counts = useMemo(() => {
         const list = questions || [];
@@ -2548,7 +2839,7 @@
             title={session.name}
             subtitle={`진행자/운영자용 · ${tokenInfo}`}
             back={`/admin/project/${session.project_id}`}
-            right={<ExcelButton label="세션 Q&A" kind="session" id={params.sessionId} token={sessionToken} />}
+            right={<ExcelButton label="세션 Q&A" kind="session" id={codeOrId} token={sessionToken} />}
           />
 
           {/* 필터 탭 */}
@@ -2644,9 +2935,14 @@
       { path: '/admin', component: GatedAdminHome },
       { path: '/admin/project/:projectId', component: GatedProjectDetail },
       { path: '/admin/session/:sessionId', component: AdminDashboardPage },
-      // 공개 라우트(토큰 게이트 밖): 행사 랜딩 + 사용자 질문 화면
+      // 공개 라우트(토큰 게이트 밖): 행사 랜딩 + 사용자 질문 화면 (긴 UUID, 하위호환)
       { path: '/event/:projectId', component: EventLandingPage },
       { path: '/session/:sessionId', component: UserSessionPage },
+      // ✨ 짧은 코드(short code) 라우트 — code 든 uuid 든 동일 컴포넌트가 처리.
+      //    #/s/<sessionCode> 유저, #/e/<projectCode> 리스트, #/a/<sessionCode> 연사.
+      { path: '/s/:code', component: UserSessionPage },
+      { path: '/e/:code', component: EventLandingPage },
+      { path: '/a/:code', component: AdminDashboardPage },
     ];
 
     const App = () => (

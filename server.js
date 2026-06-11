@@ -100,6 +100,7 @@ const parseDuration = (duration) => {
 
 const mapProjectRow = (row) => row ? ({
   id: row.id,
+  code: row.code || '',                     // 짧은 코드(short code) — URL/QR 용
   name: row.title,                          // title(DB) → name(앱)
   client: row.client_name || '',            // client_name(DB) → client(앱)
   description: row.description || '',
@@ -111,9 +112,13 @@ const mapProjectRow = (row) => row ? ({
 
 const mapSessionRow = (row) => row ? ({
   id: row.id,
+  code: row.code || '',                     // 짧은 코드(short code) — URL/QR 용
   project_id: row.project_id,
   name: row.title,                          // title(DB) → name(앱)
   description: row.description || '',
+  speaker: row.speaker || '',               // 강연자 (add_tracks_speaker.sql)
+  track_id: row.track_id || null,           // 소속 트랙 (없으면 null)
+  track_name: row.track_name || '',         // 조인/조회로 채워질 수 있음
   duration: buildDuration(row.starts_at, row.ends_at),
   is_public: !!row.is_public,
   admin_token: row.admin_token,
@@ -189,6 +194,160 @@ const wrap = (fn) => (req, res) => {
     }
   });
 };
+
+// ============================================================
+// 🔑 짧은 코드(short code) — 생성 & 해석 헬퍼
+// ------------------------------------------------------------
+//  projects.code / sessions.code (6자리 hex, unique). add_short_codes.sql 로
+//  컬럼/유니크 인덱스가 추가됨. 생성 시 유니크 충돌이면 재시도한다.
+//  코드가 uuid 처럼 보이면 id 로 간주하고, 6자리 hex 면 code 로 해석한다.
+// ============================================================
+// 6자리 소문자 hex 코드 생성
+const genCode = () => {
+  let out = '';
+  const hex = '0123456789abcdef';
+  for (let i = 0; i < 6; i++) out += hex[Math.floor(Math.random() * 16)];
+  return out;
+};
+
+// 표준 UUID 형태인지 (id vs code 구분용)
+const isUuid = (s) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test((s || '').toString());
+
+// table 에 유니크한 새 code 를 생성한다(충돌 시 재시도). 컬럼이 없으면 null 반환(SQL 미실행 대비).
+async function generateUniqueCode(table, attempts = 8) {
+  for (let i = 0; i < attempts; i++) {
+    const code = genCode();
+    const { data, error } = await supabase
+      .from(table).select('id').eq('code', code).maybeSingle();
+    if (error) {
+      // code 컬럼이 없으면(SQL 미실행) 코드 발급을 건너뜀 — 기능은 계속 동작
+      if (error.code === '42703') return null;
+      throw error;
+    }
+    if (!data) return code;
+  }
+  return null;
+}
+
+// codeOrId → 실제 session row(또는 null). uuid 면 id, 아니면 code 로 조회.
+//  옵션 publicOnly=true 면 is_public=true 인 세션만 매칭(공개 엔드포인트용).
+//  ⚠️ add_short_codes.sql 미실행 시 code 컬럼이 없을 수 있다(42703):
+//     - uuid 입력은 code 와 무관하므로 select 에서 code 를 빼고 재시도 → 정상 동작(하위호환).
+//     - code 입력은 해석 불가 → null(404).
+async function resolveSession(codeOrId, { publicOnly = false } = {}) {
+  const v = (codeOrId || '').toString().trim();
+  if (!v) return null;
+  const byUuid = isUuid(v);
+  const run = async (cols) => {
+    let q = supabase.from('sessions').select(cols);
+    q = byUuid ? q.eq('id', v) : q.eq('code', v);
+    if (publicOnly) q = q.eq('is_public', true);
+    return q.maybeSingle();
+  };
+  let { data, error } = await run('*');
+  if (error && error.code === '42703') {
+    // code 컬럼 없음. uuid 면 code 제외 컬럼으로 재시도, code 입력이면 해석 불가.
+    if (!byUuid) return null;
+    ({ data, error } = await run('id, project_id, title, description, starts_at, ends_at, is_public, admin_token, created_at'));
+  }
+  if (error) throw error;
+  return data || null;
+}
+
+// codeOrId → 실제 project row(또는 null). uuid 면 id, 아니면 code 로 조회.
+//  cols: 선택할 컬럼 목록(공개 라우트에서 민감필드 제외용).
+//  SQL 미실행으로 code 컬럼이 없으면(42703): uuid 는 code 제외하고 재시도, code 입력은 null.
+async function resolveProject(codeOrId, cols = '*') {
+  const v = (codeOrId || '').toString().trim();
+  if (!v) return null;
+  const byUuid = isUuid(v);
+  let q = supabase.from('projects').select(cols);
+  q = byUuid ? q.eq('id', v) : q.eq('code', v);
+  let { data, error } = await q.maybeSingle();
+  if (error && error.code === '42703') {
+    if (!byUuid) return null;
+    // cols 에서 code 를 제거하고 재시도(* 면 code 가 어차피 빠진 명시 컬럼으로 대체).
+    const fallbackCols = cols === '*'
+      ? '*'
+      : cols.split(',').map((c) => c.trim()).filter((c) => c !== 'code').join(', ');
+    let q2 = supabase.from('projects').select(fallbackCols).eq('id', v);
+    ({ data, error } = await q2.maybeSingle());
+  }
+  if (error) throw error;
+  return data || null;
+}
+
+// ============================================================
+// 🎫 트랙(Track) 헬퍼 — add_tracks_speaker.sql 미실행 시 방어(42703)
+// ------------------------------------------------------------
+//  tracks 테이블/sessions.track_id/speaker 컬럼이 없을 수 있다. 이 경우
+//  트랙 기능은 "비어있게" 동작하고 기존 기능은 안 깨지도록 폴백한다.
+// ============================================================
+// "스키마 미적용(add_tracks_speaker.sql 미실행)"으로 간주할 에러:
+//  - 42703 = undefined_column (sessions.track_id/speaker 없음)
+//  - 42P01 = undefined_table  (tracks 테이블 없음, raw Postgres)
+//  - PGRST205 = PostgREST 가 테이블을 스키마 캐시에서 못 찾음(tracks 미존재)
+//  - PGRST204 = PostgREST 가 컬럼을 스키마 캐시에서 못 찾음(track_id/speaker 미존재)
+const isSchemaMissing = (err) =>
+  !!err && (err.code === '42703' || err.code === '42P01'
+    || err.code === 'PGRST205' || err.code === 'PGRST204');
+
+// 특정 프로젝트의 트랙 목록(sort_order, created_at 순). 스키마 미적용이면 [] 반환.
+async function fetchTracksForProject(projectId) {
+  const { data, error } = await supabase
+    .from('tracks')
+    .select('id, project_id, name, sort_order, created_at')
+    .eq('project_id', projectId)
+    .order('sort_order', { ascending: true })
+    .order('created_at', { ascending: true });
+  if (error) {
+    if (isSchemaMissing(error)) return [];
+    throw error;
+  }
+  return data || [];
+}
+
+// 트랙 단건 조회(id). 스키마 미적용이면 null.
+async function fetchTrackById(trackId) {
+  const { data, error } = await supabase
+    .from('tracks')
+    .select('id, project_id, name, sort_order, created_at')
+    .eq('id', trackId)
+    .maybeSingle();
+  if (error) {
+    if (isSchemaMissing(error)) return null;
+    throw error;
+  }
+  return data || null;
+}
+
+// 세션 목록을 select 하되 track_id/speaker 컬럼이 없으면(42703) 해당 컬럼을 빼고 재시도.
+//  baseCols: 항상 존재하는 컬럼들. withExtra=true 면 track_id, speaker 를 덧붙여 시도.
+async function selectSessionsTolerant(applyQuery, baseCols) {
+  const tryRun = (cols) => applyQuery(supabase.from('sessions').select(cols));
+  let { data, error } = await tryRun(`${baseCols}, track_id, speaker`);
+  if (error && isSchemaMissing(error)) {
+    ({ data, error } = await tryRun(baseCols));
+  }
+  if (error) throw error;
+  return data || [];
+}
+
+// 트랙 id 목록 → { id: name } 매핑. 스키마 미적용이면 빈 객체.
+async function trackNameMap(trackIds) {
+  const ids = [...new Set((trackIds || []).filter(Boolean))];
+  if (!ids.length) return {};
+  const { data, error } = await supabase
+    .from('tracks').select('id, name').in('id', ids);
+  if (error) {
+    if (isSchemaMissing(error)) return {};
+    throw error;
+  }
+  const map = {};
+  (data || []).forEach((t) => { map[t.id] = t.name; });
+  return map;
+}
 
 // 파일명 안전 처리 (공백/특수문자 → _)
 const safeFileName = (s) =>
@@ -271,6 +430,9 @@ app.post('/api/admin/projects', requireConsole, wrap(async (req, res) => {
     end_date: b.end_date || null,
     status: b.status || '준비중',
   };
+  // 짧은 코드 발급(유니크 충돌 시 재시도). SQL 미실행이면 null → code 없이 생성.
+  const code = await generateUniqueCode('projects');
+  if (code) insert.code = code;
   const { data, error } = await supabase
     .from('projects').insert(insert).select().single();
   if (error) throw error;
@@ -335,6 +497,105 @@ app.delete('/api/admin/projects/:id', requireConsole, wrap(async (req, res) => {
 }));
 
 // ============================================================
+// 🛣️ 라우트: 트랙 (콘솔)
+// ------------------------------------------------------------
+//  한 행사(project) 아래 멀티 트랙(최대 4개 등) 운영 지원.
+//  트랙은 service_role 경유로만 접근(anon RLS 정책 없음).
+//  add_tracks_speaker.sql 미실행이면 tracks 테이블이 없으므로(42P01)
+//  GET 은 빈 배열, 쓰기 작업은 안내 메시지로 방어한다.
+// ============================================================
+const mapTrackRow = (row) => row ? ({
+  id: row.id,
+  project_id: row.project_id,
+  name: row.name,
+  sort_order: row.sort_order,
+  created_at: row.created_at,
+}) : null;
+
+// 스키마 미적용(트랙 테이블 없음) 시 쓰기 요청에 대한 공통 안내
+const TRACKS_SCHEMA_MSG = '트랙 기능을 사용하려면 add_tracks_speaker.sql 을 먼저 실행해 주세요.';
+
+// GET /api/admin/projects/:projectId/tracks — 트랙 목록 [콘솔]
+app.get('/api/admin/projects/:projectId/tracks', requireConsole, wrap(async (req, res) => {
+  // projectId 는 code/uuid 모두 수용.
+  const project = await resolveProject(req.params.projectId, 'id');
+  if (!project) return res.status(404).json({ success: false, message: '프로젝트를 찾을 수 없습니다.' });
+  const list = await fetchTracksForProject(project.id);
+  res.json({ success: true, data: list.map(mapTrackRow) });
+}));
+
+// POST /api/admin/projects/:projectId/tracks — body { name } 생성 [콘솔]
+//  sort_order 는 현재 max+1.
+app.post('/api/admin/projects/:projectId/tracks', requireConsole, wrap(async (req, res) => {
+  const project = await resolveProject(req.params.projectId, 'id');
+  if (!project) return res.status(404).json({ success: false, message: '프로젝트를 찾을 수 없습니다.' });
+
+  const name = ((req.body && req.body.name) || '').toString().trim();
+  if (!name) return res.status(400).json({ success: false, message: '트랙 이름을 입력해 주세요.' });
+
+  // 현재 max(sort_order) → +1
+  const existing = await fetchTracksForProject(project.id);
+  const maxSort = existing.reduce((m, t) => Math.max(m, t.sort_order || 0), 0);
+
+  const { data, error } = await supabase
+    .from('tracks')
+    .insert({ project_id: project.id, name, sort_order: maxSort + 1 })
+    .select('id, project_id, name, sort_order, created_at')
+    .single();
+  if (error) {
+    if (isSchemaMissing(error)) {
+      return res.status(400).json({ success: false, message: TRACKS_SCHEMA_MSG });
+    }
+    throw error;
+  }
+  res.status(201).json({ success: true, data: mapTrackRow(data) });
+}));
+
+// PATCH /api/admin/tracks/:id — 이름 수정 [콘솔]
+app.patch('/api/admin/tracks/:id', requireConsole, wrap(async (req, res) => {
+  const fields = {};
+  if (req.body && req.body.name !== undefined) {
+    const name = (req.body.name || '').toString().trim();
+    if (!name) return res.status(400).json({ success: false, message: '트랙 이름을 입력해 주세요.' });
+    fields.name = name;
+  }
+  if (req.body && req.body.sort_order !== undefined) {
+    const n = parseInt(req.body.sort_order, 10);
+    if (!Number.isNaN(n)) fields.sort_order = n;
+  }
+  if (!Object.keys(fields).length) {
+    return res.status(400).json({ success: false, message: '수정할 내용이 없습니다.' });
+  }
+  const { data, error } = await supabase
+    .from('tracks').update(fields).eq('id', req.params.id)
+    .select('id, project_id, name, sort_order, created_at').maybeSingle();
+  if (error) {
+    if (isSchemaMissing(error)) {
+      return res.status(400).json({ success: false, message: TRACKS_SCHEMA_MSG });
+    }
+    throw error;
+  }
+  if (!data) return res.status(404).json({ success: false, message: '트랙을 찾을 수 없습니다.' });
+  res.json({ success: true, data: mapTrackRow(data) });
+}));
+
+// DELETE /api/admin/tracks/:id — 삭제 [콘솔]
+//  세션의 track_id 는 FK on delete set null 로 자동 비워짐.
+app.delete('/api/admin/tracks/:id', requireConsole, wrap(async (req, res) => {
+  const { data, error } = await supabase
+    .from('tracks').delete().eq('id', req.params.id)
+    .select('id').maybeSingle();
+  if (error) {
+    if (isSchemaMissing(error)) {
+      return res.status(400).json({ success: false, message: TRACKS_SCHEMA_MSG });
+    }
+    throw error;
+  }
+  if (!data) return res.status(404).json({ success: false, message: '트랙을 찾을 수 없습니다.' });
+  res.json({ success: true, data: { id: data.id } });
+}));
+
+// ============================================================
 // 🛣️ 라우트: 세션
 // ============================================================
 
@@ -366,8 +627,11 @@ app.get('/api/admin/projects/:projectId/sessions', requireConsole, wrap(async (r
     (bySession[q.session_id] = bySession[q.session_id] || []).push(q);
   });
 
+  // 트랙 이름 매핑(스키마 미적용이면 빈 객체). row.track_id 는 select('*') 결과에 포함될 수 있음.
+  const nameMap = await trackNameMap(list.map((s) => s.track_id));
+
   const result = list.map((row) => ({
-    ...mapSessionRow(row),
+    ...mapSessionRow({ ...row, track_name: nameMap[row.track_id] || '' }),
     stats: computeSessionStats(bySession[row.id] || []),
   }));
 
@@ -396,25 +660,41 @@ app.post('/api/admin/projects/:projectId/sessions', requireConsole, wrap(async (
     is_public: b.is_public === undefined ? true : !!b.is_public,
     // admin_token 은 DB default(replace(gen_random_uuid()...)) 가 생성
   };
-  const { data, error } = await supabase
+  // 트랙/강연자 (add_tracks_speaker.sql 적용 시). 미적용이면 아래 42703 폴백.
+  const trackId = (b.track_id || '').toString().trim() || null;
+  const speaker = (b.speaker || '').toString().trim() || null;
+  insert.track_id = trackId;
+  insert.speaker = speaker;
+
+  // 짧은 코드 발급(유니크 충돌 시 재시도). SQL 미실행이면 null → code 없이 생성.
+  const code = await generateUniqueCode('sessions');
+  if (code) insert.code = code;
+
+  // track_id/speaker 컬럼이 없으면(42703) 해당 키를 빼고 재시도 → 기존 기능 유지.
+  let { data, error } = await supabase
     .from('sessions').insert(insert).select().single();
+  if (error && isSchemaMissing(error)) {
+    const { track_id, speaker: _sp, ...fallback } = insert;
+    ({ data, error } = await supabase.from('sessions').insert(fallback).select().single());
+  }
   if (error) throw error;
-  res.status(201).json({ success: true, data: mapSessionRow(data) });
+
+  const nameMap = await trackNameMap([data && data.track_id]);
+  res.status(201).json({ success: true, data: mapSessionRow({ ...data, track_name: nameMap[data && data.track_id] || '' }) });
 }));
 
 // GET /api/admin/sessions/:sessionId — 세션 단건 조회 [세션admin]
 //   공개/비공개 무관하게 service_role 로 조회 → 앱 객체 형태로 반환.
 //   관리자 대시보드 메타(제목 등) 로드용. (anon RLS 우회)
 app.get('/api/admin/sessions/:sessionId', wrap(async (req, res) => {
-  const { sessionId } = req.params;
-  const ok = await requireSessionAdmin(req, res, sessionId);
+  // code 또는 uuid → 실제 세션으로 해석. 없으면 404.
+  const session = await resolveSession(req.params.sessionId);
+  if (!session) return res.status(404).json({ success: false, message: '세션을 찾을 수 없습니다.' });
+  // 해석된 실제 id 로 권한 검증.
+  const ok = await requireSessionAdmin(req, res, session.id);
   if (!ok) return;
-
-  const { data, error } = await supabase
-    .from('sessions').select('*').eq('id', sessionId).maybeSingle();
-  if (error) throw error;
-  if (!data) return res.status(404).json({ success: false, message: '세션을 찾을 수 없습니다.' });
-  res.json({ success: true, data: mapSessionRow(data) });
+  const nameMap = await trackNameMap([session.track_id]);
+  res.json({ success: true, data: mapSessionRow({ ...session, track_name: nameMap[session.track_id] || '' }) });
 }));
 
 // PATCH /api/admin/sessions/:id — 수정 [세션admin]
@@ -436,12 +716,22 @@ app.patch('/api/admin/sessions/:id', wrap(async (req, res) => {
     fields.ends_at = ends_at;
   }
   if (b.is_public !== undefined) fields.is_public = !!b.is_public;
+  // 트랙/강연자 (add_tracks_speaker.sql 적용 시). 미적용이면 아래 42703 폴백.
+  if (b.track_id !== undefined) fields.track_id = (b.track_id || '').toString().trim() || null;
+  if (b.speaker !== undefined) fields.speaker = (b.speaker || '').toString().trim() || null;
 
-  const { data, error } = await supabase
+  // track_id/speaker 컬럼이 없으면(42703) 해당 키를 빼고 재시도 → 기존 기능 유지.
+  let { data, error } = await supabase
     .from('sessions').update(fields).eq('id', req.params.id).select().maybeSingle();
+  if (error && isSchemaMissing(error)) {
+    const { track_id, speaker, ...fallback } = fields;
+    ({ data, error } = await supabase
+      .from('sessions').update(fallback).eq('id', req.params.id).select().maybeSingle());
+  }
   if (error) throw error;
   if (!data) return res.status(404).json({ success: false, message: '세션을 찾을 수 없습니다.' });
-  res.json({ success: true, data: mapSessionRow(data) });
+  const nameMap = await trackNameMap([data.track_id]);
+  res.json({ success: true, data: mapSessionRow({ ...data, track_name: nameMap[data.track_id] || '' }) });
 }));
 
 // DELETE /api/admin/sessions/:id — 삭제 [콘솔]
@@ -466,7 +756,10 @@ app.delete('/api/admin/sessions/:id', requireConsole, wrap(async (req, res) => {
 // GET /api/admin/sessions/:sessionId/questions — 세션 전체 질문(숨김 포함) [세션admin]
 //   정렬: like_count desc, created_at asc
 app.get('/api/admin/sessions/:sessionId/questions', wrap(async (req, res) => {
-  const { sessionId } = req.params;
+  // code 또는 uuid → 실제 세션으로 해석.
+  const session = await resolveSession(req.params.sessionId);
+  if (!session) return res.status(404).json({ success: false, message: '세션을 찾을 수 없습니다.' });
+  const sessionId = session.id;
   const ok = await requireSessionAdmin(req, res, sessionId);
   if (!ok) return;
 
@@ -585,36 +878,87 @@ app.delete('/api/admin/banned-words/:id', requireConsole, wrap(async (req, res) 
 // 공개용 세션 매핑 — admin_token 등 민감 필드 제외. 프론트가 쓰기 좋은 앱 객체 형태.
 const mapPublicSessionRow = (row) => ({
   id: row.id,
+  code: row.code || '',                     // 짧은 코드 — 카드 탭 시 #/s/<code> 이동용
   title: row.title,
   description: row.description || '',
+  speaker: row.speaker || '',               // 강연자 (공개 안전 필드)
+  track_id: row.track_id || null,           // 트랙별 그룹핑용(프론트가 처리)
   starts_at: row.starts_at || null,
   ends_at: row.ends_at || null,
 });
 
+// GET /api/public/sessions/:codeOrId — 공개(무인증) 세션 단건
+// ------------------------------------------------------------
+//  사용자 페이지(#/s/:code | #/session/:id)가 세션 메타 + project_code 를 얻기 위해 호출.
+//  공개(is_public=true) 세션만 반환. 비공개/없음 → 404.
+//  ⚠️ 공개 안전 필드만: admin_token / client_name / status 등 절대 금지.
+app.get('/api/public/sessions/:codeOrId', wrap(async (req, res) => {
+  // 공개 세션만 해석(비공개면 null → 404).
+  const session = await resolveSession(req.params.codeOrId, { publicOnly: true });
+  if (!session) {
+    return res.status(404).json({ success: false, message: '세션을 찾을 수 없습니다.' });
+  }
+  // 소속 행사의 code 도 함께 반환(사용자 페이지 "전체 세션 보기" → 랜딩 이동용).
+  let projectCode = '';
+  if (session.project_id) {
+    const { data: proj } = await supabase
+      .from('projects').select('code').eq('id', session.project_id).maybeSingle();
+    projectCode = (proj && proj.code) || '';
+  }
+  // 트랙 이름(공개 안전). 스키마 미적용이거나 미지정이면 빈 문자열.
+  const nameMap = await trackNameMap([session.track_id]);
+  res.json({
+    success: true,
+    data: {
+      id: session.id,
+      code: session.code || '',
+      title: session.title,
+      description: session.description || '',
+      speaker: session.speaker || '',
+      track_id: session.track_id || null,
+      track_name: nameMap[session.track_id] || '',
+      starts_at: session.starts_at || null,
+      ends_at: session.ends_at || null,
+      project_id: session.project_id,
+      project_code: projectCode,
+    },
+  });
+}));
+
 // GET /api/public/projects/:projectId/landing — 공개(토큰 불필요)
 //   프로젝트 없음 → 404. 공개 세션 0개면 빈 배열(200).
 app.get('/api/public/projects/:projectId/landing', wrap(async (req, res) => {
-  const { projectId } = req.params;
-
-  // 프로젝트 존재 확인 — 공개 안전 필드(id, title)만 선택
-  const { data: project, error: pErr } = await supabase
-    .from('projects')
-    .select('id, title')
-    .eq('id', projectId)
-    .maybeSingle();
-  if (pErr) throw pErr;
+  // code 또는 uuid → 실제 프로젝트로 해석. 공개 안전 필드(id, title, code)만 선택.
+  const project = await resolveProject(req.params.projectId, 'id, title, code');
   if (!project) {
     return res.status(404).json({ success: false, message: '행사를 찾을 수 없습니다.' });
   }
+  const projectId = project.id;
 
-  // 공개 세션만 — admin_token 은 select 에서 아예 제외(노출 차단)
-  const { data: sessions, error: sErr } = await supabase
+  // 공개 세션만 — admin_token 은 select 에서 아예 제외(노출 차단). code 는 카드 링크용.
+  //  SQL 미실행으로 일부 컬럼이 없으면(42703) 점진적으로 컬럼을 줄여 재시도(하위호환).
+  //   1) code + track_id/speaker 모두 → 2) code 제외(짧은코드 미적용) →
+  //   3) track_id/speaker 제외(트랙 미적용) → 4) 둘 다 제외.
+  const selectSessions = (cols) => supabase
     .from('sessions')
-    .select('id, title, description, starts_at, ends_at, created_at')
+    .select(cols)
     .eq('project_id', projectId)
     .eq('is_public', true)
     .order('starts_at', { ascending: true, nullsFirst: true })
     .order('created_at', { ascending: true });
+  const baseCols = 'id, title, description, starts_at, ends_at, created_at';
+  const candidates = [
+    `id, code, ${baseCols.replace('id, ', '')}, track_id, speaker`,
+    `${baseCols}, track_id, speaker`,
+    `id, code, ${baseCols.replace('id, ', '')}`,
+    baseCols,
+  ];
+  let sessions = null, sErr = null;
+  for (const cols of candidates) {
+    ({ data: sessions, error: sErr } = await selectSessions(cols));
+    if (!sErr) break;
+    if (!isSchemaMissing(sErr)) break; // 스키마 외 오류면 즉시 중단
+  }
   if (sErr) throw sErr;
 
   const list = sessions || [];
@@ -634,8 +978,12 @@ app.get('/api/public/projects/:projectId/landing', wrap(async (req, res) => {
     });
   }
 
+  // 프로젝트의 트랙 목록(공개 안전 필드만). 스키마 미적용이면 빈 배열.
+  const tracks = await fetchTracksForProject(projectId);
+
   const result = {
-    project: { id: project.id, title: project.title },
+    project: { id: project.id, title: project.title, code: project.code || '' },
+    tracks: tracks.map((t) => ({ id: t.id, name: t.name, sort_order: t.sort_order })),
     sessions: list.map((row) => ({
       ...mapPublicSessionRow(row),
       questionCount: countMap[row.id] || 0,
@@ -711,14 +1059,12 @@ const sendWorkbook = async (res, wb, fileName) => {
 // GET /api/admin/sessions/:sessionId/questions/export?token=... [세션admin]
 //   정렬: like_count desc, created_at asc
 app.get('/api/admin/sessions/:sessionId/questions/export', wrap(async (req, res) => {
-  const { sessionId } = req.params;
+  // code 또는 uuid → 실제 세션으로 해석.
+  const session = await resolveSession(req.params.sessionId);
+  if (!session) return res.status(404).json({ success: false, message: '세션을 찾을 수 없습니다.' });
+  const sessionId = session.id;
   const ok = await requireSessionAdmin(req, res, sessionId);
   if (!ok) return;
-
-  const { data: session, error: sErr } = await supabase
-    .from('sessions').select('*').eq('id', sessionId).maybeSingle();
-  if (sErr) throw sErr;
-  if (!session) return res.status(404).json({ success: false, message: '세션을 찾을 수 없습니다.' });
 
   const { data: project } = await supabase
     .from('projects').select('title').eq('id', session.project_id).maybeSingle();
