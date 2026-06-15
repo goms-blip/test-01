@@ -1,15 +1,13 @@
 // ============================================================
-// 실시간 행사 Q&A 솔루션 — 관리자 백엔드 (server.js)
+// 실시간 행사 Live Poll 솔루션 — 백엔드 (server.js)
 // -----------------------------------------------------------------------
-//  - 사용자(공개) 경로는 index.html 이 Supabase anon 으로 직접 처리(미변경).
-//  - 관리자 경로(프로젝트/세션 CRUD, 답변/숨김 토글, 숨김질문 열람, 엑셀)는
-//    이 서버가 service_role 키로 RLS 를 우회해서 처리한다.
-//  - DB 컬럼명과 앱(프론트) 객체 필드명이 다르므로, 서버가 "앱 객체 형태"로
-//    변환해서 응답한다(프론트 컴포넌트 수정 최소화).
-//      projects:  title→name, client_name→client
-//      sessions:  title→name, starts_at/ends_at→duration ('HH:MM ~ HH:MM')
-//      questions: content→body, like_count→likes
-//  - 인증: ADMIN_CONSOLE_TOKEN(운영자 콘솔) + 세션별 admin_token(연사 대시보드)
+//  - 같은 오리진에서 참석자(index.html) + 관리자(admin.html) + API 를 함께 제공.
+//  - 모든 DB 접근은 service_role 키로 RLS 를 우회(단일 게이트웨이).
+//  - 공개(public) 경로: 프로젝트 랜딩 / Poll 조회 / 응답 제출 / 결과 조회.
+//      · 응답 제출은 submit_poll_response RPC 로 원자적 저장 + 중복 방지(PRD 8.1).
+//  - 관리자(admin) 경로: Poll CRUD / 시작·종료 / 결과 / 대상자 / 엑셀.
+//      · ADMIN_CONSOLE_TOKEN 헤더(x-admin-token) 로 보호.
+//  - DB(row) ↔ 앱(object) 변환은 map*Row 헬퍼로 일원화.
 // ============================================================
 
 require('dotenv').config({ path: require('path').join(__dirname, '.env.local') });
@@ -19,7 +17,7 @@ const path = require('path');
 const ExcelJS = require('exceljs');
 const { createClient } = require('@supabase/supabase-js');
 
-// ---------- 환경변수 (.trim() 으로 trailing newline 방지) ----------
+// ---------- 환경변수 ----------
 const SUPABASE_URL = (process.env.SUPABASE_URL || '').trim();
 const SUPABASE_SERVICE_ROLE_KEY = (process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
 const ADMIN_CONSOLE_TOKEN = (process.env.ADMIN_CONSOLE_TOKEN || '').trim();
@@ -32,1129 +30,1133 @@ if (!ADMIN_CONSOLE_TOKEN) {
   console.error('[server] ADMIN_CONSOLE_TOKEN 이 .env.local 에 필요합니다.');
 }
 
-// ---------- Supabase service_role 클라이언트 (RLS 우회) ----------
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
 
 const app = express();
-app.use(express.json());
-
-// 같은 오리진에서 프론트(index.html)와 API 를 함께 제공 → CORS 불필요
-// ⚠️ 보안: 디렉토리 전체 정적 서빙 금지(.env.local/*.sql 등 노출 방지).
-//    index.html 은 아래 비-API catch-all 라우트에서만 내보낸다.
+app.use(express.json({ limit: '1mb' }));
 
 // ============================================================
-// 🗺️ DB(row) ↔ 앱(object) 변환 헬퍼
+// 🗺️ 변환 헬퍼 (DB row → 앱 object)
 // ============================================================
-const pad2 = (n) => String(n).padStart(2, '0');
+const POLL_TYPES = ['single_choice', 'multiple_choice', 'rating', 'short_text'];
+const POLL_STATUSES = ['draft', 'scheduled', 'live', 'closed', 'archived'];
 
-// timestamptz → 'HH:MM' (Asia/Seoul 기준 표시)
-const fmtTime = (iso) => {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return '';
-  // 한국 시간대로 표시 (DB 에 +09 로 저장됨)
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Seoul',
-  }).formatToParts(d);
-  const h = parts.find((p) => p.type === 'hour')?.value || '00';
-  const m = parts.find((p) => p.type === 'minute')?.value || '00';
-  return `${h}:${m}`;
-};
+const mapOption = (o) => ({
+  id: o.id, label: o.label, value: o.value, sort_order: o.sort_order,
+});
 
-const buildDuration = (startsAt, endsAt) => {
-  const s = fmtTime(startsAt);
-  const e = fmtTime(endsAt);
-  if (s && e) return `${s} ~ ${e}`;
-  return s || e || '';
-};
-
-// 'HH:MM ~ HH:MM' (또는 단일 'HH:MM') → { starts_at, ends_at } (timestamptz, KST 기준)
-// duration 문자열은 날짜 정보가 없으므로 '오늘(KST)' 날짜에 시간을 붙여 저장한다.
-// 표시는 다시 buildDuration 으로 HH:MM 만 뽑으므로 날짜 부분은 표기에 영향 없음.
-const parseDuration = (duration) => {
-  const result = { starts_at: null, ends_at: null };
-  if (!duration || typeof duration !== 'string') return result;
-  const today = new Date();
-  const y = today.getFullYear();
-  const mo = pad2(today.getMonth() + 1);
-  const da = pad2(today.getDate());
-  const toIso = (hhmm) => {
-    const m = /^(\d{1,2}):(\d{2})$/.exec(hhmm.trim());
-    if (!m) return null;
-    const hh = pad2(parseInt(m[1], 10));
-    const mm = pad2(parseInt(m[2], 10));
-    // +09:00 (KST) 로 명시 저장
-    return `${y}-${mo}-${da}T${hh}:${mm}:00+09:00`;
-  };
-  const parts = duration.split('~');
-  if (parts.length >= 2) {
-    result.starts_at = toIso(parts[0]);
-    result.ends_at = toIso(parts[1]);
-  } else {
-    result.starts_at = toIso(parts[0]);
-  }
-  return result;
-};
-
-const mapProjectRow = (row) => row ? ({
+const mapPoll = (row, opts = [], extra = {}) => row ? ({
   id: row.id,
-  code: row.code || '',                     // 짧은 코드(short code) — URL/QR 용
-  name: row.title,                          // title(DB) → name(앱)
-  client: row.client_name || '',            // client_name(DB) → client(앱)
-  description: row.description || '',
-  start_date: row.start_date || '',
-  end_date: row.end_date || '',
-  status: row.status || '준비중',
-  created_at: row.created_at,
-}) : null;
-
-const mapSessionRow = (row) => row ? ({
-  id: row.id,
-  code: row.code || '',                     // 짧은 코드(short code) — URL/QR 용
+  code: row.code,
   project_id: row.project_id,
-  name: row.title,                          // title(DB) → name(앱)
-  description: row.description || '',
-  speaker: row.speaker || '',               // 강연자 (add_tracks_speaker.sql)
-  track_id: row.track_id || null,           // 소속 트랙 (없으면 null)
-  track_name: row.track_name || '',         // 조인/조회로 채워질 수 있음
-  duration: buildDuration(row.starts_at, row.ends_at),
-  is_public: !!row.is_public,
-  admin_token: row.admin_token,
-  created_at: row.created_at,
-}) : null;
-
-const mapQuestionRow = (row) => row ? ({
-  id: row.id,
   session_id: row.session_id,
-  author: row.author,
+  session_name: extra.session_name ?? null,
   title: row.title,
-  body: row.content,                        // content(DB) → body(앱)
-  likes: row.like_count,                    // like_count(DB) → likes(앱)
-  is_answered: !!row.is_answered,
-  is_hidden: !!row.is_hidden,
+  question: row.question,
+  poll_type: row.poll_type,
+  status: row.status,
+  source_type: row.source_type,
+  is_public: row.is_public,
+  show_results: row.show_results,
+  allow_multiple_answers: row.allow_multiple_answers,
+  internal_memo: row.internal_memo || '',
+  starts_at: row.starts_at,
+  ends_at: row.ends_at,
   created_at: row.created_at,
+  response_count: extra.response_count ?? 0,
+  options: (opts || []).map(mapOption),
 }) : null;
 
-// ============================================================
-// 🔐 인증 헬퍼 & 미들웨어
-// ============================================================
-// 요청에서 토큰 추출: x-admin-token 헤더 또는 ?token= 쿼리
-const extractToken = (req) =>
-  (req.get('x-admin-token') || req.query.token || '').toString().trim();
+// ---------- 공통 응답 헬퍼 ----------
+const ok = (res, body) => res.json(body);
+const fail = (res, code, error) => res.status(code).json({ success: false, error });
 
-// 운영자 콘솔 토큰 검증 (프로젝트/세션 관리 등 콘솔 작업)
-const requireConsole = (req, res, next) => {
-  const token = extractToken(req);
-  if (!token || token !== ADMIN_CONSOLE_TOKEN) {
-    return res.status(401).json({ success: false, message: '운영자 콘솔 토큰이 필요합니다.' });
+// 비동기 라우트 에러 래퍼
+const wrap = (fn) => (req, res) => Promise.resolve(fn(req, res)).catch((e) => {
+  console.error('[server] 처리 오류:', e?.message || e);
+  if (!res.headersSent) res.status(500).json({ success: false, error: 'internal_error' });
+});
+
+// ============================================================
+// 🔢 결과 집계 (PRD 9.1 — 조회 시점 집계)
+// ============================================================
+async function fetchPollByCode(code) {
+  const { data } = await supabase.from('polls').select('*').eq('code', code).maybeSingle();
+  return data || null;
+}
+
+async function fetchOptions(pollId) {
+  const { data } = await supabase.from('poll_options')
+    .select('*').eq('poll_id', pollId).order('sort_order', { ascending: true });
+  return data || [];
+}
+
+async function countResponses(pollId) {
+  const { count } = await supabase.from('poll_responses')
+    .select('id', { count: 'exact', head: true }).eq('poll_id', pollId);
+  return count || 0;
+}
+
+// pollId 의 전체 결과를 계산해서 반환
+async function computeResults(pollRow) {
+  const pollId = pollRow.id;
+  const options = await fetchOptions(pollId);
+
+  // 응답 헤더
+  const { data: responses } = await supabase.from('poll_responses')
+    .select('id, submitted_at').eq('poll_id', pollId);
+  const respIds = (responses || []).map((r) => r.id);
+  const total = respIds.length;
+
+  // 답변 상세
+  let answers = [];
+  if (respIds.length) {
+    const { data } = await supabase.from('poll_response_answers')
+      .select('option_id, answer_text, answer_number, response_id')
+      .in('response_id', respIds);
+    answers = data || [];
+  }
+  const submittedAtByResp = {};
+  (responses || []).forEach((r) => { submittedAtByResp[r.id] = r.submitted_at; });
+
+  // 객관식: 선택지별 카운트
+  const counts = {};
+  options.forEach((o) => { counts[o.id] = 0; });
+  answers.forEach((a) => { if (a.option_id && counts[a.option_id] !== undefined) counts[a.option_id] += 1; });
+  const totalSelections = Object.values(counts).reduce((s, n) => s + n, 0) || 0;
+  const optionResults = options.map((o) => ({
+    option_id: o.id,
+    label: o.label,
+    value: o.value,
+    count: counts[o.id] || 0,
+    percent: totalSelections ? Math.round((counts[o.id] / totalSelections) * 1000) / 10 : 0,
+  }));
+
+  // 척도형: 평균 + 1~5 분포
+  let averageScore = null;
+  let distribution = null;
+  if (pollRow.poll_type === 'rating') {
+    const nums = answers.map((a) => a.answer_number).filter((n) => n !== null && n !== undefined).map(Number);
+    if (nums.length) averageScore = Math.round((nums.reduce((s, n) => s + n, 0) / nums.length) * 100) / 100;
+    const buckets = [0, 0, 0, 0, 0];
+    nums.forEach((n) => { if (n >= 1 && n <= 5) buckets[Math.round(n) - 1] += 1; });
+    const ratingTotal = nums.length || 0;
+    distribution = buckets.map((c, i) => ({
+      score: i + 1, count: c, percent: ratingTotal ? Math.round((c / ratingTotal) * 100) : 0,
+    }));
+  }
+
+  // 주관식: 텍스트 응답 (최신순)
+  let textAnswers = [];
+  if (pollRow.poll_type === 'short_text') {
+    textAnswers = answers
+      .filter((a) => a.answer_text)
+      .map((a) => ({ text: a.answer_text, submitted_at: submittedAtByResp[a.response_id] || null }))
+      .sort((x, y) => new Date(y.submitted_at || 0) - new Date(x.submitted_at || 0));
+  }
+
+  return { total_responses: total, options: optionResults, average_score: averageScore, distribution, text_answers: textAnswers };
+}
+
+// ============================================================
+// 🌐 공개(public) API — 참석자 페이지(index.html)
+// ============================================================
+
+// 프로젝트 랜딩: code 로 프로젝트 + 진행중 Poll + 세션 목록
+app.get('/api/public/projects/:projectCode', wrap(async (req, res) => {
+  const { data: project } = await supabase.from('projects')
+    .select('*').eq('code', req.params.projectCode).maybeSingle();
+  if (!project) return fail(res, 404, 'project_not_found');
+
+  const { data: tracks } = await supabase.from('tracks')
+    .select('id, name, sort_order').eq('project_id', project.id).order('sort_order');
+  const trackName = {};
+  (tracks || []).forEach((t) => { trackName[t.id] = t.name; });
+
+  const { data: sessions } = await supabase.from('sessions')
+    .select('id, code, title, speaker, track_id').eq('project_id', project.id).eq('is_public', true)
+    .order('created_at', { ascending: true });
+  const sessionName = {};
+  (sessions || []).forEach((s) => { sessionName[s.id] = s.title; });
+
+  // 진행 중(live, 공개) Poll
+  const { data: polls } = await supabase.from('polls')
+    .select('*').eq('project_id', project.id).eq('status', 'live').eq('is_public', true)
+    .order('created_at', { ascending: true });
+
+  const livePolls = (polls || []).map((p) => mapPoll(p, [], { session_name: sessionName[p.session_id] || null }));
+
+  ok(res, {
+    code: project.code,
+    title: project.title,
+    client: project.client_name || '',
+    status: project.status,
+    sessions: (sessions || []).map((s) => ({
+      id: s.id, code: s.code, name: s.title, speaker: s.speaker || '',
+      track_id: s.track_id, track_name: s.track_id ? (trackName[s.track_id] || '') : '',
+    })),
+    livePolls,
+  });
+}));
+
+// 세션 페이지: 세션 code 로 세션 + 그 세션의 live Poll
+app.get('/api/public/sessions/:sessionCode', wrap(async (req, res) => {
+  const { data: session } = await supabase.from('sessions')
+    .select('*').eq('code', req.params.sessionCode).eq('is_public', true).maybeSingle();
+  if (!session) return fail(res, 404, 'session_not_found');
+
+  let trackName = '';
+  if (session.track_id) {
+    const { data: t } = await supabase.from('tracks').select('name').eq('id', session.track_id).maybeSingle();
+    trackName = t?.name || '';
+  }
+
+  const { data: polls } = await supabase.from('polls')
+    .select('*').eq('session_id', session.id).eq('status', 'live').eq('is_public', true)
+    .order('created_at', { ascending: true });
+
+  ok(res, {
+    code: session.code,
+    name: session.title,
+    speaker: session.speaker || '',
+    track_name: trackName,
+    project_id: session.project_id,
+    livePolls: (polls || []).map((p) => mapPoll(p, [], { session_name: session.title })),
+  });
+}));
+
+// Poll 단건 조회 (참여 화면). ?token= 있으면 recipient 식별.
+app.get('/api/public/polls/:pollCode', wrap(async (req, res) => {
+  const poll = await fetchPollByCode(req.params.pollCode);
+  if (!poll || !poll.is_public) return fail(res, 404, 'poll_not_found');
+
+  let sessionName = null;
+  let sessionCode = null;
+  if (poll.session_id) {
+    const { data: s } = await supabase.from('sessions').select('code, title, speaker').eq('id', poll.session_id).maybeSingle();
+    sessionName = s?.title || null;
+    sessionCode = s?.code || null;
+  }
+  // 제출 후 리스트(행사 랜딩)로 돌아가기 위한 프로젝트 코드
+  const { data: proj } = await supabase.from('projects').select('code, title').eq('id', poll.project_id).maybeSingle();
+  const options = await fetchOptions(poll.id);
+  const response_count = await countResponses(poll.id);
+
+  // 토큰 유효성(있으면) — recipient 존재 여부만 확인
+  let recipient = null;
+  if (req.query.token) {
+    const { data: r } = await supabase.from('poll_recipients')
+      .select('id, name').eq('token', String(req.query.token)).maybeSingle();
+    recipient = r ? { name: r.name || '' } : null;
+  }
+
+  ok(res, {
+    ...mapPoll(poll, options, { session_name: sessionName, response_count }),
+    session_code: sessionCode,
+    project_code: proj?.code || null,
+    project_title: proj?.title || null,
+    recipient,
+  });
+}));
+
+// 응답 제출 — submit_poll_response RPC 로 원자적 저장 (PRD 8.1)
+app.post('/api/public/polls/:pollCode/responses', wrap(async (req, res) => {
+  const poll = await fetchPollByCode(req.params.pollCode);
+  if (!poll) return fail(res, 404, 'poll_not_found');
+
+  const { respondent_key, recipient_token, answers } = req.body || {};
+  if (!Array.isArray(answers) || answers.length === 0) return fail(res, 400, 'answers_required');
+
+  // recipient_token → recipient_id
+  let recipientId = null;
+  let source = poll.source_type;
+  if (recipient_token) {
+    const { data: r } = await supabase.from('poll_recipients')
+      .select('id').eq('token', recipient_token).maybeSingle();
+    if (!r) return fail(res, 400, 'invalid_token');
+    recipientId = r.id;
+    source = 'newsletter';
+  }
+
+  // 답변 정규화
+  const normAnswers = answers.map((a) => ({
+    option_id: a.option_id || null,
+    answer_text: a.answer_text ?? null,
+    answer_number: (a.answer_number ?? null) === null ? null : String(a.answer_number),
+  }));
+
+  const { data, error } = await supabase.rpc('submit_poll_response', {
+    p_poll_id: poll.id,
+    p_respondent_key: respondent_key || null,
+    p_recipient_id: recipientId,
+    p_source: source,
+    p_answers: normAnswers,
+  });
+  if (error) {
+    console.error('[server] submit RPC 오류:', error.message);
+    return fail(res, 400, error.message);
+  }
+  const result = data || {};
+  if (result.success === false) return fail(res, 400, result.error || 'submit_failed');
+  ok(res, { success: true, response_id: result.response_id || null, already_submitted: !!result.already_submitted });
+}));
+
+// 공개 결과 조회 — show_results=true 일 때만
+app.get('/api/public/polls/:pollCode/results', wrap(async (req, res) => {
+  const poll = await fetchPollByCode(req.params.pollCode);
+  if (!poll) return fail(res, 404, 'poll_not_found');
+  if (!poll.show_results) return fail(res, 403, 'results_hidden');
+  const results = await computeResults(poll);
+  ok(res, { poll_type: poll.poll_type, ...results });
+}));
+
+// ---------- 공개 설문(survey) ----------
+const SURVEY_PRIVACY_NOTICE =
+  '수집 목적: 행사 만족도 조사 및 후속 안내 / 수집 항목: 응답 내용, 이메일(토큰 링크 시) / 보유 기간: 수집일로부터 1년. 관리자만 응답을 열람·다운로드합니다.';
+
+async function fetchSurveyByCode(code) {
+  const { data } = await supabase.from('surveys').select('*').eq('code', code).maybeSingle();
+  return data || null;
+}
+
+// 설문의 문항(poll) 목록을 정렬해서 가져옴 (+ 각 문항 옵션)
+async function fetchSurveyQuestions(surveyId) {
+  const { data: qpolls } = await supabase.from('polls')
+    .select('*').eq('survey_id', surveyId).order('sort_order', { ascending: true });
+  const out = [];
+  for (const p of qpolls || []) {
+    const options = await fetchOptions(p.id);
+    out.push({ ...p, options });
+  }
+  return out;
+}
+
+// 설문 조회 (참여 화면) — bundle 형태로 반환
+app.get('/api/public/surveys/:surveyCode', wrap(async (req, res) => {
+  const survey = await fetchSurveyByCode(req.params.surveyCode);
+  if (!survey || !survey.is_public) return fail(res, 404, 'survey_not_found');
+  const questions = await fetchSurveyQuestions(survey.id);
+  const { data: proj } = await supabase.from('projects').select('code, title').eq('id', survey.project_id).maybeSingle();
+
+  let recipient = null;
+  if (req.query.token) {
+    const { data: r } = await supabase.from('poll_recipients')
+      .select('id, name').eq('token', String(req.query.token)).maybeSingle();
+    recipient = r ? { name: r.name || '' } : null;
+  }
+
+  ok(res, {
+    code: survey.code,
+    title: survey.title,
+    question: survey.intro || '',
+    poll_type: 'bundle',
+    source_type: survey.source_type,
+    status: survey.status,
+    show_results: survey.show_results,
+    privacy_notice: SURVEY_PRIVACY_NOTICE,
+    project_code: proj?.code || null,
+    project_title: proj?.title || null,
+    recipient,
+    questions: questions.map((q) => ({
+      id: q.id, poll_type: q.poll_type, question: q.question,
+      required: true, max_length: 200,
+      options: (q.options || []).map(mapOption),
+    })),
+  });
+}));
+
+// 설문 응답 제출 — 문항별로 submit_poll_response RPC 호출(원자적)
+app.post('/api/public/surveys/:surveyCode/responses', wrap(async (req, res) => {
+  const survey = await fetchSurveyByCode(req.params.surveyCode);
+  if (!survey) return fail(res, 404, 'survey_not_found');
+  if (survey.status !== 'live') return fail(res, 400, 'survey_not_live');
+
+  const { respondent_key, recipient_token, answers } = req.body || {};
+  if (!Array.isArray(answers)) return fail(res, 400, 'answers_required');
+
+  let recipientId = null;
+  let source = survey.source_type;
+  if (recipient_token) {
+    const { data: r } = await supabase.from('poll_recipients')
+      .select('id').eq('token', recipient_token).maybeSingle();
+    if (!r) return fail(res, 400, 'invalid_token');
+    recipientId = r.id;
+    source = 'newsletter';
+  }
+
+  // 문항(poll) id 화이트리스트
+  const questions = await fetchSurveyQuestions(survey.id);
+  const validIds = new Set(questions.map((q) => q.id));
+
+  // answers: [{ question_id, option_id?, answer_text?, answer_number? }, ...]
+  // 문항별로 그룹핑 후 각 문항 poll 에 제출
+  const byQuestion = {};
+  for (const a of answers) {
+    const qid = a.question_id || a.poll_id;
+    if (!validIds.has(qid)) continue;
+    (byQuestion[qid] = byQuestion[qid] || []).push({
+      option_id: a.option_id || null,
+      answer_text: a.answer_text ?? null,
+      answer_number: (a.answer_number ?? null) === null ? null : String(a.answer_number),
+    });
+  }
+
+  let submitted = 0;
+  for (const qid of Object.keys(byQuestion)) {
+    const { data, error } = await supabase.rpc('submit_poll_response', {
+      p_poll_id: qid,
+      p_respondent_key: respondent_key || null,
+      p_recipient_id: recipientId,
+      p_source: source,
+      p_answers: byQuestion[qid],
+    });
+    if (!error && data && data.success !== false && !data.already_submitted) submitted += 1;
+  }
+
+  ok(res, { success: true, submitted_questions: submitted, total_questions: questions.length });
+}));
+
+// ============================================================
+// 🔐 관리자(admin) API — admin.html
+// ============================================================
+function requireAdmin(req, res, next) {
+  const token = (req.headers['x-admin-token'] || req.headers['authorization'] || '').toString().replace(/^Bearer\s+/i, '').trim();
+  if (!ADMIN_CONSOLE_TOKEN || token !== ADMIN_CONSOLE_TOKEN) {
+    return res.status(401).json({ success: false, error: 'unauthorized' });
   }
   next();
-};
-
-// 세션 범위 권한 검증: 콘솔 토큰 OR 해당 세션의 admin_token
-// sessionId 가 유효하지 않으면 404. 토큰 불일치면 403.
-async function requireSessionAdmin(req, res, sessionId) {
-  const token = extractToken(req);
-  if (!token) {
-    res.status(401).json({ success: false, message: '토큰이 필요합니다.' });
-    return false;
-  }
-  // 콘솔 토큰이면 무조건 통과
-  if (token === ADMIN_CONSOLE_TOKEN) return true;
-
-  const { data, error } = await supabase
-    .from('sessions')
-    .select('id, admin_token')
-    .eq('id', sessionId)
-    .maybeSingle();
-
-  if (error) {
-    res.status(500).json({ success: false, message: 'DB 조회 중 오류가 발생했습니다.' });
-    return false;
-  }
-  if (!data) {
-    res.status(404).json({ success: false, message: '세션을 찾을 수 없습니다.' });
-    return false;
-  }
-  if (data.admin_token !== token) {
-    res.status(403).json({ success: false, message: '세션 접근 권한이 없습니다.' });
-    return false;
-  }
-  return true;
 }
+app.use('/api/admin', requireAdmin);
 
-// 라우트 핸들러를 try/catch 로 감싸는 래퍼
-const wrap = (fn) => (req, res) => {
-  Promise.resolve(fn(req, res)).catch((err) => {
-    console.error('[server] route error:', err);
-    if (!res.headersSent) {
-      res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
+// 프로젝트 목록 + 통계
+app.get('/api/admin/projects', wrap(async (req, res) => {
+  const { data: projects } = await supabase.from('projects').select('*').order('created_at', { ascending: false });
+  const out = [];
+  for (const p of projects || []) {
+    const { count: sessionCount } = await supabase.from('sessions')
+      .select('id', { count: 'exact', head: true }).eq('project_id', p.id);
+    const { data: pollRows } = await supabase.from('polls').select('id').eq('project_id', p.id);
+    const pollIds = (pollRows || []).map((r) => r.id);
+    let responseCount = 0;
+    if (pollIds.length) {
+      const { count } = await supabase.from('poll_responses')
+        .select('id', { count: 'exact', head: true }).in('poll_id', pollIds);
+      responseCount = count || 0;
     }
-  });
-};
-
-// ============================================================
-// 🔑 짧은 코드(short code) — 생성 & 해석 헬퍼
-// ------------------------------------------------------------
-//  projects.code / sessions.code (6자리 hex, unique). add_short_codes.sql 로
-//  컬럼/유니크 인덱스가 추가됨. 생성 시 유니크 충돌이면 재시도한다.
-//  코드가 uuid 처럼 보이면 id 로 간주하고, 6자리 hex 면 code 로 해석한다.
-// ============================================================
-// 6자리 소문자 hex 코드 생성
-const genCode = () => {
-  let out = '';
-  const hex = '0123456789abcdef';
-  for (let i = 0; i < 6; i++) out += hex[Math.floor(Math.random() * 16)];
-  return out;
-};
-
-// 표준 UUID 형태인지 (id vs code 구분용)
-const isUuid = (s) =>
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test((s || '').toString());
-
-// table 에 유니크한 새 code 를 생성한다(충돌 시 재시도). 컬럼이 없으면 null 반환(SQL 미실행 대비).
-async function generateUniqueCode(table, attempts = 8) {
-  for (let i = 0; i < attempts; i++) {
-    const code = genCode();
-    const { data, error } = await supabase
-      .from(table).select('id').eq('code', code).maybeSingle();
-    if (error) {
-      // code 컬럼이 없으면(SQL 미실행) 코드 발급을 건너뜀 — 기능은 계속 동작
-      if (error.code === '42703') return null;
-      throw error;
-    }
-    if (!data) return code;
+    out.push({
+      id: p.id, code: p.code, name: p.title, client: p.client_name || '', status: p.status,
+      session_count: sessionCount || 0, poll_count: pollIds.length, response_count: responseCount,
+    });
   }
-  return null;
-}
-
-// codeOrId → 실제 session row(또는 null). uuid 면 id, 아니면 code 로 조회.
-//  옵션 publicOnly=true 면 is_public=true 인 세션만 매칭(공개 엔드포인트용).
-//  ⚠️ add_short_codes.sql 미실행 시 code 컬럼이 없을 수 있다(42703):
-//     - uuid 입력은 code 와 무관하므로 select 에서 code 를 빼고 재시도 → 정상 동작(하위호환).
-//     - code 입력은 해석 불가 → null(404).
-async function resolveSession(codeOrId, { publicOnly = false } = {}) {
-  const v = (codeOrId || '').toString().trim();
-  if (!v) return null;
-  const byUuid = isUuid(v);
-  const run = async (cols) => {
-    let q = supabase.from('sessions').select(cols);
-    q = byUuid ? q.eq('id', v) : q.eq('code', v);
-    if (publicOnly) q = q.eq('is_public', true);
-    return q.maybeSingle();
-  };
-  let { data, error } = await run('*');
-  if (error && error.code === '42703') {
-    // code 컬럼 없음. uuid 면 code 제외 컬럼으로 재시도, code 입력이면 해석 불가.
-    if (!byUuid) return null;
-    ({ data, error } = await run('id, project_id, title, description, starts_at, ends_at, is_public, admin_token, created_at'));
-  }
-  if (error) throw error;
-  return data || null;
-}
-
-// codeOrId → 실제 project row(또는 null). uuid 면 id, 아니면 code 로 조회.
-//  cols: 선택할 컬럼 목록(공개 라우트에서 민감필드 제외용).
-//  SQL 미실행으로 code 컬럼이 없으면(42703): uuid 는 code 제외하고 재시도, code 입력은 null.
-async function resolveProject(codeOrId, cols = '*') {
-  const v = (codeOrId || '').toString().trim();
-  if (!v) return null;
-  const byUuid = isUuid(v);
-  let q = supabase.from('projects').select(cols);
-  q = byUuid ? q.eq('id', v) : q.eq('code', v);
-  let { data, error } = await q.maybeSingle();
-  if (error && error.code === '42703') {
-    if (!byUuid) return null;
-    // cols 에서 code 를 제거하고 재시도(* 면 code 가 어차피 빠진 명시 컬럼으로 대체).
-    const fallbackCols = cols === '*'
-      ? '*'
-      : cols.split(',').map((c) => c.trim()).filter((c) => c !== 'code').join(', ');
-    let q2 = supabase.from('projects').select(fallbackCols).eq('id', v);
-    ({ data, error } = await q2.maybeSingle());
-  }
-  if (error) throw error;
-  return data || null;
-}
-
-// ============================================================
-// 🎫 트랙(Track) 헬퍼 — add_tracks_speaker.sql 미실행 시 방어(42703)
-// ------------------------------------------------------------
-//  tracks 테이블/sessions.track_id/speaker 컬럼이 없을 수 있다. 이 경우
-//  트랙 기능은 "비어있게" 동작하고 기존 기능은 안 깨지도록 폴백한다.
-// ============================================================
-// "스키마 미적용(add_tracks_speaker.sql 미실행)"으로 간주할 에러:
-//  - 42703 = undefined_column (sessions.track_id/speaker 없음)
-//  - 42P01 = undefined_table  (tracks 테이블 없음, raw Postgres)
-//  - PGRST205 = PostgREST 가 테이블을 스키마 캐시에서 못 찾음(tracks 미존재)
-//  - PGRST204 = PostgREST 가 컬럼을 스키마 캐시에서 못 찾음(track_id/speaker 미존재)
-const isSchemaMissing = (err) =>
-  !!err && (err.code === '42703' || err.code === '42P01'
-    || err.code === 'PGRST205' || err.code === 'PGRST204');
-
-// 특정 프로젝트의 트랙 목록(sort_order, created_at 순). 스키마 미적용이면 [] 반환.
-async function fetchTracksForProject(projectId) {
-  const { data, error } = await supabase
-    .from('tracks')
-    .select('id, project_id, name, sort_order, created_at')
-    .eq('project_id', projectId)
-    .order('sort_order', { ascending: true })
-    .order('created_at', { ascending: true });
-  if (error) {
-    if (isSchemaMissing(error)) return [];
-    throw error;
-  }
-  return data || [];
-}
-
-// 트랙 단건 조회(id). 스키마 미적용이면 null.
-async function fetchTrackById(trackId) {
-  const { data, error } = await supabase
-    .from('tracks')
-    .select('id, project_id, name, sort_order, created_at')
-    .eq('id', trackId)
-    .maybeSingle();
-  if (error) {
-    if (isSchemaMissing(error)) return null;
-    throw error;
-  }
-  return data || null;
-}
-
-// 세션 목록을 select 하되 track_id/speaker 컬럼이 없으면(42703) 해당 컬럼을 빼고 재시도.
-//  baseCols: 항상 존재하는 컬럼들. withExtra=true 면 track_id, speaker 를 덧붙여 시도.
-async function selectSessionsTolerant(applyQuery, baseCols) {
-  const tryRun = (cols) => applyQuery(supabase.from('sessions').select(cols));
-  let { data, error } = await tryRun(`${baseCols}, track_id, speaker`);
-  if (error && isSchemaMissing(error)) {
-    ({ data, error } = await tryRun(baseCols));
-  }
-  if (error) throw error;
-  return data || [];
-}
-
-// 트랙 id 목록 → { id: name } 매핑. 스키마 미적용이면 빈 객체.
-async function trackNameMap(trackIds) {
-  const ids = [...new Set((trackIds || []).filter(Boolean))];
-  if (!ids.length) return {};
-  const { data, error } = await supabase
-    .from('tracks').select('id, name').in('id', ids);
-  if (error) {
-    if (isSchemaMissing(error)) return {};
-    throw error;
-  }
-  const map = {};
-  (data || []).forEach((t) => { map[t.id] = t.name; });
-  return map;
-}
-
-// 파일명 안전 처리 (공백/특수문자 → _)
-const safeFileName = (s) =>
-  (s || '').toString().trim().replace(/[\\/:*?"<>|]+/g, '_').replace(/\s+/g, '_') || 'untitled';
-
-const yyyymmdd = () => {
-  const d = new Date();
-  return `${d.getFullYear()}${pad2(d.getMonth() + 1)}${pad2(d.getDate())}`;
-};
-
-// ============================================================
-// 📊 통계 헬퍼
-// ============================================================
-const computeSessionStats = (questions) => ({
-  total: questions.length,
-  pending: questions.filter((q) => !q.is_answered && !q.is_hidden).length,
-  answered: questions.filter((q) => q.is_answered && !q.is_hidden).length,
-  hidden: questions.filter((q) => q.is_hidden).length,
-});
-
-// ============================================================
-// 🛣️ 라우트: 프로젝트 (콘솔)
-// ============================================================
-
-// GET /api/admin/projects — 목록 + 프로젝트별 sessionCount, questionCount, status
-app.get('/api/admin/projects', requireConsole, wrap(async (req, res) => {
-  const { data: projects, error } = await supabase
-    .from('projects')
-    .select('*')
-    .order('created_at', { ascending: false });
-  if (error) throw error;
-
-  const list = projects || [];
-
-  // 세션/질문 카운트를 한 번에 조회
-  const { data: sessions, error: sErr } = await supabase
-    .from('sessions')
-    .select('id, project_id');
-  if (sErr) throw sErr;
-
-  const { data: questions, error: qErr } = await supabase
-    .from('questions')
-    .select('id, session_id');
-  if (qErr) throw qErr;
-
-  // session_id → project_id 매핑
-  const sessByProject = {};
-  const projBySession = {};
-  (sessions || []).forEach((s) => {
-    sessByProject[s.project_id] = (sessByProject[s.project_id] || 0) + 1;
-    projBySession[s.id] = s.project_id;
-  });
-  const questByProject = {};
-  (questions || []).forEach((q) => {
-    const pid = projBySession[q.session_id];
-    if (pid) questByProject[pid] = (questByProject[pid] || 0) + 1;
-  });
-
-  const result = list.map((row) => ({
-    ...mapProjectRow(row),
-    sessionCount: sessByProject[row.id] || 0,
-    questionCount: questByProject[row.id] || 0,
-  }));
-
-  res.json({ success: true, data: result });
+  ok(res, out);
 }));
 
-// POST /api/admin/projects — 생성
-app.post('/api/admin/projects', requireConsole, wrap(async (req, res) => {
+// 프로젝트 상세 (트랙/세션)
+app.get('/api/admin/projects/:projectId', wrap(async (req, res) => {
+  const { data: p } = await supabase.from('projects').select('*').eq('id', req.params.projectId).maybeSingle();
+  if (!p) return fail(res, 404, 'project_not_found');
+  const { data: tracks } = await supabase.from('tracks')
+    .select('id, name, sort_order').eq('project_id', p.id).order('sort_order');
+  const { data: sessions } = await supabase.from('sessions')
+    .select('id, code, title, speaker, track_id, is_public').eq('project_id', p.id).order('created_at', { ascending: true });
+  ok(res, {
+    id: p.id, code: p.code, name: p.title, client: p.client_name || '', status: p.status,
+    tracks: (tracks || []).map((t) => ({ id: t.id, name: t.name })),
+    sessions: (sessions || []).map((s) => ({ id: s.id, code: s.code, name: s.title, speaker: s.speaker || '', track_id: s.track_id, is_public: s.is_public })),
+  });
+}));
+
+// 프로젝트 생성
+app.post('/api/admin/projects', wrap(async (req, res) => {
   const b = req.body || {};
-  const name = (b.name || '').trim();
-  if (!name) {
-    return res.status(400).json({ success: false, message: '프로젝트명을 입력해 주세요.' });
+  if (!b.name || !b.name.trim()) return fail(res, 400, 'name_required');
+  // 6자리 short code 자동 생성(충돌 시 재시도)
+  const genCode = () => Math.random().toString(16).slice(2, 8);
+  let code = genCode();
+  for (let i = 0; i < 5; i++) {
+    const { data: dup } = await supabase.from('projects').select('id').eq('code', code).maybeSingle();
+    if (!dup) break;
+    code = genCode();
   }
   const insert = {
-    title: name,
-    client_name: (b.client || '').trim() || null,
-    description: (b.description || '').trim() || null,
-    start_date: b.start_date || null,
-    end_date: b.end_date || null,
+    title: b.name.trim(),
+    client_name: b.client || null,
+    description: b.description || null,
     status: b.status || '준비중',
+    code,
   };
-  // 짧은 코드 발급(유니크 충돌 시 재시도). SQL 미실행이면 null → code 없이 생성.
-  const code = await generateUniqueCode('projects');
-  if (code) insert.code = code;
-  const { data, error } = await supabase
-    .from('projects').insert(insert).select().single();
-  if (error) throw error;
-  res.status(201).json({ success: true, data: mapProjectRow(data) });
+  const { data: p, error } = await supabase.from('projects').insert(insert).select('*').single();
+  if (error) return fail(res, 400, error.message);
+  ok(res, {
+    id: p.id, code: p.code, name: p.title, client: p.client_name || '', status: p.status,
+    session_count: 0, poll_count: 0, response_count: 0,
+  });
 }));
 
-// GET /api/admin/projects/:id
-app.get('/api/admin/projects/:id', requireConsole, wrap(async (req, res) => {
-  const { data, error } = await supabase
-    .from('projects').select('*').eq('id', req.params.id).maybeSingle();
-  if (error) throw error;
-  if (!data) return res.status(404).json({ success: false, message: '프로젝트를 찾을 수 없습니다.' });
-  res.json({ success: true, data: mapProjectRow(data) });
-}));
-
-// PATCH /api/admin/projects/:id — 수정
-app.patch('/api/admin/projects/:id', requireConsole, wrap(async (req, res) => {
+// 프로젝트 수정
+app.patch('/api/admin/projects/:projectId', wrap(async (req, res) => {
   const b = req.body || {};
-  const fields = {};
-  if (b.name !== undefined) {
-    const name = (b.name || '').trim();
-    if (!name) return res.status(400).json({ success: false, message: '프로젝트명을 입력해 주세요.' });
-    fields.title = name;
-  }
-  if (b.client !== undefined) fields.client_name = (b.client || '').trim() || null;
-  if (b.description !== undefined) fields.description = (b.description || '').trim() || null;
-  if (b.start_date !== undefined) fields.start_date = b.start_date || null;
-  if (b.end_date !== undefined) fields.end_date = b.end_date || null;
-  if (b.status !== undefined) fields.status = b.status || '준비중';
-
-  const { data, error } = await supabase
-    .from('projects').update(fields).eq('id', req.params.id).select().maybeSingle();
-  if (error) throw error;
-  if (!data) return res.status(404).json({ success: false, message: '프로젝트를 찾을 수 없습니다.' });
-  res.json({ success: true, data: mapProjectRow(data) });
+  const patch = {};
+  if (b.name !== undefined) patch.title = b.name;
+  if (b.client !== undefined) patch.client_name = b.client || null;
+  if (b.description !== undefined) patch.description = b.description || null;
+  if (b.status !== undefined) patch.status = b.status;
+  const { data: p, error } = await supabase.from('projects').update(patch).eq('id', req.params.projectId).select('*').single();
+  if (error) return fail(res, 400, error.message);
+  ok(res, { id: p.id, code: p.code, name: p.title, client: p.client_name || '', status: p.status });
 }));
 
-// DELETE /api/admin/projects/:id — 삭제 (FK on delete cascade 로 하위 정리)
-app.delete('/api/admin/projects/:id', requireConsole, wrap(async (req, res) => {
-  // 삭제 전 하위 카운트 집계 (응답 메시지용)
-  const { data: sessions } = await supabase
-    .from('sessions').select('id').eq('project_id', req.params.id);
-  const sessionIds = (sessions || []).map((s) => s.id);
-  let removedQuestions = 0;
+// 프로젝트 삭제 (cascade: 세션/Poll/응답 함께 삭제)
+app.delete('/api/admin/projects/:projectId', wrap(async (req, res) => {
+  const { error } = await supabase.from('projects').delete().eq('id', req.params.projectId);
+  if (error) return fail(res, 400, error.message);
+  ok(res, { success: true });
+}));
+
+// ---------- 트랙(track) CRUD ----------
+app.post('/api/admin/projects/:projectId/tracks', wrap(async (req, res) => {
+  const b = req.body || {};
+  if (!b.name || !b.name.trim()) return fail(res, 400, 'name_required');
+  const { data: t, error } = await supabase.from('tracks').insert({
+    project_id: req.params.projectId, name: b.name.trim(), sort_order: b.sort_order ?? 0,
+  }).select('id, name, sort_order').single();
+  if (error) return fail(res, 400, error.message);
+  ok(res, { id: t.id, name: t.name, sort_order: t.sort_order });
+}));
+app.patch('/api/admin/tracks/:trackId', wrap(async (req, res) => {
+  const b = req.body || {};
+  const patch = {};
+  if (b.name !== undefined) patch.name = b.name;
+  if (b.sort_order !== undefined) patch.sort_order = b.sort_order;
+  const { data: t, error } = await supabase.from('tracks').update(patch).eq('id', req.params.trackId).select('id, name, sort_order').single();
+  if (error) return fail(res, 400, error.message);
+  ok(res, t);
+}));
+app.delete('/api/admin/tracks/:trackId', wrap(async (req, res) => {
+  const { error } = await supabase.from('tracks').delete().eq('id', req.params.trackId);
+  if (error) return fail(res, 400, error.message);
+  ok(res, { success: true });
+}));
+
+// ---------- 세션(session) CRUD ----------
+const mapSessionRow = (s) => ({
+  id: s.id, code: s.code, name: s.title, speaker: s.speaker || '',
+  track_id: s.track_id, is_public: s.is_public, description: s.description || '',
+});
+
+app.post('/api/admin/projects/:projectId/sessions', wrap(async (req, res) => {
+  const b = req.body || {};
+  if (!b.name || !b.name.trim()) return fail(res, 400, 'name_required');
+  const { data: s, error } = await supabase.from('sessions').insert({
+    project_id: req.params.projectId,
+    title: b.name.trim(),
+    speaker: b.speaker || null,
+    description: b.description || null,
+    track_id: b.track_id || null,
+    is_public: b.is_public !== false,
+  }).select('*').single();
+  if (error) return fail(res, 400, error.message);
+  ok(res, mapSessionRow(s));
+}));
+app.patch('/api/admin/sessions/:sessionId', wrap(async (req, res) => {
+  const b = req.body || {};
+  const patch = {};
+  if (b.name !== undefined) patch.title = b.name;
+  if (b.speaker !== undefined) patch.speaker = b.speaker || null;
+  if (b.description !== undefined) patch.description = b.description || null;
+  if (b.track_id !== undefined) patch.track_id = b.track_id || null;
+  if (b.is_public !== undefined) patch.is_public = b.is_public;
+  const { data: s, error } = await supabase.from('sessions').update(patch).eq('id', req.params.sessionId).select('*').single();
+  if (error) return fail(res, 400, error.message);
+  ok(res, mapSessionRow(s));
+}));
+app.delete('/api/admin/sessions/:sessionId', wrap(async (req, res) => {
+  const { error } = await supabase.from('sessions').delete().eq('id', req.params.sessionId);
+  if (error) return fail(res, 400, error.message);
+  ok(res, { success: true });
+}));
+
+// Poll 목록 (프로젝트 단위) — 응답수 포함. 설문(survey) 문항은 제외(survey_id is null).
+async function listPollsWithCounts(filterCol, filterVal) {
+  const { data: polls } = await supabase.from('polls')
+    .select('*').eq(filterCol, filterVal).is('survey_id', null).order('created_at', { ascending: false });
+  // 세션명 매핑
+  const sessionIds = [...new Set((polls || []).map((p) => p.session_id).filter(Boolean))];
+  const sessionName = {};
   if (sessionIds.length) {
-    const { count } = await supabase
-      .from('questions')
-      .select('id', { count: 'exact', head: true })
-      .in('session_id', sessionIds);
-    removedQuestions = count || 0;
+    const { data: ss } = await supabase.from('sessions').select('id, title').in('id', sessionIds);
+    (ss || []).forEach((s) => { sessionName[s.id] = s.title; });
   }
+  const out = [];
+  for (const p of polls || []) {
+    const options = await fetchOptions(p.id);
+    const response_count = await countResponses(p.id);
+    out.push(mapPoll(p, options, { session_name: sessionName[p.session_id] || null, response_count }));
+  }
+  return out;
+}
 
-  const { data, error } = await supabase
-    .from('projects').delete().eq('id', req.params.id).select().maybeSingle();
-  if (error) throw error;
-  if (!data) return res.status(404).json({ success: false, message: '프로젝트를 찾을 수 없습니다.' });
+app.get('/api/admin/projects/:projectId/polls', wrap(async (req, res) => {
+  ok(res, await listPollsWithCounts('project_id', req.params.projectId));
+}));
+app.get('/api/admin/sessions/:sessionId/polls', wrap(async (req, res) => {
+  ok(res, await listPollsWithCounts('session_id', req.params.sessionId));
+}));
 
-  res.json({
-    success: true,
-    data: { removedSessions: sessionIds.length, removedQuestions },
+// Poll 생성
+app.post('/api/admin/projects/:projectId/polls', wrap(async (req, res) => {
+  const b = req.body || {};
+  if (!b.title || !b.question || !POLL_TYPES.includes(b.poll_type)) return fail(res, 400, 'invalid_input');
+  const status = POLL_STATUSES.includes(b.status) ? b.status : 'draft';
+  const insert = {
+    project_id: req.params.projectId,
+    session_id: b.session_id || null,
+    title: b.title,
+    question: b.question,
+    poll_type: b.poll_type,
+    status,
+    source_type: b.source_type === 'newsletter' ? 'newsletter' : 'live_event',
+    is_public: !!b.is_public,
+    show_results: !!b.show_results,
+    allow_multiple_answers: !!b.allow_multiple_answers,
+    internal_memo: b.internal_memo || null,
+    starts_at: b.starts_at || null,
+    ends_at: b.ends_at || null,
+  };
+  const { data: poll, error } = await supabase.from('polls').insert(insert).select('*').single();
+  if (error) return fail(res, 400, error.message);
+
+  // 선택지 (객관식만)
+  let options = [];
+  if (['single_choice', 'multiple_choice'].includes(b.poll_type) && Array.isArray(b.options)) {
+    const rows = b.options
+      .filter((o) => o && o.label)
+      .map((o, i) => ({ poll_id: poll.id, label: o.label, value: o.value || o.label, sort_order: o.sort_order ?? i }));
+    if (rows.length) {
+      const { data: inserted } = await supabase.from('poll_options').insert(rows).select('*').order('sort_order');
+      options = inserted || [];
+    }
+  }
+  ok(res, mapPoll(poll, options, { response_count: 0 }));
+}));
+
+// Poll 수정 (선택지 전달 시 전체 교체)
+app.patch('/api/admin/polls/:pollId', wrap(async (req, res) => {
+  const b = req.body || {};
+  const patch = {};
+  for (const k of ['title', 'question', 'poll_type', 'status', 'source_type', 'is_public', 'show_results', 'allow_multiple_answers', 'internal_memo', 'session_id', 'starts_at', 'ends_at']) {
+    if (b[k] !== undefined) patch[k] = b[k];
+  }
+  if (patch.poll_type && !POLL_TYPES.includes(patch.poll_type)) return fail(res, 400, 'invalid_poll_type');
+  if (patch.status && !POLL_STATUSES.includes(patch.status)) return fail(res, 400, 'invalid_status');
+
+  const { data: poll, error } = await supabase.from('polls').update(patch).eq('id', req.params.pollId).select('*').single();
+  if (error) return fail(res, 400, error.message);
+
+  if (Array.isArray(b.options)) {
+    await supabase.from('poll_options').delete().eq('poll_id', poll.id);
+    const rows = b.options.filter((o) => o && o.label)
+      .map((o, i) => ({ poll_id: poll.id, label: o.label, value: o.value || o.label, sort_order: o.sort_order ?? i }));
+    if (rows.length) await supabase.from('poll_options').insert(rows);
+  }
+  const options = await fetchOptions(poll.id);
+  const response_count = await countResponses(poll.id);
+  ok(res, mapPoll(poll, options, { response_count }));
+}));
+
+// Poll 삭제
+app.delete('/api/admin/polls/:pollId', wrap(async (req, res) => {
+  const { error } = await supabase.from('polls').delete().eq('id', req.params.pollId);
+  if (error) return fail(res, 400, error.message);
+  ok(res, { success: true });
+}));
+
+// 상태 전환
+async function setStatus(pollId, status) {
+  const patch = { status };
+  if (status === 'live') patch.starts_at = new Date().toISOString();
+  if (status === 'closed') patch.ends_at = new Date().toISOString();
+  const { data, error } = await supabase.from('polls').update(patch).eq('id', pollId).select('*').single();
+  if (error) throw new Error(error.message);
+  return data;
+}
+app.post('/api/admin/polls/:pollId/start', wrap(async (req, res) => {
+  const poll = await setStatus(req.params.pollId, 'live');
+  ok(res, mapPoll(poll, await fetchOptions(poll.id), { response_count: await countResponses(poll.id) }));
+}));
+app.post('/api/admin/polls/:pollId/close', wrap(async (req, res) => {
+  const poll = await setStatus(req.params.pollId, 'closed');
+  ok(res, mapPoll(poll, await fetchOptions(poll.id), { response_count: await countResponses(poll.id) }));
+}));
+
+// Poll 복제 (draft 로)
+app.post('/api/admin/polls/:pollId/duplicate', wrap(async (req, res) => {
+  const { data: src } = await supabase.from('polls').select('*').eq('id', req.params.pollId).maybeSingle();
+  if (!src) return fail(res, 404, 'poll_not_found');
+  const copy = {
+    project_id: src.project_id, session_id: src.session_id,
+    title: `${src.title} (복제본)`, question: src.question, poll_type: src.poll_type,
+    status: 'draft', source_type: src.source_type, is_public: false, show_results: false,
+    allow_multiple_answers: src.allow_multiple_answers, internal_memo: src.internal_memo,
+  };
+  const { data: poll, error } = await supabase.from('polls').insert(copy).select('*').single();
+  if (error) return fail(res, 400, error.message);
+  const srcOptions = await fetchOptions(src.id);
+  if (srcOptions.length) {
+    await supabase.from('poll_options').insert(srcOptions.map((o) => ({
+      poll_id: poll.id, label: o.label, value: o.value, sort_order: o.sort_order,
+    })));
+  }
+  ok(res, mapPoll(poll, await fetchOptions(poll.id), { response_count: 0 }));
+}));
+
+// 관리자 결과 (항상 전체 반환)
+app.get('/api/admin/polls/:pollId/results', wrap(async (req, res) => {
+  const { data: poll } = await supabase.from('polls').select('*').eq('id', req.params.pollId).maybeSingle();
+  if (!poll) return fail(res, 404, 'poll_not_found');
+  const options = await fetchOptions(poll.id);
+  const results = await computeResults(poll);
+  ok(res, { poll: mapPoll(poll, options, { response_count: results.total_responses }), ...results });
+}));
+
+// ---------- 뉴스레터 대상자 ----------
+app.get('/api/admin/projects/:projectId/recipients', wrap(async (req, res) => {
+  const { data } = await supabase.from('poll_recipients')
+    .select('id, email, name, company, title, token').eq('project_id', req.params.projectId)
+    .order('created_at', { ascending: true });
+  ok(res, data || []);
+}));
+
+// CSV 파싱 (간단): 첫 줄 헤더 email,name,company,title
+function parseCsv(csv) {
+  const lines = String(csv || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (!lines.length) return [];
+  const header = lines[0].toLowerCase().split(',').map((h) => h.trim());
+  const idx = (k) => header.indexOf(k);
+  const iEmail = idx('email'), iName = idx('name'), iCompany = idx('company'), iTitle = idx('title');
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(',').map((c) => c.trim());
+    const email = iEmail >= 0 ? cols[iEmail] : cols[0];
+    if (!email || !email.includes('@')) continue;
+    rows.push({
+      email,
+      name: iName >= 0 ? cols[iName] || null : null,
+      company: iCompany >= 0 ? cols[iCompany] || null : null,
+      title: iTitle >= 0 ? cols[iTitle] || null : null,
+    });
+  }
+  return rows;
+}
+
+app.post('/api/admin/projects/:projectId/recipients/import', wrap(async (req, res) => {
+  const rows = parseCsv(req.body?.csv);
+  if (!rows.length) return fail(res, 400, 'no_valid_rows');
+  const insert = rows.map((r) => ({ project_id: req.params.projectId, ...r }));
+  const { data, error } = await supabase.from('poll_recipients').insert(insert)
+    .select('id, email, name, company, title, token');
+  if (error) return fail(res, 400, error.message);
+  ok(res, { imported: (data || []).length, recipients: data || [] });
+}));
+
+// 개인별 Poll 링크 목록 (CSV 다운로드)
+app.get('/api/admin/projects/:projectId/recipients/export-links', wrap(async (req, res) => {
+  const { data: recipients } = await supabase.from('poll_recipients')
+    .select('email, name, company, token').eq('project_id', req.params.projectId);
+  // 프로젝트의 newsletter Poll 들
+  const { data: polls } = await supabase.from('polls')
+    .select('code, title').eq('project_id', req.params.projectId).eq('source_type', 'newsletter');
+  const base = `${req.protocol}://${req.get('host')}`;
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('links');
+  ws.columns = [
+    { header: 'email', key: 'email', width: 28 },
+    { header: 'name', key: 'name', width: 14 },
+    { header: 'company', key: 'company', width: 20 },
+    { header: 'poll_title', key: 'poll_title', width: 24 },
+    { header: 'poll_link', key: 'poll_link', width: 60 },
+  ];
+  for (const r of recipients || []) {
+    for (const p of polls || []) {
+      ws.addRow({ email: r.email, name: r.name || '', company: r.company || '',
+        poll_title: p.title, poll_link: `${base}/#/poll/${p.code}?token=${r.token}` });
+    }
+  }
+  await sendXlsx(res, wb, 'poll-links');
+}));
+
+// ---------- 분석 리포트 (PRD 5.6.3) ----------
+app.get('/api/admin/projects/:projectId/analysis', wrap(async (req, res) => {
+  const projectId = req.params.projectId;
+  const { data: polls } = await supabase.from('polls').select('*').eq('project_id', projectId);
+  const pollIds = (polls || []).map((p) => p.id);
+  let liveResp = 0, newsResp = 0;
+  if (pollIds.length) {
+    const { count: lc } = await supabase.from('poll_responses')
+      .select('id', { count: 'exact', head: true }).in('poll_id', pollIds).eq('source', 'live_event');
+    const { count: nc } = await supabase.from('poll_responses')
+      .select('id', { count: 'exact', head: true }).in('poll_id', pollIds).eq('source', 'newsletter');
+    liveResp = lc || 0; newsResp = nc || 0;
+  }
+  // 만족도 평균: rating Poll 들의 평균
+  let satSum = 0, satN = 0;
+  let topTopic = null, topCount = -1;
+  for (const p of polls || []) {
+    const r = await computeResults(p);
+    if (p.poll_type === 'rating' && r.average_score !== null) { satSum += r.average_score; satN += 1; }
+    r.options.forEach((o) => { if (o.count > topCount) { topCount = o.count; topTopic = o.label; } });
+  }
+  ok(res, {
+    total_polls: (polls || []).length,
+    total_responses: liveResp + newsResp,
+    live_responses: liveResp,
+    newsletter_responses: newsResp,
+    avg_satisfaction: satN ? Math.round((satSum / satN) * 100) / 100 : null,
+    top_topic: topTopic,
+    consult_count: 0, // 후속 상담 희망 집계는 별도 Poll 매핑 필요(MVP: 0)
   });
 }));
 
 // ============================================================
-// 🛣️ 라우트: 트랙 (콘솔)
-// ------------------------------------------------------------
-//  한 행사(project) 아래 멀티 트랙(최대 4개 등) 운영 지원.
-//  트랙은 service_role 경유로만 접근(anon RLS 정책 없음).
-//  add_tracks_speaker.sql 미실행이면 tracks 테이블이 없으므로(42P01)
-//  GET 은 빈 배열, 쓰기 작업은 안내 메시지로 방어한다.
+// 📋 관리자 설문(survey) CRUD
 // ============================================================
-const mapTrackRow = (row) => row ? ({
-  id: row.id,
-  project_id: row.project_id,
-  name: row.name,
-  sort_order: row.sort_order,
-  created_at: row.created_at,
+const mapSurvey = (row, extra = {}) => row ? ({
+  id: row.id, code: row.code, project_id: row.project_id,
+  title: row.title, intro: row.intro || '', status: row.status,
+  source_type: row.source_type, is_public: row.is_public, show_results: row.show_results,
+  starts_at: row.starts_at, ends_at: row.ends_at, created_at: row.created_at,
+  question_count: extra.question_count ?? 0,
+  response_count: extra.response_count ?? 0,
+  questions: extra.questions,
 }) : null;
 
-// 스키마 미적용(트랙 테이블 없음) 시 쓰기 요청에 대한 공통 안내
-const TRACKS_SCHEMA_MSG = '트랙 기능을 사용하려면 add_tracks_speaker.sql 을 먼저 실행해 주세요.';
-
-// GET /api/admin/projects/:projectId/tracks — 트랙 목록 [콘솔]
-app.get('/api/admin/projects/:projectId/tracks', requireConsole, wrap(async (req, res) => {
-  // projectId 는 code/uuid 모두 수용.
-  const project = await resolveProject(req.params.projectId, 'id');
-  if (!project) return res.status(404).json({ success: false, message: '프로젝트를 찾을 수 없습니다.' });
-  const list = await fetchTracksForProject(project.id);
-  res.json({ success: true, data: list.map(mapTrackRow) });
-}));
-
-// POST /api/admin/projects/:projectId/tracks — body { name } 생성 [콘솔]
-//  sort_order 는 현재 max+1.
-app.post('/api/admin/projects/:projectId/tracks', requireConsole, wrap(async (req, res) => {
-  const project = await resolveProject(req.params.projectId, 'id');
-  if (!project) return res.status(404).json({ success: false, message: '프로젝트를 찾을 수 없습니다.' });
-
-  const name = ((req.body && req.body.name) || '').toString().trim();
-  if (!name) return res.status(400).json({ success: false, message: '트랙 이름을 입력해 주세요.' });
-
-  // 현재 max(sort_order) → +1
-  const existing = await fetchTracksForProject(project.id);
-  const maxSort = existing.reduce((m, t) => Math.max(m, t.sort_order || 0), 0);
-
-  const { data, error } = await supabase
-    .from('tracks')
-    .insert({ project_id: project.id, name, sort_order: maxSort + 1 })
-    .select('id, project_id, name, sort_order, created_at')
-    .single();
-  if (error) {
-    if (isSchemaMissing(error)) {
-      return res.status(400).json({ success: false, message: TRACKS_SCHEMA_MSG });
-    }
-    throw error;
-  }
-  res.status(201).json({ success: true, data: mapTrackRow(data) });
-}));
-
-// PATCH /api/admin/tracks/:id — 이름 수정 [콘솔]
-app.patch('/api/admin/tracks/:id', requireConsole, wrap(async (req, res) => {
-  const fields = {};
-  if (req.body && req.body.name !== undefined) {
-    const name = (req.body.name || '').toString().trim();
-    if (!name) return res.status(400).json({ success: false, message: '트랙 이름을 입력해 주세요.' });
-    fields.name = name;
-  }
-  if (req.body && req.body.sort_order !== undefined) {
-    const n = parseInt(req.body.sort_order, 10);
-    if (!Number.isNaN(n)) fields.sort_order = n;
-  }
-  if (!Object.keys(fields).length) {
-    return res.status(400).json({ success: false, message: '수정할 내용이 없습니다.' });
-  }
-  const { data, error } = await supabase
-    .from('tracks').update(fields).eq('id', req.params.id)
-    .select('id, project_id, name, sort_order, created_at').maybeSingle();
-  if (error) {
-    if (isSchemaMissing(error)) {
-      return res.status(400).json({ success: false, message: TRACKS_SCHEMA_MSG });
-    }
-    throw error;
-  }
-  if (!data) return res.status(404).json({ success: false, message: '트랙을 찾을 수 없습니다.' });
-  res.json({ success: true, data: mapTrackRow(data) });
-}));
-
-// DELETE /api/admin/tracks/:id — 삭제 [콘솔]
-//  세션의 track_id 는 FK on delete set null 로 자동 비워짐.
-app.delete('/api/admin/tracks/:id', requireConsole, wrap(async (req, res) => {
-  const { data, error } = await supabase
-    .from('tracks').delete().eq('id', req.params.id)
-    .select('id').maybeSingle();
-  if (error) {
-    if (isSchemaMissing(error)) {
-      return res.status(400).json({ success: false, message: TRACKS_SCHEMA_MSG });
-    }
-    throw error;
-  }
-  if (!data) return res.status(404).json({ success: false, message: '트랙을 찾을 수 없습니다.' });
-  res.json({ success: true, data: { id: data.id } });
-}));
-
-// ============================================================
-// 🛣️ 라우트: 세션
-// ============================================================
-
-// GET /api/admin/projects/:projectId/sessions — 목록 + 세션별 통계 [콘솔]
-app.get('/api/admin/projects/:projectId/sessions', requireConsole, wrap(async (req, res) => {
-  const { projectId } = req.params;
-  const { data: sessions, error } = await supabase
-    .from('sessions')
-    .select('*')
-    .eq('project_id', projectId)
-    .order('created_at', { ascending: true });
-  if (error) throw error;
-
-  const list = sessions || [];
-  const sessionIds = list.map((s) => s.id);
-
-  let questions = [];
-  if (sessionIds.length) {
-    const { data: qs, error: qErr } = await supabase
-      .from('questions')
-      .select('id, session_id, is_answered, is_hidden')
-      .in('session_id', sessionIds);
-    if (qErr) throw qErr;
-    questions = qs || [];
-  }
-
-  const bySession = {};
-  questions.forEach((q) => {
-    (bySession[q.session_id] = bySession[q.session_id] || []).push(q);
-  });
-
-  // 트랙 이름 매핑(스키마 미적용이면 빈 객체). row.track_id 는 select('*') 결과에 포함될 수 있음.
-  const nameMap = await trackNameMap(list.map((s) => s.track_id));
-
-  const result = list.map((row) => ({
-    ...mapSessionRow({ ...row, track_name: nameMap[row.track_id] || '' }),
-    stats: computeSessionStats(bySession[row.id] || []),
-  }));
-
-  res.json({ success: true, data: result });
-}));
-
-// POST /api/admin/projects/:projectId/sessions — 생성 (admin_token 은 DB default) [콘솔]
-app.post('/api/admin/projects/:projectId/sessions', requireConsole, wrap(async (req, res) => {
-  const { projectId } = req.params;
-  const b = req.body || {};
-  const name = (b.name || '').trim();
-  if (!name) return res.status(400).json({ success: false, message: '세션명을 입력해 주세요.' });
-
-  // 프로젝트 존재 확인
-  const { data: proj } = await supabase
-    .from('projects').select('id').eq('id', projectId).maybeSingle();
-  if (!proj) return res.status(404).json({ success: false, message: '프로젝트를 찾을 수 없습니다.' });
-
-  const { starts_at, ends_at } = parseDuration(b.duration);
-  const insert = {
-    project_id: projectId,
-    title: name,
-    description: (b.description || '').trim() || null,
-    starts_at,
-    ends_at,
-    is_public: b.is_public === undefined ? true : !!b.is_public,
-    // admin_token 은 DB default(replace(gen_random_uuid()...)) 가 생성
-  };
-  // 트랙/강연자 (add_tracks_speaker.sql 적용 시). 미적용이면 아래 42703 폴백.
-  const trackId = (b.track_id || '').toString().trim() || null;
-  const speaker = (b.speaker || '').toString().trim() || null;
-  insert.track_id = trackId;
-  insert.speaker = speaker;
-
-  // 짧은 코드 발급(유니크 충돌 시 재시도). SQL 미실행이면 null → code 없이 생성.
-  const code = await generateUniqueCode('sessions');
-  if (code) insert.code = code;
-
-  // track_id/speaker 컬럼이 없으면(42703) 해당 키를 빼고 재시도 → 기존 기능 유지.
-  let { data, error } = await supabase
-    .from('sessions').insert(insert).select().single();
-  if (error && isSchemaMissing(error)) {
-    const { track_id, speaker: _sp, ...fallback } = insert;
-    ({ data, error } = await supabase.from('sessions').insert(fallback).select().single());
-  }
-  if (error) throw error;
-
-  const nameMap = await trackNameMap([data && data.track_id]);
-  res.status(201).json({ success: true, data: mapSessionRow({ ...data, track_name: nameMap[data && data.track_id] || '' }) });
-}));
-
-// GET /api/admin/sessions/:sessionId — 세션 단건 조회 [세션admin]
-//   공개/비공개 무관하게 service_role 로 조회 → 앱 객체 형태로 반환.
-//   관리자 대시보드 메타(제목 등) 로드용. (anon RLS 우회)
-app.get('/api/admin/sessions/:sessionId', wrap(async (req, res) => {
-  // code 또는 uuid → 실제 세션으로 해석. 없으면 404.
-  const session = await resolveSession(req.params.sessionId);
-  if (!session) return res.status(404).json({ success: false, message: '세션을 찾을 수 없습니다.' });
-  // 해석된 실제 id 로 권한 검증.
-  const ok = await requireSessionAdmin(req, res, session.id);
-  if (!ok) return;
-  const nameMap = await trackNameMap([session.track_id]);
-  res.json({ success: true, data: mapSessionRow({ ...session, track_name: nameMap[session.track_id] || '' }) });
-}));
-
-// PATCH /api/admin/sessions/:id — 수정 [세션admin]
-app.patch('/api/admin/sessions/:id', wrap(async (req, res) => {
-  const ok = await requireSessionAdmin(req, res, req.params.id);
-  if (!ok) return;
-
-  const b = req.body || {};
-  const fields = {};
-  if (b.name !== undefined) {
-    const name = (b.name || '').trim();
-    if (!name) return res.status(400).json({ success: false, message: '세션명을 입력해 주세요.' });
-    fields.title = name;
-  }
-  if (b.description !== undefined) fields.description = (b.description || '').trim() || null;
-  if (b.duration !== undefined) {
-    const { starts_at, ends_at } = parseDuration(b.duration);
-    fields.starts_at = starts_at;
-    fields.ends_at = ends_at;
-  }
-  if (b.is_public !== undefined) fields.is_public = !!b.is_public;
-  // 트랙/강연자 (add_tracks_speaker.sql 적용 시). 미적용이면 아래 42703 폴백.
-  if (b.track_id !== undefined) fields.track_id = (b.track_id || '').toString().trim() || null;
-  if (b.speaker !== undefined) fields.speaker = (b.speaker || '').toString().trim() || null;
-
-  // track_id/speaker 컬럼이 없으면(42703) 해당 키를 빼고 재시도 → 기존 기능 유지.
-  let { data, error } = await supabase
-    .from('sessions').update(fields).eq('id', req.params.id).select().maybeSingle();
-  if (error && isSchemaMissing(error)) {
-    const { track_id, speaker, ...fallback } = fields;
-    ({ data, error } = await supabase
-      .from('sessions').update(fallback).eq('id', req.params.id).select().maybeSingle());
-  }
-  if (error) throw error;
-  if (!data) return res.status(404).json({ success: false, message: '세션을 찾을 수 없습니다.' });
-  const nameMap = await trackNameMap([data.track_id]);
-  res.json({ success: true, data: mapSessionRow({ ...data, track_name: nameMap[data.track_id] || '' }) });
-}));
-
-// DELETE /api/admin/sessions/:id — 삭제 [콘솔]
-app.delete('/api/admin/sessions/:id', requireConsole, wrap(async (req, res) => {
-  const { count } = await supabase
-    .from('questions')
-    .select('id', { count: 'exact', head: true })
-    .eq('session_id', req.params.id);
-
-  const { data, error } = await supabase
-    .from('sessions').delete().eq('id', req.params.id).select().maybeSingle();
-  if (error) throw error;
-  if (!data) return res.status(404).json({ success: false, message: '세션을 찾을 수 없습니다.' });
-
-  res.json({ success: true, data: { removedQuestions: count || 0 } });
-}));
-
-// ============================================================
-// 🛣️ 라우트: 질문 (관리자, 숨김 포함)
-// ============================================================
-
-// GET /api/admin/sessions/:sessionId/questions — 세션 전체 질문(숨김 포함) [세션admin]
-//   정렬: like_count desc, created_at asc
-app.get('/api/admin/sessions/:sessionId/questions', wrap(async (req, res) => {
-  // code 또는 uuid → 실제 세션으로 해석.
-  const session = await resolveSession(req.params.sessionId);
-  if (!session) return res.status(404).json({ success: false, message: '세션을 찾을 수 없습니다.' });
-  const sessionId = session.id;
-  const ok = await requireSessionAdmin(req, res, sessionId);
-  if (!ok) return;
-
-  const { data, error } = await supabase
-    .from('questions')
-    .select('*')
-    .eq('session_id', sessionId)
-    .order('like_count', { ascending: false })
-    .order('created_at', { ascending: true });
-  if (error) throw error;
-  res.json({ success: true, data: (data || []).map(mapQuestionRow) });
-}));
-
-// 질문 id 로 세션 id 조회 (세션admin 검증용 헬퍼)
-async function getQuestionSessionId(questionId) {
-  const { data, error } = await supabase
-    .from('questions').select('session_id').eq('id', questionId).maybeSingle();
-  if (error) throw error;
-  return data ? data.session_id : null;
+// 설문 문항(poll)들의 응답자 수(중복 제거) = 설문 응답 수
+async function surveyResponseCount(surveyId) {
+  const { data: qpolls } = await supabase.from('polls').select('id').eq('survey_id', surveyId);
+  const ids = (qpolls || []).map((p) => p.id);
+  if (!ids.length) return 0;
+  const { data: resps } = await supabase.from('poll_responses')
+    .select('respondent_key, recipient_id').in('poll_id', ids);
+  const keys = new Set();
+  (resps || []).forEach((r) => keys.add(r.recipient_id || r.respondent_key || Math.random()));
+  return keys.size;
 }
 
-// POST /api/admin/questions/:id/answered — body { value: boolean } [세션admin]
-app.post('/api/admin/questions/:id/answered', wrap(async (req, res) => {
-  const sessionId = await getQuestionSessionId(req.params.id);
-  if (!sessionId) return res.status(404).json({ success: false, message: '질문을 찾을 수 없습니다.' });
-  const ok = await requireSessionAdmin(req, res, sessionId);
-  if (!ok) return;
-
-  const value = !!(req.body && req.body.value);
-  const { data, error } = await supabase
-    .from('questions').update({ is_answered: value }).eq('id', req.params.id).select().maybeSingle();
-  if (error) throw error;
-  if (!data) return res.status(404).json({ success: false, message: '질문을 찾을 수 없습니다.' });
-  res.json({ success: true, data: mapQuestionRow(data) });
-}));
-
-// POST /api/admin/questions/:id/hide — body { value: boolean } [세션admin]
-app.post('/api/admin/questions/:id/hide', wrap(async (req, res) => {
-  const sessionId = await getQuestionSessionId(req.params.id);
-  if (!sessionId) return res.status(404).json({ success: false, message: '질문을 찾을 수 없습니다.' });
-  const ok = await requireSessionAdmin(req, res, sessionId);
-  if (!ok) return;
-
-  const value = !!(req.body && req.body.value);
-  const { data, error } = await supabase
-    .from('questions').update({ is_hidden: value }).eq('id', req.params.id).select().maybeSingle();
-  if (error) throw error;
-  if (!data) return res.status(404).json({ success: false, message: '질문을 찾을 수 없습니다.' });
-  res.json({ success: true, data: mapQuestionRow(data) });
-}));
-
-// ============================================================
-// 🛣️ 라우트: 금지어 관리 (콘솔)
-// ------------------------------------------------------------
-//  banned_words 테이블을 service_role 로 관리(RLS 우회).
-//   - anon 은 select 만 가능(사용자 폼이 목록 가져와 사전 차단).
-//   - 추가/삭제는 이 콘솔 라우트(requireConsole)로만.
-//  questions 트리거(reject_banned_words)가 직접 insert/update 도 백스톱으로 막음.
-// ============================================================
-
-// GET /api/admin/banned-words — 전체 목록 (word 오름차순) [콘솔]
-app.get('/api/admin/banned-words', requireConsole, wrap(async (_req, res) => {
-  const { data, error } = await supabase
-    .from('banned_words')
-    .select('id, word, created_at')
-    .order('word', { ascending: true });
-  if (error) throw error;
-  res.json({ success: true, data: data || [] });
-}));
-
-// POST /api/admin/banned-words — body { word } 추가 [콘솔]
-//  trim, 빈값 거부, unique 충돌(이미 있음)이면 409 로 안내.
-app.post('/api/admin/banned-words', requireConsole, wrap(async (req, res) => {
-  const word = ((req.body && req.body.word) || '').toString().trim();
-  if (!word) {
-    return res.status(400).json({ success: false, message: '금지어를 입력해 주세요.' });
-  }
-  const { data, error } = await supabase
-    .from('banned_words')
-    .insert({ word })
-    .select('id, word, created_at')
-    .single();
-  if (error) {
-    // unique 위반(이미 등록된 금지어) → 409
-    if (error.code === '23505') {
-      return res.status(409).json({ success: false, message: '이미 등록된 금지어입니다.' });
+// 문항 poll insert helper
+async function insertSurveyQuestions(survey, questions) {
+  const rows = (questions || []).filter((q) => q && q.question && POLL_TYPES.includes(q.poll_type));
+  for (let i = 0; i < rows.length; i++) {
+    const q = rows[i];
+    const { data: poll, error } = await supabase.from('polls').insert({
+      project_id: survey.project_id, session_id: null, survey_id: survey.id, sort_order: i,
+      title: `${survey.title} - Q${i + 1}`, question: q.question, poll_type: q.poll_type,
+      status: survey.status, source_type: survey.source_type,
+      is_public: survey.is_public, show_results: survey.show_results, allow_multiple_answers: false,
+    }).select('id').single();
+    if (error) throw new Error(error.message);
+    if (['single_choice', 'multiple_choice'].includes(q.poll_type) && Array.isArray(q.options)) {
+      const opts = q.options.filter((o) => o && o.label)
+        .map((o, j) => ({ poll_id: poll.id, label: o.label, value: o.value || o.label, sort_order: o.sort_order ?? j }));
+      if (opts.length) await supabase.from('poll_options').insert(opts);
     }
-    throw error;
   }
-  res.status(201).json({ success: true, data });
+}
+
+// 설문 목록
+app.get('/api/admin/projects/:projectId/surveys', wrap(async (req, res) => {
+  const { data: surveys } = await supabase.from('surveys')
+    .select('*').eq('project_id', req.params.projectId).order('created_at', { ascending: false });
+  const out = [];
+  for (const s of surveys || []) {
+    const { count: qc } = await supabase.from('polls')
+      .select('id', { count: 'exact', head: true }).eq('survey_id', s.id);
+    out.push(mapSurvey(s, { question_count: qc || 0, response_count: await surveyResponseCount(s.id) }));
+  }
+  ok(res, out);
 }));
 
-// DELETE /api/admin/banned-words/:id — 삭제 [콘솔]
-app.delete('/api/admin/banned-words/:id', requireConsole, wrap(async (req, res) => {
-  const { data, error } = await supabase
-    .from('banned_words')
-    .delete()
-    .eq('id', req.params.id)
-    .select('id, word, created_at')
-    .maybeSingle();
-  if (error) throw error;
-  if (!data) return res.status(404).json({ success: false, message: '금지어를 찾을 수 없습니다.' });
-  res.json({ success: true, data });
-}));
-
-// ============================================================
-// 🛣️ 라우트: 공개 랜딩 (인증 불필요 — 행사 단일 QR → 세션 선택)
-// ------------------------------------------------------------
-//  행사(=프로젝트) 단위 단일 QR 이 가리키는 공개 랜딩 페이지용.
-//  토큰 없이 service_role 로 조회하되 "공개 안전 데이터만" 반환한다.
-//   - project: { id, title } (내부 정보 노출 금지)
-//   - sessions: is_public=true 만, { id, title, description, starts_at, ends_at, questionCount }
-//   - ⚠️ admin_token / client_name / status 등 민감·내부 필드는 절대 포함 금지.
-// ============================================================
-
-// 공개용 세션 매핑 — admin_token 등 민감 필드 제외. 프론트가 쓰기 좋은 앱 객체 형태.
-const mapPublicSessionRow = (row) => ({
-  id: row.id,
-  code: row.code || '',                     // 짧은 코드 — 카드 탭 시 #/s/<code> 이동용
-  title: row.title,
-  description: row.description || '',
-  speaker: row.speaker || '',               // 강연자 (공개 안전 필드)
-  track_id: row.track_id || null,           // 트랙별 그룹핑용(프론트가 처리)
-  starts_at: row.starts_at || null,
-  ends_at: row.ends_at || null,
-});
-
-// GET /api/public/sessions/:codeOrId — 공개(무인증) 세션 단건
-// ------------------------------------------------------------
-//  사용자 페이지(#/s/:code | #/session/:id)가 세션 메타 + project_code 를 얻기 위해 호출.
-//  공개(is_public=true) 세션만 반환. 비공개/없음 → 404.
-//  ⚠️ 공개 안전 필드만: admin_token / client_name / status 등 절대 금지.
-app.get('/api/public/sessions/:codeOrId', wrap(async (req, res) => {
-  // 공개 세션만 해석(비공개면 null → 404).
-  const session = await resolveSession(req.params.codeOrId, { publicOnly: true });
-  if (!session) {
-    return res.status(404).json({ success: false, message: '세션을 찾을 수 없습니다.' });
-  }
-  // 소속 행사의 code 도 함께 반환(사용자 페이지 "전체 세션 보기" → 랜딩 이동용).
-  let projectCode = '';
-  if (session.project_id) {
-    const { data: proj } = await supabase
-      .from('projects').select('code').eq('id', session.project_id).maybeSingle();
-    projectCode = (proj && proj.code) || '';
-  }
-  // 트랙 이름(공개 안전). 스키마 미적용이거나 미지정이면 빈 문자열.
-  const nameMap = await trackNameMap([session.track_id]);
-  res.json({
-    success: true,
-    data: {
-      id: session.id,
-      code: session.code || '',
-      title: session.title,
-      description: session.description || '',
-      speaker: session.speaker || '',
-      track_id: session.track_id || null,
-      track_name: nameMap[session.track_id] || '',
-      starts_at: session.starts_at || null,
-      ends_at: session.ends_at || null,
-      project_id: session.project_id,
-      project_code: projectCode,
-    },
-  });
-}));
-
-// GET /api/public/projects/:projectId/landing — 공개(토큰 불필요)
-//   프로젝트 없음 → 404. 공개 세션 0개면 빈 배열(200).
-app.get('/api/public/projects/:projectId/landing', wrap(async (req, res) => {
-  // code 또는 uuid → 실제 프로젝트로 해석. 공개 안전 필드(id, title, code)만 선택.
-  const project = await resolveProject(req.params.projectId, 'id, title, code');
-  if (!project) {
-    return res.status(404).json({ success: false, message: '행사를 찾을 수 없습니다.' });
-  }
-  const projectId = project.id;
-
-  // 공개 세션만 — admin_token 은 select 에서 아예 제외(노출 차단). code 는 카드 링크용.
-  //  SQL 미실행으로 일부 컬럼이 없으면(42703) 점진적으로 컬럼을 줄여 재시도(하위호환).
-  //   1) code + track_id/speaker 모두 → 2) code 제외(짧은코드 미적용) →
-  //   3) track_id/speaker 제외(트랙 미적용) → 4) 둘 다 제외.
-  const selectSessions = (cols) => supabase
-    .from('sessions')
-    .select(cols)
-    .eq('project_id', projectId)
-    .eq('is_public', true)
-    .order('starts_at', { ascending: true, nullsFirst: true })
-    .order('created_at', { ascending: true });
-  const baseCols = 'id, title, description, starts_at, ends_at, created_at';
-  const candidates = [
-    `id, code, ${baseCols.replace('id, ', '')}, track_id, speaker`,
-    `${baseCols}, track_id, speaker`,
-    `id, code, ${baseCols.replace('id, ', '')}`,
-    baseCols,
-  ];
-  let sessions = null, sErr = null;
-  for (const cols of candidates) {
-    ({ data: sessions, error: sErr } = await selectSessions(cols));
-    if (!sErr) break;
-    if (!isSchemaMissing(sErr)) break; // 스키마 외 오류면 즉시 중단
-  }
-  if (sErr) throw sErr;
-
-  const list = sessions || [];
-  const sessionIds = list.map((s) => s.id);
-
-  // 숨김 제외 질문 수(questionCount) 집계
-  const countMap = {};
-  if (sessionIds.length) {
-    const { data: questions, error: qErr } = await supabase
-      .from('questions')
-      .select('session_id')
-      .in('session_id', sessionIds)
-      .eq('is_hidden', false);
-    if (qErr) throw qErr;
-    (questions || []).forEach((q) => {
-      countMap[q.session_id] = (countMap[q.session_id] || 0) + 1;
-    });
-  }
-
-  // 프로젝트의 트랙 목록(공개 안전 필드만). 스키마 미적용이면 빈 배열.
-  const tracks = await fetchTracksForProject(projectId);
-
-  const result = {
-    project: { id: project.id, title: project.title, code: project.code || '' },
-    tracks: tracks.map((t) => ({ id: t.id, name: t.name, sort_order: t.sort_order })),
-    sessions: list.map((row) => ({
-      ...mapPublicSessionRow(row),
-      questionCount: countMap[row.id] || 0,
+// 설문 상세 (문항 포함)
+app.get('/api/admin/surveys/:surveyId', wrap(async (req, res) => {
+  const { data: s } = await supabase.from('surveys').select('*').eq('id', req.params.surveyId).maybeSingle();
+  if (!s) return fail(res, 404, 'survey_not_found');
+  const questions = await fetchSurveyQuestions(s.id);
+  ok(res, mapSurvey(s, {
+    question_count: questions.length,
+    response_count: await surveyResponseCount(s.id),
+    questions: questions.map((q) => ({
+      id: q.id, poll_type: q.poll_type, question: q.question,
+      options: (q.options || []).map(mapOption),
     })),
-  };
+  }));
+}));
 
-  res.json({ success: true, data: result });
+// 설문 생성 (+ 문항)
+app.post('/api/admin/projects/:projectId/surveys', wrap(async (req, res) => {
+  const b = req.body || {};
+  if (!b.title || !b.title.trim()) return fail(res, 400, 'title_required');
+  if (!Array.isArray(b.questions) || b.questions.length === 0) return fail(res, 400, 'questions_required');
+  const status = ['draft', 'live', 'closed'].includes(b.status) ? b.status : 'draft';
+  const { data: survey, error } = await supabase.from('surveys').insert({
+    project_id: req.params.projectId,
+    title: b.title.trim(), intro: b.intro || null, status,
+    source_type: b.source_type === 'live_event' ? 'live_event' : 'newsletter',
+    is_public: b.is_public !== false, show_results: !!b.show_results,
+  }).select('*').single();
+  if (error) return fail(res, 400, error.message);
+  await insertSurveyQuestions(survey, b.questions);
+  const questions = await fetchSurveyQuestions(survey.id);
+  ok(res, mapSurvey(survey, { question_count: questions.length, response_count: 0 }));
+}));
+
+// 설문 수정 (문항 전달 시 전체 교체)
+app.patch('/api/admin/surveys/:surveyId', wrap(async (req, res) => {
+  const b = req.body || {};
+  const patch = {};
+  for (const k of ['title', 'intro', 'status', 'source_type', 'is_public', 'show_results']) {
+    if (b[k] !== undefined) patch[k] = b[k];
+  }
+  const { data: survey, error } = await supabase.from('surveys').update(patch).eq('id', req.params.surveyId).select('*').single();
+  if (error) return fail(res, 400, error.message);
+  // 결과 공개/상태 변경은 문항 poll 에도 반영
+  if (b.status !== undefined || b.show_results !== undefined || b.is_public !== undefined) {
+    const pp = {};
+    if (b.status !== undefined) pp.status = b.status;
+    if (b.show_results !== undefined) pp.show_results = b.show_results;
+    if (b.is_public !== undefined) pp.is_public = b.is_public;
+    await supabase.from('polls').update(pp).eq('survey_id', survey.id);
+  }
+  if (Array.isArray(b.questions)) {
+    await supabase.from('polls').delete().eq('survey_id', survey.id); // cascade 로 옵션/응답 삭제
+    await insertSurveyQuestions(survey, b.questions);
+  }
+  const questions = await fetchSurveyQuestions(survey.id);
+  ok(res, mapSurvey(survey, { question_count: questions.length, response_count: await surveyResponseCount(survey.id) }));
+}));
+
+// 설문 삭제
+app.delete('/api/admin/surveys/:surveyId', wrap(async (req, res) => {
+  const { error } = await supabase.from('surveys').delete().eq('id', req.params.surveyId);
+  if (error) return fail(res, 400, error.message);
+  ok(res, { success: true });
+}));
+
+// 설문 시작/종료 (문항 poll 상태도 함께)
+async function setSurveyStatus(surveyId, status) {
+  const patch = { status };
+  if (status === 'live') patch.starts_at = new Date().toISOString();
+  if (status === 'closed') patch.ends_at = new Date().toISOString();
+  const { data, error } = await supabase.from('surveys').update(patch).eq('id', surveyId).select('*').single();
+  if (error) throw new Error(error.message);
+  await supabase.from('polls').update({ status }).eq('survey_id', surveyId);
+  return data;
+}
+app.post('/api/admin/surveys/:surveyId/start', wrap(async (req, res) => {
+  const s = await setSurveyStatus(req.params.surveyId, 'live');
+  ok(res, mapSurvey(s, { response_count: await surveyResponseCount(s.id) }));
+}));
+app.post('/api/admin/surveys/:surveyId/close', wrap(async (req, res) => {
+  const s = await setSurveyStatus(req.params.surveyId, 'closed');
+  ok(res, mapSurvey(s, { response_count: await surveyResponseCount(s.id) }));
+}));
+
+// 설문 결과 (문항별 집계)
+app.get('/api/admin/surveys/:surveyId/results', wrap(async (req, res) => {
+  const { data: s } = await supabase.from('surveys').select('*').eq('id', req.params.surveyId).maybeSingle();
+  if (!s) return fail(res, 404, 'survey_not_found');
+  const qpolls = await fetchSurveyQuestions(s.id);
+  const questions = [];
+  for (const q of qpolls) {
+    const r = await computeResults(q);
+    questions.push({
+      id: q.id, question: q.question, poll_type: q.poll_type,
+      total_responses: r.total_responses, options: r.options,
+      average_score: r.average_score, distribution: r.distribution, text_answers: r.text_answers,
+    });
+  }
+  ok(res, {
+    survey: mapSurvey(s, { question_count: qpolls.length }),
+    total_responses: await surveyResponseCount(s.id),
+    questions,
+  });
 }));
 
 // ============================================================
-// 🛣️ 라우트: 엑셀 (exceljs)
+// 📊 엑셀 다운로드 (PRD 5.7)
 // ============================================================
-const EXCEL_CONTENT_TYPE =
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-
-const EXCEL_COLUMNS = [
-  { header: 'project_title', key: 'project_title', width: 28 },
-  { header: 'session_title', key: 'session_title', width: 24 },
-  { header: 'question_id', key: 'question_id', width: 38 },
-  { header: 'author', key: 'author', width: 14 },
-  { header: 'title', key: 'title', width: 36 },
-  { header: 'content', key: 'content', width: 50 },
-  { header: 'like_count', key: 'like_count', width: 10 },
-  { header: 'is_answered', key: 'is_answered', width: 12 },
-  { header: 'is_hidden', key: 'is_hidden', width: 10 },
-  { header: 'created_at', key: 'created_at', width: 22 },
-  { header: 'answered_status', key: 'answered_status', width: 14 },
-  { header: 'exported_at', key: 'exported_at', width: 22 },
-];
-
-const answeredStatus = (q) => {
-  if (q.is_hidden) return '숨김';
-  return q.is_answered ? '답변완료' : '답변대기';
-};
-
-const buildWorkbook = async (rows, projectTitle, sessionTitleMap) => {
-  const wb = new ExcelJS.Workbook();
-  wb.creator = 'Event Q&A Admin';
-  const ws = wb.addWorksheet('Q&A');
-  ws.columns = EXCEL_COLUMNS;
-  ws.getRow(1).font = { bold: true };
-  const exportedAt = new Date().toISOString();
-
-  rows.forEach((q) => {
-    ws.addRow({
-      project_title: projectTitle,
-      session_title: sessionTitleMap[q.session_id] || '',
-      question_id: q.id,
-      author: q.author,
-      title: q.title,
-      content: q.content,
-      like_count: q.like_count,
-      is_answered: q.is_answered,
-      is_hidden: q.is_hidden,
-      created_at: q.created_at,
-      answered_status: answeredStatus(q),
-      exported_at: exportedAt,
-    });
-  });
-  return wb;
-};
-
-const sendWorkbook = async (res, wb, fileName) => {
-  res.setHeader('Content-Type', EXCEL_CONTENT_TYPE);
-  res.setHeader(
-    'Content-Disposition',
-    `attachment; filename="${encodeURIComponent(fileName)}"; filename*=UTF-8''${encodeURIComponent(fileName)}`
-  );
+async function sendXlsx(res, wb, name) {
+  res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  res.setHeader('Content-Disposition', `attachment; filename="${name}.xlsx"`);
   await wb.xlsx.write(res);
   res.end();
-};
-
-// GET /api/admin/sessions/:sessionId/questions/export?token=... [세션admin]
-//   정렬: like_count desc, created_at asc
-app.get('/api/admin/sessions/:sessionId/questions/export', wrap(async (req, res) => {
-  // code 또는 uuid → 실제 세션으로 해석.
-  const session = await resolveSession(req.params.sessionId);
-  if (!session) return res.status(404).json({ success: false, message: '세션을 찾을 수 없습니다.' });
-  const sessionId = session.id;
-  const ok = await requireSessionAdmin(req, res, sessionId);
-  if (!ok) return;
-
-  const { data: project } = await supabase
-    .from('projects').select('title').eq('id', session.project_id).maybeSingle();
-  const projectTitle = project ? project.title : '';
-
-  const { data: questions, error: qErr } = await supabase
-    .from('questions')
-    .select('*')
-    .eq('session_id', sessionId)
-    .order('like_count', { ascending: false })
-    .order('created_at', { ascending: true });
-  if (qErr) throw qErr;
-
-  const sessionTitleMap = { [sessionId]: session.title };
-  const wb = await buildWorkbook(questions || [], projectTitle, sessionTitleMap);
-
-  const fileName = `${safeFileName(projectTitle)}_${safeFileName(session.title)}_QA_${yyyymmdd()}.xlsx`;
-  await sendWorkbook(res, wb, fileName);
-}));
-
-// GET /api/admin/projects/:projectId/questions/export?token=... [콘솔]
-//   정렬: session_title asc, like_count desc, created_at asc
-app.get('/api/admin/projects/:projectId/questions/export', requireConsole, wrap(async (req, res) => {
-  const { projectId } = req.params;
-
-  const { data: project, error: pErr } = await supabase
-    .from('projects').select('*').eq('id', projectId).maybeSingle();
-  if (pErr) throw pErr;
-  if (!project) return res.status(404).json({ success: false, message: '프로젝트를 찾을 수 없습니다.' });
-
-  const { data: sessions, error: sErr } = await supabase
-    .from('sessions').select('id, title').eq('project_id', projectId);
-  if (sErr) throw sErr;
-
-  const sessionTitleMap = {};
-  (sessions || []).forEach((s) => { sessionTitleMap[s.id] = s.title; });
-  const sessionIds = (sessions || []).map((s) => s.id);
-
-  let questions = [];
-  if (sessionIds.length) {
-    const { data: qs, error: qErr } = await supabase
-      .from('questions')
-      .select('*')
-      .in('session_id', sessionIds);
-    if (qErr) throw qErr;
-    questions = qs || [];
-  }
-
-  // 정렬: session_title asc, like_count desc, created_at asc
-  questions.sort((a, b) => {
-    const ta = sessionTitleMap[a.session_id] || '';
-    const tb = sessionTitleMap[b.session_id] || '';
-    if (ta !== tb) return ta < tb ? -1 : 1;
-    if (a.like_count !== b.like_count) return b.like_count - a.like_count;
-    return new Date(a.created_at) - new Date(b.created_at);
-  });
-
-  const wb = await buildWorkbook(questions, project.title, sessionTitleMap);
-  const fileName = `${safeFileName(project.title)}_QA_${yyyymmdd()}.xlsx`;
-  await sendWorkbook(res, wb, fileName);
-}));
-
-// ============================================================
-// 정적 라우트 & 에러 핸들링
-// ============================================================
-// API 미정의 경로 → JSON 404 (catch-all 보다 먼저)
-app.use('/api', (_req, res) => {
-  res.status(404).json({ success: false, message: '존재하지 않는 API 경로입니다.' });
-});
-
-// 그 외 모든 비-API GET 경로 → index.html (SPA, hash 라우팅)
-// 실제 파일 경로 매핑이 아니라 항상 index.html 을 내보내므로 민감 파일 노출 없음.
-app.get('*', (_req, res) => {
-  res.sendFile(path.join(__dirname, 'index.html'));
-});
-
-// 전역 에러 핸들러 (JSON)
-app.use((err, _req, res, _next) => {
-  console.error('[server] unhandled error:', err);
-  if (!res.headersSent) {
-    res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
-  }
-});
-
-// ============================================================
-// 서버 기동 (로컬) / export (서버리스)
-// ============================================================
-if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`[server] Event Q&A admin server running on http://localhost:${PORT}`);
-  });
 }
+
+// 응답 상세 행 빌드 (PRD 5.7.2)
+async function buildResponseRows(pollRow, ctx) {
+  const options = await fetchOptions(pollRow.id);
+  const optLabel = {}; options.forEach((o) => { optLabel[o.id] = o.label; });
+  const { data: responses } = await supabase.from('poll_responses')
+    .select('id, respondent_key, recipient_id, source, submitted_at').eq('poll_id', pollRow.id);
+  const respIds = (responses || []).map((r) => r.id);
+  let answers = [];
+  if (respIds.length) {
+    const { data } = await supabase.from('poll_response_answers')
+      .select('response_id, option_id, answer_text, answer_number').in('response_id', respIds);
+    answers = data || [];
+  }
+  // recipient 매핑
+  const recIds = [...new Set((responses || []).map((r) => r.recipient_id).filter(Boolean))];
+  const recById = {};
+  if (recIds.length) {
+    const { data: recs } = await supabase.from('poll_recipients')
+      .select('id, email, name, company').in('id', recIds);
+    (recs || []).forEach((r) => { recById[r.id] = r; });
+  }
+  const ansByResp = {};
+  answers.forEach((a) => { (ansByResp[a.response_id] = ansByResp[a.response_id] || []).push(a); });
+
+  const rows = [];
+  for (const r of responses || []) {
+    const rec = r.recipient_id ? recById[r.recipient_id] : null;
+    const list = ansByResp[r.id] || [{}];
+    for (const a of list) {
+      const value = a.option_id ? (optLabel[a.option_id] || '') : (a.answer_text ?? (a.answer_number != null ? String(a.answer_number) : ''));
+      rows.push({
+        project_title: ctx.projectTitle || '',
+        session_title: ctx.sessionTitle || '',
+        poll_title: pollRow.title,
+        poll_question: pollRow.question,
+        poll_type: pollRow.poll_type,
+        response_id: r.id,
+        respondent_key: r.respondent_key || '',
+        recipient_email: rec?.email || '',
+        respondent_name: rec?.name || '',
+        respondent_company: rec?.company || '',
+        answer_value: value,
+        answer_label: a.option_id ? (optLabel[a.option_id] || '') : '',
+        submitted_at: r.submitted_at,
+        source: r.source,
+      });
+    }
+  }
+  return rows;
+}
+
+function responseSheet(wb, rows) {
+  const ws = wb.addWorksheet('responses');
+  ws.columns = [
+    'project_title', 'session_title', 'poll_title', 'poll_question', 'poll_type',
+    'response_id', 'respondent_key', 'recipient_email', 'respondent_name', 'respondent_company',
+    'answer_value', 'answer_label', 'submitted_at', 'source', 'exported_at',
+  ].map((k) => ({ header: k, key: k, width: 18 }));
+  const exportedAt = new Date().toISOString();
+  rows.forEach((r) => ws.addRow({ ...r, exported_at: exportedAt }));
+  return ws;
+}
+
+async function projectCtx(projectId) {
+  const { data: p } = await supabase.from('projects').select('title').eq('id', projectId).maybeSingle();
+  return { projectTitle: p?.title || '' };
+}
+
+// Poll별 다운로드
+app.get('/api/admin/polls/:pollId/export', wrap(async (req, res) => {
+  const { data: poll } = await supabase.from('polls').select('*').eq('id', req.params.pollId).maybeSingle();
+  if (!poll) return fail(res, 404, 'poll_not_found');
+  const ctx = await projectCtx(poll.project_id);
+  if (poll.session_id) {
+    const { data: s } = await supabase.from('sessions').select('title').eq('id', poll.session_id).maybeSingle();
+    ctx.sessionTitle = s?.title || '';
+  }
+  const wb = new ExcelJS.Workbook();
+  responseSheet(wb, await buildResponseRows(poll, ctx));
+  await sendXlsx(res, wb, `poll-${poll.code}`);
+}));
+
+// 세션별 다운로드
+app.get('/api/admin/sessions/:sessionId/polls/export', wrap(async (req, res) => {
+  const { data: session } = await supabase.from('sessions').select('id, title, project_id').eq('id', req.params.sessionId).maybeSingle();
+  if (!session) return fail(res, 404, 'session_not_found');
+  const ctx = { ...(await projectCtx(session.project_id)), sessionTitle: session.title };
+  const { data: polls } = await supabase.from('polls').select('*').eq('session_id', session.id);
+  const wb = new ExcelJS.Workbook();
+  let all = [];
+  for (const p of polls || []) all = all.concat(await buildResponseRows(p, ctx));
+  responseSheet(wb, all);
+  await sendXlsx(res, wb, `session-${session.id}`);
+}));
+
+// 프로젝트 전체 다운로드
+app.get('/api/admin/projects/:projectId/polls/export', wrap(async (req, res) => {
+  const ctx = await projectCtx(req.params.projectId);
+  const { data: polls } = await supabase.from('polls').select('*').eq('project_id', req.params.projectId);
+  const { data: sessions } = await supabase.from('sessions').select('id, title').eq('project_id', req.params.projectId);
+  const sName = {}; (sessions || []).forEach((s) => { sName[s.id] = s.title; });
+  const wb = new ExcelJS.Workbook();
+  let all = [];
+  for (const p of polls || []) all = all.concat(await buildResponseRows(p, { ...ctx, sessionTitle: sName[p.session_id] || '' }));
+  responseSheet(wb, all);
+  await sendXlsx(res, wb, `project-${req.params.projectId}`);
+}));
+
+// 설문 응답 다운로드
+app.get('/api/admin/surveys/:surveyId/export', wrap(async (req, res) => {
+  const { data: s } = await supabase.from('surveys').select('*').eq('id', req.params.surveyId).maybeSingle();
+  if (!s) return fail(res, 404, 'survey_not_found');
+  const ctx = { ...(await projectCtx(s.project_id)), sessionTitle: s.title };
+  const qpolls = await fetchSurveyQuestions(s.id);
+  const wb = new ExcelJS.Workbook();
+  let all = [];
+  for (const p of qpolls) all = all.concat(await buildResponseRows(p, ctx));
+  responseSheet(wb, all);
+  await sendXlsx(res, wb, `survey-${s.code}`);
+}));
+
+// 분석 요약 다운로드 (PRD 5.7.3)
+app.get('/api/admin/projects/:projectId/polls/summary-export', wrap(async (req, res) => {
+  const ctx = await projectCtx(req.params.projectId);
+  const { data: polls } = await supabase.from('polls').select('*').eq('project_id', req.params.projectId);
+  const { data: sessions } = await supabase.from('sessions').select('id, title').eq('project_id', req.params.projectId);
+  const sName = {}; (sessions || []).forEach((s) => { sName[s.id] = s.title; });
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('summary');
+  ws.columns = ['project_title', 'session_title', 'poll_title', 'poll_question', 'poll_type',
+    'total_responses', 'option_label', 'option_count', 'option_percent', 'average_score', 'source']
+    .map((k) => ({ header: k, key: k, width: 18 }));
+  for (const p of polls || []) {
+    const r = await computeResults(p);
+    if (r.options.length) {
+      r.options.forEach((o) => ws.addRow({
+        project_title: ctx.projectTitle, session_title: sName[p.session_id] || '', poll_title: p.title,
+        poll_question: p.question, poll_type: p.poll_type, total_responses: r.total_responses,
+        option_label: o.label, option_count: o.count, option_percent: o.percent,
+        average_score: r.average_score ?? '', source: p.source_type,
+      }));
+    } else {
+      ws.addRow({
+        project_title: ctx.projectTitle, session_title: sName[p.session_id] || '', poll_title: p.title,
+        poll_question: p.question, poll_type: p.poll_type, total_responses: r.total_responses,
+        option_label: '', option_count: '', option_percent: '', average_score: r.average_score ?? '', source: p.source_type,
+      });
+    }
+  }
+  await sendXlsx(res, wb, `summary-${req.params.projectId}`);
+}));
+
+// ============================================================
+// 🖥️ 정적 페이지 서빙 (API 가 아닌 경로만)
+// ============================================================
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
+app.get('/admin.html', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
+
+// 그 외 비-API GET 은 참석자 페이지(index.html). 해시 라우팅이라 모든 경로 동일.
+app.get(/^\/(?!api\/).*/, (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+
+// ============================================================
+app.listen(PORT, () => {
+  console.log(`[server] Live Poll 서버 실행: http://localhost:${PORT}`);
+  console.log(`[server]   참석자: http://localhost:${PORT}/  ·  관리자: http://localhost:${PORT}/admin`);
+});
+
 module.exports = app;
