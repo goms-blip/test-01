@@ -32,7 +32,9 @@
   <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+  <!-- qrcode-generator@1.4.4 (MIT) — 서드파티 CDN 대신 저장소에 vendoring 후 동일 오리진에서 서빙.
+       admin 토큰이 있는 콘솔이라 CDN 변조로 인한 localStorage 토큰 탈취 위험을 원천 차단. -->
+  <script src="/vendor/qrcode.js"></script>
   <style>
     html { -webkit-tap-highlight-color: transparent; }
     body, body * { transition-property: background-color, border-color, color, fill, stroke; transition-duration: 200ms; transition-timing-function: ease; }

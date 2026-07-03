@@ -414,8 +414,10 @@ app.get('/api/public/surveys/:surveyCode', wrap(async (req, res) => {
     recipient,
     questions: questions.map((q) => ({
       id: q.id, poll_type: q.poll_type, question: q.question,
-      // rating(세션 난이도/만족도)은 참석한 세션만 평가하므로 선택 응답, 나머지(이름·이메일·연락처 등)는 필수
-      required: q.poll_type !== 'rating', max_length: 200,
+      // 필수 여부는 문항 행(polls.required)을 기준으로 판단.
+      // NULL/미지정(컬럼 부재 포함)은 '필수'로 폴백 → 기존 뉴스레터/NPS 설문 동작 보존.
+      // generate-day 로 만든 세션 rating 만 required=false 로 저장되어 선택 응답이 됨.
+      required: q.required == null ? true : !!q.required, max_length: 200,
       options: (q.options || []).map(mapOption),
     })),
   });
@@ -660,10 +662,18 @@ const parseBoolPublic = (v) => {
   return !['false', '0', 'n', 'no', 'x', '비공개', 'private', '숨김'].includes(s); // 기본 공개
 };
 
+// 일괄 업로드 상한 (sessions.title varchar(255) / speaker varchar(100) 스키마와 일치)
+const IMPORT_MAX_ROWS = 1000;      // 8MB CSV(수만 행) 무제한 insert 방지
+const IMPORT_MAX_TITLE = 255;
+const IMPORT_MAX_SPEAKER = 100;
+
 app.post('/api/admin/projects/:projectId/sessions/import', wrap(async (req, res) => {
   const projectId = req.params.projectId;
   const { header, rows } = await parseSheet(req.body || {});
   if (!header.length || !rows.length) return fail(res, 400, 'no_valid_rows');
+  if (rows.length > IMPORT_MAX_ROWS) {
+    return fail(res, 400, `too_many_rows: 한 번에 최대 ${IMPORT_MAX_ROWS}행까지 업로드할 수 있습니다 (요청 ${rows.length}행).`);
+  }
 
   const findCol = (aliases) => header.findIndex((h) => aliases.includes(h));
   const iTitle = findCol(SESSION_IMPORT_COLS.title);
@@ -677,46 +687,69 @@ app.post('/api/admin/projects/:projectId/sessions/import', wrap(async (req, res)
   const titleIdx = iTitle >= 0 ? iTitle : 0; // 헤더 매칭 실패 시 첫 컬럼을 세션명으로
   const cell = (cols, i) => (i >= 0 ? (String(cols[i] ?? '').trim() || null) : null);
 
-  // 트랙: 기존(name 소문자 → id) + 신규 자동 생성
-  const { data: existingTracks } = await supabase.from('tracks').select('id, name').eq('project_id', projectId);
-  const trackMap = new Map((existingTracks || []).map((t) => [t.name.trim().toLowerCase(), t.id]));
-  const tracksCreated = [];
-
-  const insert = [];
+  // 1) 트랙/세션 생성 전에 전체 행을 먼저 검증한다.
+  //    (길이 초과가 있으면 트랙을 하나도 만들지 않고 반환 → 트랙만 잔존하는 비원자성 방지)
+  const prepared = [];
   let skipped = 0;
-  for (const cols of rows) {
+  for (let i = 0; i < rows.length; i++) {
+    const cols = rows[i];
+    const rowNum = i + 2; // 헤더가 1행이므로 스프레드시트 기준 행번호
     const title = String(cols[titleIdx] ?? '').trim();
-    if (!title) { skipped++; continue; }
-    let trackId = null;
-    if (iTrack >= 0) {
-      const tName = String(cols[iTrack] ?? '').trim();
-      if (tName) {
-        const key = tName.toLowerCase();
-        if (trackMap.has(key)) trackId = trackMap.get(key);
-        else {
-          const { data: nt } = await supabase.from('tracks')
-            .insert({ project_id: projectId, name: tName, sort_order: trackMap.size })
-            .select('id, name').single();
-          if (nt) { trackMap.set(key, nt.id); trackId = nt.id; tracksCreated.push(nt.name); }
-        }
-      }
+    if (!title) { skipped++; continue; } // 세션명 없는 행은 건너뜀
+    if (title.length > IMPORT_MAX_TITLE) {
+      return fail(res, 400, `row_${rowNum}: 세션명이 최대 ${IMPORT_MAX_TITLE}자를 초과했습니다 (${title.length}자).`);
     }
-    insert.push({
-      project_id: projectId,
-      title,
-      speaker: cell(cols, iSpeaker),
+    const speaker = cell(cols, iSpeaker);
+    if (speaker && speaker.length > IMPORT_MAX_SPEAKER) {
+      return fail(res, 400, `row_${rowNum}: 연사명이 최대 ${IMPORT_MAX_SPEAKER}자를 초과했습니다 (${speaker.length}자).`);
+    }
+    prepared.push({
+      title, speaker,
       description: cell(cols, iDesc),
-      track_id: trackId,
-      is_public: iPublic >= 0 ? parseBoolPublic(cols[iPublic]) : true,
+      trackName: iTrack >= 0 ? String(cols[iTrack] ?? '').trim() : '',
+      isPublic: iPublic >= 0 ? parseBoolPublic(cols[iPublic]) : true,
       session_date: cell(cols, iDate),
       time_range: cell(cols, iTime),
       room: cell(cols, iRoom),
+      trackId: null,
     });
   }
-  if (!insert.length) return fail(res, 400, 'no_valid_rows');
+  if (!prepared.length) return fail(res, 400, 'no_valid_rows');
 
+  // 2) 트랙: 기존(name 소문자 → id) 매핑 + 신규 자동 생성.
+  //    이번 요청에서 새로 만든 트랙 id 를 추적해 세션 insert 실패 시 롤백한다.
+  const { data: existingTracks } = await supabase.from('tracks').select('id, name').eq('project_id', projectId);
+  const trackMap = new Map((existingTracks || []).map((t) => [t.name.trim().toLowerCase(), t.id]));
+  const tracksCreated = [];
+  const createdTrackIds = [];
+  const rollbackTracks = async () => {
+    if (createdTrackIds.length) await supabase.from('tracks').delete().in('id', createdTrackIds);
+  };
+  for (const p of prepared) {
+    if (!p.trackName) continue;
+    const key = p.trackName.toLowerCase();
+    if (trackMap.has(key)) { p.trackId = trackMap.get(key); continue; }
+    const { data: nt, error: te } = await supabase.from('tracks')
+      .insert({ project_id: projectId, name: p.trackName, sort_order: trackMap.size })
+      .select('id, name').single();
+    if (te) { await rollbackTracks(); return fail(res, 400, te.message); }
+    trackMap.set(key, nt.id); p.trackId = nt.id; tracksCreated.push(nt.name); createdTrackIds.push(nt.id);
+  }
+
+  // 3) 세션 batch insert. 실패 시 이번 요청에서 만든 트랙 정리(비원자성 방지).
+  const insert = prepared.map((p) => ({
+    project_id: projectId,
+    title: p.title,
+    speaker: p.speaker,
+    description: p.description,
+    track_id: p.trackId,
+    is_public: p.isPublic,
+    session_date: p.session_date,
+    time_range: p.time_range,
+    room: p.room,
+  }));
   const { data, error } = await supabase.from('sessions').insert(insert).select('*');
-  if (error) return fail(res, 400, error.message);
+  if (error) { await rollbackTracks(); return fail(res, 400, error.message); }
   ok(res, { imported: (data || []).length, skipped, tracksCreated, sessions: (data || []).map(mapSessionRow) });
 }));
 
@@ -1072,17 +1105,38 @@ async function surveyResponseCount(surveyId) {
   return keys.size;
 }
 
+// polls.required 컬럼이 아직 마이그레이션 안 된 DB(컬럼 부재)에서도 서버가 깨지지 않도록
+// 한 번 감지하면 이후에는 required 없이 insert 하도록 캐시하는 폴백.
+let pollsRequiredColMissing = false;
+const stripRequired = (row) => { const { required, ...rest } = row; return rest; };
+async function insertSurveyPoll(row) {
+  const hasRequired = Object.prototype.hasOwnProperty.call(row, 'required');
+  const payload = (pollsRequiredColMissing && hasRequired) ? stripRequired(row) : row;
+  let resp = await supabase.from('polls').insert(payload).select('id').single();
+  if (resp.error && hasRequired && !pollsRequiredColMissing) {
+    const m = `${resp.error.message || ''} ${resp.error.code || ''}`;
+    if (/required/i.test(m) && /(column|schema cache|does not exist|42703|PGRST204)/i.test(m)) {
+      pollsRequiredColMissing = true; // 컬럼 부재 → 이후 요청부터 required 생략
+      resp = await supabase.from('polls').insert(stripRequired(row)).select('id').single();
+    }
+  }
+  return resp;
+}
+
 // 문항 poll insert helper
 async function insertSurveyQuestions(survey, questions) {
   const rows = (questions || []).filter((q) => q && q.question && POLL_TYPES.includes(q.poll_type));
   for (let i = 0; i < rows.length; i++) {
     const q = rows[i];
-    const { data: poll, error } = await supabase.from('polls').insert({
+    const row = {
       project_id: survey.project_id, session_id: null, survey_id: survey.id, sort_order: i,
       title: `${survey.title} - Q${i + 1}`, question: q.question, poll_type: q.poll_type,
       status: survey.status, source_type: survey.source_type,
       is_public: survey.is_public, show_results: survey.show_results, allow_multiple_answers: false,
-    }).select('id').single();
+    };
+    // 필수 여부가 명시된 문항만 저장(미지정은 NULL 유지 → 공개 API 에서 '필수'로 폴백)
+    if (typeof q.required === 'boolean') row.required = q.required;
+    const { data: poll, error } = await insertSurveyPoll(row);
     if (error) throw new Error(error.message);
     if (['single_choice', 'multiple_choice'].includes(q.poll_type) && Array.isArray(q.options)) {
       const opts = q.options.filter((o) => o && o.label)
@@ -1176,14 +1230,16 @@ app.post('/api/admin/projects/:projectId/surveys/generate-day', wrap(async (req,
 
   // 문항: 개인정보(필수 단답) → 세션별 난이도/만족도(1-5 척도)
   const SCALE = '(1 매우 낮음 ~ 5 매우 높음)';
+  // 개인정보는 필수, 세션 rating(난이도/만족도)은 참석한 세션만 평가 → 선택 응답.
+  // required 를 문항 행에 명시 저장하여 이 설문에만 스코프 한정(다른 설문에 영향 없음).
   const questions = [
-    { question: '이름', poll_type: 'short_text' },
-    { question: '이메일', poll_type: 'short_text' },
-    { question: '연락처(휴대폰 번호)', poll_type: 'short_text' },
+    { question: '이름', poll_type: 'short_text', required: true },
+    { question: '이메일', poll_type: 'short_text', required: true },
+    { question: '연락처(휴대폰 번호)', poll_type: 'short_text', required: true },
   ];
   for (const s of sessions) {
-    questions.push({ question: `${s.title} — 난이도 ${SCALE}`, poll_type: 'rating' });
-    questions.push({ question: `${s.title} — 만족도 ${SCALE}`, poll_type: 'rating' });
+    questions.push({ question: `${s.title} — 난이도 ${SCALE}`, poll_type: 'rating', required: false });
+    questions.push({ question: `${s.title} — 만족도 ${SCALE}`, poll_type: 'rating', required: false });
   }
 
   const { data: survey, error } = await supabase.from('surveys').insert({
@@ -1487,6 +1543,12 @@ app.get('/api/admin/projects/:projectId/polls/summary-export', wrap(async (req, 
 // ============================================================
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
 app.get('/admin.html', (req, res) => res.sendFile(path.join(__dirname, 'admin.html')));
+
+// vendoring 된 서드파티 라이브러리(자체 서빙). admin.html 이 CDN(SRI 없음) 대신 동일 오리진에서 로드.
+app.get('/vendor/qrcode.js', (req, res) => {
+  res.type('application/javascript');
+  res.sendFile(path.join(__dirname, 'vendor', 'qrcode.js'));
+});
 
 // 그 외 비-API GET 은 참석자 페이지(index.html). 해시 라우팅이라 모든 경로 동일.
 app.get(/^\/(?!api\/).*/, (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
