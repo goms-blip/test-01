@@ -1,195 +1,118 @@
-# 작업 로그 — 실시간 행사 Q&A 솔루션
+# Live Poll 솔루션 — 작업 로그 (WORKFLOW.md)
 
-> 이 파일은 사용자의 지시와 그에 따른 작업 내역을 누적 기록하는 워크플로우 로그입니다.
-> **규칙:** 사용자가 따로 요청하지 않아도, 의미 있는 작업/결정/수정이 있을 때마다 이 파일에 항목을 추가합니다. (최신 항목이 위로 오도록 역순 기록)
-
-- **프로젝트 기준 문서:** `realtime_event_qna_prd_supabase_mvp_v2.md`
-- **산출물:** `index.html` (CDN React + Tailwind, 빌드 도구 없는 단일 파일)
-- **로컬 실행:** `cd /Users/sh_oh/Downloads/QA && npx serve .` → 브라우저에서 `#/admin`
+PRD: `live_poll_prd.md` 기반. 기존 Q&A 솔루션(projects/sessions/tracks + Supabase + Express + Vercel) 위에 Live Poll 레이어를 얹는다.
 
 ---
 
-## 2026-06-11
+## 사용자 요청 / 결정 기록
 
-### 18) 트랙(Track) + 강연자(speaker)
-- **지시:** 멀티 트랙(최대 4 등) 운영 지원, 사용자도 트랙별로 보기, 세션 폼 '설명'→'강연자'.
-- **처리:**
-  - `add_tracks_speaker.sql`: `tracks` 테이블(project 하위, RLS on·anon 정책 없음=server 전용) + `sessions.track_id`(FK set null)·`sessions.speaker`.
-  - server.js: 트랙 CRUD(`GET/POST /api/admin/projects/:pid/tracks`, `PATCH/DELETE /api/admin/tracks/:id`, 콘솔 보호). 세션 생성/수정이 track_id·speaker 저장. 매퍼에 speaker/track_id/track_name. 랜딩이 tracks 배열+세션 track_id/speaker 반환. 공개 세션 단건에 speaker/track_name. SQL 미실행 폴백(PGRST205/42703 방어).
-  - index.html: 프로젝트 상세에 "트랙 추가" 버튼+트랙 칩(삭제), 세션을 트랙별 섹션으로. 세션 모달 '세션 설명'→'강연자' + 트랙 드롭다운. 랜딩(사용자) 트랙 2개+ 시 트랙별 섹션(같은 시간대 구분), 카드에 강연자 표시.
-- **검증:** 트랙 2개 생성→세션 배정→랜딩/관리자 모두 트랙별 그룹핑+강연자 표시, 세션 모달 강연자/트랙 확인. 프로덕션 재배포.
-- **주의:** 테스트로 트랙 2개(Track A·메인홀/Track B·세미나실)·강연자 2명을 실데이터에 넣음 → 사용자가 실제 값으로 교체/삭제 가능.
+### 2026-06-12
 
-### 17) 짧은 코드 URL + 사용자 페이지 "전체 세션 보기" 버튼
-- **지시:** "긴 UUID 안 보이게 짧게" + "사용자 페이지에 전체(목록)로 가는 버튼 추가."
-- **처리:**
-  - `add_short_codes.sql`: projects/sessions에 `code`(6 hex, unique) 컬럼 + 백필.
-  - server.js: code 생성(생성 시 발급)·해석(uuid면 id, 아니면 code) 헬퍼. 신규 `GET /api/public/sessions/:codeOrId`(공개 세션+project_code). 랜딩·관리자 세션 라우트가 code/uuid 모두 수용. 매퍼에 code 추가.
-  - index.html: 단축 라우트 `#/s/:code`·`#/e/:code`·`#/a/:code`(기존 긴 라우트 유지). URL 생성부(사용자 URL/관리자 URL/행사 QR)가 code 사용(없으면 UUID 폴백). UserSessionPage에 "전체 세션 보기" 버튼 → `#/e/<project_code>`.
-  - SQL 미실행이어도 UUID 폴백으로 안 깨짐(42703 방어).
-- **검증:** 코드 발급(프로젝트 feb8a3, 세션 5d6eb7/6ab014), 로컬·라이브 단축 라우트 200, "전체 세션" 버튼 랜딩 이동 확인. 프로덕션 재배포.
+1. **요청**: `live_poll_prd.md` 기반으로 작업 시작, "일단 프론트 페이지부터 구성".
+   - **결정/실행**: 참석자(사용자)용 Live Poll 참여 페이지를 단일 `index.html`(CDN React + Tailwind, 해시 라우팅)로 구현.
+   - 화면: 프로젝트 랜딩 `#/e/:code`, 세션 `#/s/:code`, Poll 참여 `#/poll/:code`(단일/복수/5점척도/주관식), 제출완료, 결과(공개 시), 뉴스레터 설문.
+   - 중복응답 방지(localStorage), 결과 8~12초 폴링(WebSocket 미사용, PRD 6.1).
 
-### 16) 관리자 대시보드 URL에서 토큰 숨김
-- **지시:** "주소 뒤쪽 토큰값 안 보이게 삭제 가능하면 해줘."
-- **처리:** `AdminDashboardPage`가 진입 시 `?token=`을 `sessionStorage(qa_admin_token_:id)`에 저장 후 `history.replaceState`로 주소창에서 토큰 제거. 새로고침 시 sessionStorage에서 복원. `sessionToken`은 useMemo(URL 우선, 없으면 sessionStorage). tokenInfo도 sessionToken 기준.
-- **검증:** 토큰 URL 진입 → 주소 깨끗(토큰 없음)+sessionStorage 보관, 클린 URL 새로고침해도 "토큰 인증됨" 정상. 프로덕션 배포.
+2. **요청**: "차례로 전부 진행해줘" (관리자 대시보드 + 백엔드 연동).
+   - **결정/실행**:
+     - `poll_schema.sql` — PRD 7장 테이블(polls/poll_options/poll_recipients/poll_responses/poll_response_answers) + 인덱스 + 중복방지 unique + `submit_poll_response` RPC(원자적 저장, PRD 8.1) + RLS + Realtime.
+     - `poll_seed.sql` — 데모 데이터(Mendix Korea Seminar 2026, Poll 6개, 참여페이지 코드와 일치).
+     - `server.js` — 기존 Q&A 백엔드 패턴 재사용(Supabase service_role 게이트웨이). 공개 API(랜딩/세션/Poll/제출/결과) + 관리자 API(Poll CRUD·시작/종료·복제·결과·대상자 CSV·분석·엑셀 4종). `x-admin-token` 인증.
+     - `admin.html` — 관리자 대시보드(로그인, 홈, 프로젝트 상세 탭[Poll/뉴스레터/분석], Poll 생성·수정 모달, 결과 패널 2.5초 폴링, 엑셀 다운로드).
+     - `index.html` mock API → 실제 `/api/public/*` 엔드포인트로 교체.
+   - **검증**: 실제 Supabase 연결로 참여/관리자 화면 렌더 확인. **Poll 스키마(테이블·RPC)는 아직 DB 미적용** — 사용자가 Supabase SQL Editor에서 `poll_schema.sql` → `poll_seed.sql` 실행 필요(DDL은 클라이언트 자동 실행 불가).
 
-### 15) 관리자 대시보드 403 무한루프 버그 수정
-- **증상:** 대시보드에서 `403 세션 접근 권한이 없습니다` 콘솔 폭주(수백 회).
-- **원인 2가지:**
-  1. (무한루프) `AdminDashboardPage`의 `load` useCallback deps에 `toast` 포함 → 에러 시 `toast.show` → 리렌더 → `useToast()` 새 객체 → load 재생성 → effect 재실행 → 무한 반복. (12번 모달과 동일 패턴)
-  2. (403 자체) 사용자가 **옛/잘못된 토큰**(토큰 변경 전 구 콘솔토큰)이 든 대시보드 URL을 열었음. 라이브 API는 정상(세션토큰/콘솔토큰 200, 무토큰 401).
-- **수정:** `toastRef = useRef(toast)` 안정화 + load deps에서 toast 제거 → 잘못된 토큰이어도 403 **단 1회**, "주소를 확인해 주세요" 안내 화면 표시(루프 없음). 올바른 토큰이면 정상 렌더 확인. 프로덕션 재배포.
+3. **요청(디자인 피드백)**: "디자인이 좀 안이뻐. 차라리 QA 했던 디자인이 더 나은 거 같아. 다크 모드 토글도 넣어줘."
+   - **결정/실행**: Live Poll 인디고/블루 톤 → **기존 Q&A 디자인 토큰**으로 리스타일.
+     - 폰트: Pretendard
+     - 팔레트: `ink`(차가운 무채색 뉴트럴) 베이스 + `accent`(딥 틸/시안, 보라·인디고 회피)
+     - `darkMode: 'class'` + 깜빡임 방지 인라인 스크립트(`localStorage.lp_theme`) + 다크모드 토글 버튼
+     - 부드러운 전환/페이드 애니메이션
+   - 대상: `index.html`, `admin.html` 모두. 로직/API/동작은 유지, 스타일 + 다크모드만 변경.
+   - **완료/검증(2026-06-12)**: 두 파일 모두 리스타일 + 다크모드 토글 적용. 브라우저로 라이트/다크 양쪽 검증 — 참석자 랜딩·세션, 관리자 홈·프로젝트 상세 모두 정상, 실 Supabase 데이터 유지, 콘솔 에러 0. 테마는 `localStorage.lp_theme`로 두 페이지 공유. 토글 위치: 참석자=EventHeader 우측, 관리자=상단 네비 우측(로그아웃 옆).
 
-### 14) Vercel 프로덕션 배포
-- **지시:** "배포 들어가자."
-- **보안 선수정(중요):** `server.js`의 `express.static(__dirname)` 제거 → 디렉토리 전체 정적 노출(`/.env.local`로 service_role 키 유출) 차단. 비-API GET은 catch-all `app.get('*')`로 index.html만 반환. 검증: `/.env.local`·`/server.js` 요청 시 시크릿 대신 HTML.
-- **배포 구성:** `vercel.json`(@vercel/node, server.js로 라우팅, includeFiles index.html), `.vercelignore`(.env.local·*.sql·*.md·.claude 등 제외).
-- **실행:** vercel CLI(로그인됨: seunghunoh-1757) → `vercel link`(384s-projects/event-qna) → 환경변수 4개(SUPABASE_URL·SERVICE_ROLE·ANON·ADMIN_CONSOLE_TOKEN) production 등록 → `vercel --prod`.
-- **프로덕션 URL:** https://event-qna.vercel.app
-- **검증(curl+브라우저):** `/` 200, 관리자 API 무토큰 401/토큰 200, 공개 랜딩 API 200, `/.env.local` 시크릿 0건, 사용자 페이지 실데이터 3단 렌더.
-- **보안 TODO:** 공개 배포되었으므로 `ADMIN_CONSOLE_TOKEN`은 강한 값으로 유지(실제 값은 `.env.local`·Vercel 환경변수에만 보관, 저장소에 기록 금지).
-
-### 13) 테스트 데이터 정리 (시드 상태 복구)
-- **지시:** "테스트 질문 정리부터 해줘."
-- **처리(service_role REST):** 테스트 질문 "Supabase 연동 테스트 질문입니다" 삭제 / 테스트 중 누른 좋아요 복구(한지원 18→17, 박매니저 10→9) / votes 0건 초기화.
-- **결과:** b1 세션 좋아요 24·17·9·5·2(숨김), 질문 5건, votes 0 — 시드 상태 복구 확인.
-
-### 12) 금지어 필터 (기본 목록 + 등록 차단 + 운영자 관리)
-- **지시:** "추천 조합(기본 목록+등록 차단)으로 + 운영자 콘솔에서 추가/삭제도 가능하게."
-- **처리:**
-  - `banned_words.sql` 작성: 테이블 `banned_words(id,word unique,created_at)` + RLS(anon select만) + 기본 금지어 23개 + `questions` 트리거 `reject_banned_words`(제목/본문/작성자에 금지어 시 insert/update 거부, security definer).
-  - server.js(single-server-specialist): 콘솔 보호 라우트 `GET/POST/DELETE /api/admin/banned-words`(중복 409, 빈값 400).
-  - index.html: 사용자 폼 사전 차단(anon `banned_words` 조회·세션 캐시, 제목+내용+이름 부분매칭 → "부적절한 표현…" 오류) + 백스톱(insert가 트리거로 거부되면 동일 메시지 처리). 관리자 홈에 "금지어 관리" 모달(목록/추가/삭제, 콘솔 토큰).
-  - 사전검사(빠른 UX) + DB 트리거(우회 방지) 2중.
-  - 에이전트가 모달 무한 refetch 버그 발견·수정(toast useRef 안정화).
-- **검증 완료(SQL 실행 후):** banned_words 23개 anon 조회 / 트리거 차단(직접 insert "병신" → 400 `BANNED_WORD`) / 사용자 폼 사전 차단("부적절한 표현…" + 등록 막힘) / 운영자 콘솔 "금지어 관리" 모달(목록 23·추가·삭제) 정상.
-
-### 11) 공개 페이지 데스크탑 반응형 (모바일 무변경)
-- **지시:** "핸드폰 위주로 짠 것 같다. 노트북/PC에선 여러 질문이 보이게 조정해줘. 모바일은 지금이 딱 맞음."
-- **처리(single-react-dev):** 공개 페이지만 수정.
-  - 사용자 질문 목록: `grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3`, 컨테이너 `max-w-7xl mx-auto`. 일반 CSS Grid(행 우선)로 인기순 좌상단→우 유지(`columns-*` 금지).
-  - 랜딩 세션 목록: `grid md:grid-cols-2`, `max-w-6xl`.
-  - "질문하기": 모바일 하단 고정 바 유지(`md:hidden`), 데스크탑은 헤더 우측 일반 버튼(`hidden md:inline-flex`).
-- **검증:** 1440px 3단(24·17·10 / 5·0 순서 유지), 414px 단일 컬럼+하단 고정 버튼 무변경.
-
-### 10) 행사용 단일 QR + 공개 랜딩 페이지
-- **지시:** "QR 하나로 참가자가 세션을 골라서 진행하고 싶다."
-- **처리(single-server-specialist):**
-  - server.js: `GET /api/public/projects/:projectId/landing`(인증 불필요, 공개) — `{project:{id,title}, sessions:[공개 세션만 {id,title,description,starts_at,ends_at,questionCount}]}`. admin_token 등 민감필드 미노출.
-  - index.html: 공개 랜딩 `#/event/:projectId`(`EventLandingPage`, 토큰 게이트 밖) — 행사 제목 + 공개 세션 카드, 탭 시 `#/session/:id` 이동.
-  - 재사용 `QrCodeModal`(url prop) — 캔버스 QR + URL 복사 + PNG 다운로드, 다크모드에서도 흰배경/검은모듈. 프로젝트 상세 헤더에 `행사 QR` 버튼.
-  - QR 라이브러리: 요청한 qrcode@1.5.3 UMD가 404라 글로벌 `QRCode` 제공하는 `qrcode@1.5.1/build/qrcode.min.js` 사용.
-- **데모 QR URL:** `{origin}/#/event/00000000-0000-0000-0000-0000000000a1`
-- **검증:** API 200(공개 세션 2, admin_token 미포함)/404, 브라우저 랜딩·세션이동·QR 렌더/다운로드 OK.
-
-### 9) 관리자 백엔드 server.js 구축 + 관리자 프론트 연동
-- **지시:** "server.js 작업을 해줘." (single-server-specialist 활용)
-- **처리:**
-  - `.env.local`에 `ADMIN_CONSOLE_TOKEN`(운영자 콘솔 보호용 글로벌 토큰) + `PORT=8787` 추가.
-  - `server.js`(Express) + `package.json`(express·@supabase/supabase-js·exceljs·dotenv) 생성. service_role 클라이언트로 RLS 우회, index.html 같은 오리진 서빙.
-  - 인증 2단계: `requireConsole`(=ADMIN_CONSOLE_TOKEN), `requireSessionAdmin`(콘솔 토큰 OR 해당 세션 admin_token). 토큰은 `x-admin-token` 헤더 또는 `?token=`.
-  - 라우트: 프로젝트 CRUD+통계, 세션 CRUD+통계, 관리자 질문조회(숨김 포함), 답변/숨김 토글, 세션·프로젝트 엑셀 export(exceljs, PRD 컬럼/파일명).
-  - index.html 관리자 mock 메서드 전부 → server API fetch로 교체. 콘솔 토큰 게이트(`ConsoleTokenGate`, sessionStorage). 세션 대시보드는 URL `?token=` 사용. 엑셀 버튼 실연결. 관리자 대시보드 anon Realtime 구독→refetch.
-- **검증(curl+브라우저):** 무토큰 401 / 콘솔토큰 200(프로젝트 세션2·질문6) / 세션토큰 숨김포함 6건 좋아요순 / 오답토큰 403 / 엑셀 200(xlsx) / 답변·숨김 토글 DB 영속 / 콘솔 게이트 인증 후 실데이터 렌더.
-- **실행:** `npm install && npm start` → `http://localhost:8787` (콘솔 `#/admin`, 토큰은 `.env.local`).
-
-### 9-1) 비공개 세션 대시보드 버그 수정
-- **문제:** 관리자 대시보드가 세션 메타를 anon `fetchSession`으로 가져와 비공개 세션은 "세션을 찾을 수 없음".
-- **수정:** server.js에 `GET /api/admin/sessions/:sessionId`(requireSessionAdmin) 추가. index.html에 `fetchAdminSession(id, token)` 추가하고 `AdminDashboardPage`가 이걸 쓰도록 교체(사용자 페이지 anon fetchSession은 유지).
-- **검증:** curl 200/401/403, 브라우저 대시보드 정상 렌더(전체5·대기4·완료1·숨김1).
-
-### 8) 사용자(공개) 페이지 Supabase 실연동
-- **지시:** URL/anon/service_role 키 3개 전달받음.
-- **처리:**
-  - `.env.local`에 키 3개 저장(gitignore됨). `supabase_seed.sql`(고정 UUID 데모 데이터) 작성.
-  - `index.html`: supabase-js UMD CDN 추가, 설정 상수 + 클라이언트 `sb` 생성(anon만, service_role 미포함).
-  - 사용자 경로 mockApi 4종을 Supabase 호출로 교체: `fetchSession`(maybeSingle, 실패 시 mock 폴백), `fetchQuestions(...,'user')`(is_hidden=false, like DESC/created ASC), `createQuestion`(insert, content↔body 매핑), `likeQuestion`(rpc `like_question`). 필드 매퍼 `mapSessionRow`/`mapQuestionRow`.
-  - 관리자 경로(프로젝트/세션 CRUD·답변/숨김·대시보드 조회·통계·엑셀)는 mock 유지 + "TODO: server.js(service_role)" 주석. → 과도기 하이브리드.
-- **블로커→해결:** REST가 `503 PGRST002` 반환 → 원인은 **Data API(PostgREST) 비활성화**(신규 프로젝트 기본 off)였음. Supabase 대시보드 Integrations → Data API → Overview에서 **Enable** 후 해결. (Exposed schemas에 `public` 필요.)
-- **검증 완료(브라우저 + curl):**
-  - 공개 세션 2건 anon 조회 / 질문 4건 좋아요순(24·17·9·5) 로드 ✅
-  - RLS: 숨김 질문("점심 메뉴")은 anon에 미노출 ✅
-  - 좋아요 RPC: 9→10 DB 반영, 클릭 후 버튼 disabled(1인1표) ✅
-  - 질문 등록: DB 저장 + 목록 카운트 4→5 ✅
-- 테스트 URL: `#/session/00000000-0000-0000-0000-0000000000b1`
-- **남은 것:** 관리자 경로는 아직 mock. 다음 단계 = server.js(service_role) 로 프로젝트/세션 CRUD·답변/숨김·엑셀 이전 + 관리자 Realtime.
-
-### 7) Supabase 셋업 시작 — 아키텍처 확정 + 스키마 작성
-- **지시:** "supabase 셋업 들어가자. 필요한 거 알려줘." / "single-server-specialist 에이전트 활용하면 되지?"
-- **결정(아키텍처):** 정적 프론트(`index.html`) + Supabase(DB·Realtime·like RPC) + 얇은 **server.js**(single-server-specialist) 하이브리드.
-  - **Supabase**: 데이터 저장, 좋아요 RPC(원자적), 관리자 Realtime 변경감지. anon 키는 공개(사용자) 경로만 최소 허용.
-  - **server.js**: `service_role` 키 보관, `admin_token` 서버 검증, 프로젝트/세션 CRUD·답변/숨김·숨김질문 열람·엑셀 export 담당(RLS 우회). → single-server-specialist가 적임.
-  - **index.html**: 사용자 페이지는 Supabase 직접(anon), 관리자 페이지는 server.js 경유.
-- **처리:** `supabase_schema.sql` 생성(테이블 4종 + 인덱스 + `like_question` RPC + RLS 정책 + questions Realtime publication). author는 not null(이름 필수 반영), status는 UI와 1:1로 한글 저장.
-- **사용자에게 요청한 것:** Supabase 프로젝트 생성(Region: Seoul 권장) → SQL Editor에 스키마 실행 → Project URL / anon key / service_role key 전달.
-- **상태:** 진행 중(자격증명 대기).
-
-### 6) 질문자 이름 필수화
-- **지시:** "질문자의 이름은 무조건 넣도록 수정해줘. 익명/별명보다 실명이 낫다."
-- **처리:** `index.html` 직접 수정.
-  - `QuestionFormModal` 검증에 `if (!form.author.trim()) errs.author = '이름을 입력해 주세요';` 추가 → 이름 미입력 시 등록 차단.
-  - 입력 필드 라벨 `질문자명`(선택) → **`이름 *`(필수)**, 플레이스홀더 `미입력 시 '익명'으로 표시됩니다` → `실명 또는 소속을 입력해 주세요`, `error={errors.author}` 연결.
-  - 데모 일관성: 시드 데이터의 빈 author/`익명` 5건을 실명으로 교체(한지원·윤서연·강민호·오세훈·배수진).
-  - 참고: 표시 폴백 `q.author || '익명'`은 안전망으로 유지(신규 등록은 항상 이름 보유).
-- **검증:** localStorage 초기화 후 재시드 → 사용자 페이지 질문 모달에서 이름 빈 채 등록 시 빨간 오류 표시·차단 확인(라이트/다크 정상).
-- **후속 메모:** Supabase 연동 시 `questions.author`를 `not null`로 두고(또는 서버 검증), PRD의 author default '익명' 정책은 본 변경에 맞춰 제거 검토.
+4. **요청**: "내가 얘기하는 거 전부 md 파일로 만들고 있는 거 맞지?"
+   - **정정**: 그동안 기록 안 하고 있었음(코드 작업만). 이 `WORKFLOW.md`를 신설하고 소급 기록. 이후 결정사항 계속 추가.
 
 ---
 
-## 2026-06-10
+5. **요청(아이콘/심플화)**: "앞에 아이콘들도 빼고 심플하게. Fal image를 쓰던가 해서 심플하고 깔끔하게."
+   - **확인 질문 → 사용자 선택**: 이모지 → **미니멀 SVG 라인 아이콘**(Lucide 스타일). (Fal AI 이미지는 UI 아이콘엔 부적합으로 보류.)
+   - **결정/실행**: `index.html`·`admin.html`의 화면 이모지(Poll 유형 ◉☑★✎, 빈상태 🕓📊📭, 토글 🌗, 분석 🗳⚡✉⭐🤝🏆, 체크/경고/잠금/강연자/복사 등)를 통일된 라인 아이콘(viewBox 0 0 24 24, stroke currentColor, width 1.75)으로 교체. 재사용 아이콘 컴포넌트 세트로 정의. 로직/API 불변.
+   - **완료/검증(2026-06-12)**: 두 파일 모두 화면 이모지 0개로 교체. 재사용 `Icon`/`Icons` 세트(viewBox 24, stroke 1.75, currentColor)로 통일. 참석자=Clock/Moon·Sun/CircleDot·CheckSquare·Star·Pencil/Chevron 등, 관리자=분석 카드 6종+award/inbox·mic·clipboard-list·mail/chevron 등. 빈 상태는 연한 ink 원형+라인 아이콘으로 차분하게. 라이트/다크 브라우저 검증, 콘솔 에러 0. 로직/API 불변.
 
-### 5) 작업 과정 자동 기록 도입 (이 파일 생성)
-- **지시:** "내가 따로 얘기하지 않아도 무조건 과정을 md파일로 같은 폴더에 저장해줘. 그래야 기억하고 다른 것에도 적용할 수 있다."
-- **처리:**
-  - `WORKFLOW.md`(이 파일)를 `/Users/sh_oh/Downloads/QA/`에 생성하고 지금까지의 전 과정을 소급 기록.
-  - 앞으로 모든 작업 턴에서 이 파일을 자동 갱신하기로 함(별도 지시 불필요).
-  - 동일 선호를 장기 메모리(feedback)로 저장하여 세션이 바뀌어도 유지되도록 함.
+6. **요청(PC 레이아웃)**: "사용자 페이지가 모바일 전용으로만 코딩됨. PC에서도 예쁘게."
+   - **원인**: 전역 컨테이너 `max-w-lg` 단일 컬럼 고정, 반응형 분기 없음 → PC에서 가운데 좁은 띠.
+   - **확인 질문 → 사용자 선택**: **좌우 분할(2패널)**. PC에서 왼쪽=행사/세션/강연자 브랜딩 패널, 오른쪽=투표 폼/콘텐츠. 모바일은 현재(상단 헤더+세로 스택) 동일.
+   - **결정/실행**: `index.html`만 대상(관리자는 이미 데스크톱 우선). `Page`/`EventHeader` 셸을 반응형으로 리팩터 — `lg:` 이상 2패널, 미만 기존 스택. 로직/API/컴포넌트 불변.
+   - **완료/검증(2026-06-12)**: `EventHeader`/`Page` 셸만 반응형 리팩터. 브레이크포인트 `lg`(1024px). PC=`max-w-5xl` 중앙 + `grid-cols-[5fr_7fr]`(좌 브랜딩 sticky 풀하이트 : 우 콘텐츠 넉넉한 패딩), 모바일=기존 가로 헤더+세로 스택 픽셀 동일. 토글: 모바일 헤더 우상단 / PC 좌 패널 하단. 브라우저로 1440·390 양쪽 + 라이트/다크 검증, 콘솔 에러 0, 로직/API 불변.
 
-### 4) 세션(Session) 수정/삭제 기능 추가
-- **지시:** "세션 수정/삭제도 (프로젝트와) 똑같이 추가해줘."
-- **처리:** `single-react-dev` 에이전트로 프로젝트 수정/삭제 패턴을 1:1로 세션에 적용.
-  - `mockApi.updateSession(id, fields)` — `id`/`project_id`/`admin_token`/`created_at` 보존(→ URL 유지), 나머지 필드만 갱신.
-  - `mockApi.deleteSession(id)` — 세션 + 하위 질문 + 관련 votes(`qa_voted_*`) cascade 삭제, `{ removedQuestions }` 반환.
-  - 세션 생성 모달을 생성/수정 겸용으로 리팩터(`mode`/`session` props).
-  - `DeleteSessionModal` — confirm-by-typing(세션명 입력 시에만 삭제 활성), 삭제될 질문 수 집계, red 경고 박스.
-  - 진입점: 프로젝트 상세 페이지의 각 세션 카드 우상단 연필/휴지통 `IconButton`.
-- **검증:** 브라우저에서 콘솔 JS 에러 없음(CDN 경고/favicon 404만), 세션 삭제 모달 정상 표시 확인. 실제 삭제는 미실행.
+7. **요청(관리자 기능 보강)**: "프로젝트 생성/삭제 버튼이 없다. 설문조사 생성 + 통계 보기도 원함."
+   - **확인 질문 → 사용자 선택(설문 형태)**: **둘 다(여러 문항 묶음 설문 + 단건 Poll 공존)**.
+   - **결정/실행**:
+     - 프로젝트 생성/삭제: server `POST/PATCH/DELETE /api/admin/projects[/:id]` 추가 + 관리자 UI. **server·실 DB 검증 완료(생성→삭제 OK)**.
+     - 묶음 설문(survey): 스키마에 `surveys` 테이블 + `polls.survey_id/sort_order` 추가(문항=survey_id 가진 poll로 모델링, 기존 집계/응답 재사용). server에 설문 공개 조회/제출, 관리자 CRUD·시작/종료·결과·엑셀 엔드포인트 추가. 단건 Poll 목록은 `survey_id is null`로 분리.
+     - 통계: 기존 분석 탭 유지(설문 응답도 project 기준 집계에 포함).
+   - **완료/검증(2026-06-12)**:
+     - admin.html: 홈 "+새 프로젝트" 모달, 프로젝트 상세 수정/삭제 버튼, "설문조사" 탭(`[Poll][뉴스레터 Poll][설문조사][분석]`), 다문항 설문 빌더(제목·안내문·발송유형·결과공개·시작상태 + 문항 추가/유형전환/선택지/순서이동/삭제), 설문 결과 패널(문항별 집계 2.5초 폴링). api 메서드 12개 추가.
+     - index.html: `#/survey/:code` 라우트 + `getSurvey`/`submitSurvey`, NewsletterSurvey 재사용(문항별 question_id 부착 제출).
+     - 브라우저 검증: 프로젝트 생성 모달·설문 탭·설문 빌더 렌더 정상, 라이트/다크, 콘솔 에러 0. **프로젝트 생성/삭제는 실 DB로 동작 확인.** 설문 쓰기는 surveys 테이블 적용 후 동작(현재 graceful 400).
 
-### 3) 프로젝트(Project) 수정/삭제 기능 추가
-- **지시:** "프로젝트 삭제/수정 기능이 없다. 잘못 기입하거나 취소된 프로젝트를 삭제할 수 있어야 한다."
-- **처리:**
-  - `mockApi.updateProject(id, fields)`, `mockApi.deleteProject(id)`(세션·질문·votes cascade) 추가.
-  - 생성 모달을 생성/수정 겸용으로 리팩터.
-  - `DeleteProjectModal` — confirm-by-typing(프로젝트명 정확 입력 시 활성), **삭제될 세션 수·질문 수** 집계, red 경고("되돌릴 수 없습니다").
-  - 진입점: 관리자 홈 행(hover 시 연필/휴지통) + 프로젝트 상세 헤더.
-  - 삭제 후: 상세→`#/admin` 이동, 홈→목록 제거 + 토스트.
-  - 공용 컴포넌트 `IconButton`/`PencilIcon`/`TrashIcon` 도입.
-- **검증:** 삭제 확인 모달 정상(세션 3·질문 8 집계, 타이핑 확인) — 다크모드 가독성 포함 확인.
+8. **요청(DB 구성 방향)**: "새 Supabase 프로젝트(`oixdfkwpkmjrbhonzqxt`)에 만들자. QA와 다르게 깔끔하게."
+   - **결정/실행**: 새 전용 프로젝트로 전환. Q&A 잔재(questions/votes/banned_words/session admin_token) 제거하고 **Live Poll 전용 단일 통합 스키마** `livepoll_schema.sql` 신설(린 projects/tracks/sessions + poll/survey 레이어 + RPC + RLS). 기존 5개 QA SQL + poll_schema.sql 제거(이력은 git). 적용 = `livepoll_schema.sql` → `poll_seed.sql` 2개.
+   - server.js 호환 확인: questions/votes/admin_token 미참조.
+   - **완료(2026-06-12)**: `.env.local`을 새 프로젝트(`oixdfkwpkmjrbhonzqxt`) URL/anon/service_role 로 교체. 사용자가 SQL Editor에서 `livepoll_schema.sql` → `poll_seed.sql` 적용.
+     - 적용 중 PostgREST `PGRST002` 발생 → 원인은 **Data API 노출 스키마에 `public` 누락**(placeholder `pg_pgrst_no_exposed_schemas`). 사용자가 Settings→API에서 `public` 노출 후 회복.
+     - **실 DB 전체 플로우 검증 완료**: 투표 제출→중복방지(already_submitted)→집계(AI 1표 100%); 3문항 묶음 설문 생성→공개 조회→응답(만족도5·관심2·상담예)→결과(평균5, AI:1/클라우드:1, 예:1). 검증 데이터는 정리(surveys 0, responses 0).
+     - 브라우저: 데모 행사 `mendix2026` 참여 화면에 live Poll 5개 + 세션 실데이터 렌더, 콘솔 에러 0.
+   - **상태: 전체 완료. 앱이 새 전용 프로젝트에서 end-to-end 동작.**
 
-### 2) 디자인 리뉴얼 + 다크모드 토글
-- **지시:** "디자인이 너무 AI가 만든 것 같다. 그 느낌을 없애고, 야간(다크)모드 전환 스위치를 추가해줘."
-- **처리:**
-  - "AI 느낌" 제거: 인디고/보라 그라데이션·제목 이모지(🔥 등)·과한 라운드/그림자 전부 제거.
-  - 팔레트 교체: 무채색 잉크(ink) 베이스 + 차분한 틸(teal) 액센트 1색. primary 버튼은 잉크 솔리드(검정/흰색).
-  - 레이아웃: border/divider 기반 에디토리얼(밀도 있는 행 리스트, stat 스트립), `EVENT Q&A CONSOLE`/`LIVE Q&A` 소형 라벨로 위계 표현.
-  - 다크모드: Tailwind `darkMode:'class'`, `<head>` 인라인 스크립트로 FOUC 방지, `ThemeProvider`(Context) + 전 화면 우상단 해/달 토글, `localStorage('qa_theme')` 저장, 최초엔 `prefers-color-scheme` 따름.
-- **검증:** 라이트/다크 토글·페이지 이동 간 유지 확인, 4개 화면 dark: 변형 적용.
+9. **요청(제출 후 이동 + 미진한 부분 보강)**: "참석자 응답 제출하면 자동으로 리스트로 넘어가야. WORKFLOW.md 참조해 미진한 부분 같이 적용."
+   - **제출 후 자동 이동(완료/검증)**: server 공개 Poll/설문 응답에 `project_code`/`session_code` 추가. index.html `api.getPoll` reshape에 project_code 포함. PollPage·NewsletterSurvey 제출 완료 후 2초 뒤 `/e/{project_code}`(행사 랜딩=리스트)로 자동 이동 + "목록으로 돌아가기" 버튼. '결과 보기' 누르면 자동이동 취소(stay). 이메일 토큰 설문은 돌아갈 목록 없어 자동이동 제외. **브라우저 검증: topic2026 투표 → 2초 후 `/e/mendix2026` 이동, 해당 Poll "참여 완료" 배지 표시, 응답 정리 완료.**
+   - **세션/트랙 관리(미진 갭 보강)**: 새 프로젝트에서 세션을 만들 수 없던 문제 → server에 세션/트랙 CRUD(`POST/PATCH/DELETE /api/admin/projects/:id/sessions|tracks`, `/sessions|tracks/:id`) 추가(실 DB 생성/삭제 검증). admin.html "세션" 탭 + 세션 생성/수정 모달 + 트랙 관리는 에이전트 작업 중.
+   - **세션/트랙 관리 완료/검증(2026-06-12)**: admin "세션" 탭(트랙 칩 추가/삭제 + 세션 목록·생성/수정 모달·삭제, `?tab=sessions`). Poll 생성 모달 세션 드롭다운 자동 연동. server getProject 세션에 `is_public` 추가(공개 배지 정확도). **브라우저 검증: 세션 탭 렌더(Track A/B, 세션 3개), 콘솔 에러 0. API 체인 검증: 신규 프로젝트→세션 생성→세션에 Poll 연결→세션별 목록 확인 OK.** 검증용 프로젝트/응답 모두 정리(데모=mendix2026만, polls 6, responses 0).
+   - 상태: **전체 완료.**
 
-### 1) 프론트엔드 UI 셸 1차 구축
-- **지시:** "PRD 기반으로 QA 솔루션 개발. 프론트 페이지부터 하나씩 진행."
-- **처리:** `single-react-dev` 에이전트로 **목업 데이터 기반 단일 `index.html`** 생성(백엔드 연결 전 단계).
-  - 해시 라우트 4개: 관리자 홈 `#/admin`, 프로젝트 상세 `#/admin/project/:id`, 사용자 페이지(모바일) `#/session/:id`, 관리자 대시보드 `#/admin/session/:id?token=`.
-  - 모든 데이터 접근을 `mockApi` 객체 한 곳에 모음(추후 Supabase로 본문만 교체 가능). localStorage 키 `qa_mock_db_v1`.
-  - 핵심 동작: 좋아요순 정렬(like DESC, created_at ASC), 좋아요 1인1표(voter_key + Optimistic UI), 글자수 제한(제목50/이름20/내용500), 필터 탭(전체/답변대기/답변완료/숨김), 세션 생성 시 session_id·admin_token 자동 발급, URL 복사.
-  - 시드: 프로젝트 2개(Mendix/Unreal), 세션 5개, 질문 14개.
-- **다음 단계(예정):** Supabase 셋업 → `mockApi` 실연동(사용자 Polling 8~12초) → 관리자 Realtime 구독 → 엑셀 다운로드 API/QR.
+### 2026-07-03
 
----
+1. **고길동(fable) 코드 검수 → 수정 → 기록 사이클**: 대상 `2027b5c..HEAD`(세션 스케줄/엑셀 업로드, 일자별 설문 생성, 날짜·트랙 필터).
+   - **검수 요약**: 결함 7건 발견(조치대상 4건). 비공개 세션 제목이 day-survey로 공개 노출(High) 1건, 무순서 페이지네이션 집계 왜곡·CSV 따옴표 파싱 파손·8MB 바디 상향 남용(Medium) 3건, 비원자 import·required 회귀·SRI 없는 CDN(Low) 3건. 수식 인젝션/XSS/IDOR/service_role 노출은 반박 후 이상 없음 확인.
+   - **발견 결함**:
+     1. [High/Security] `generate-day` 설문이 `is_public=false`(비공개) 세션 제목을 공개 설문 문항으로 노출 — `server.js`
+     2. [Medium/QA] `fetchAllPaged`가 ORDER BY 없이 range 페이지네이션 → 1000행 초과 시 응답 중복/누락으로 집계 왜곡 — `server.js`
+     3. [Medium/QA] 세션 CSV 파서(`csvToTable`)가 따옴표 필드·BOM 미지원 → 콤마 포함 세션명 파손 및 유령 트랙 자동 생성 — `server.js`
+     4. [Medium/Security] JSON 바디 한도 1MB→8MB 전역 상향 + 공개 제출 API의 `answer_text` 길이 미검증·레이트리밋 부재 → 스토리지 남용 8배 증폭 — `server.js`
+     5. [Low/QA] 세션 일괄 업로드 비원자성(트랙 먼저 생성 후 세션 insert 실패 시 트랙만 잔존), 행 수·셀 길이 상한 없음 — `server.js`
+     6. [Low/QA] 공개 설문 API의 `required`가 모든 rating 문항에 전역 적용 → 기존 설문(뉴스레터 NPS 등) 필수 응답 회귀 — `server.js`
+     7. [Low/Security] 관리자 콘솔에 SRI 없는 서드파티 CDN 스크립트(qrcode-generator) 추가 — admin 토큰이 있는 페이지 — `admin.html`
+   - **수정(opus/max)**: 결함 1~4 조치. `node --check server.js` 통과, 워킹트리 반영(미커밋).
+     - 결함1: 세션 조회 시 `is_public`도 select해 공개 세션만 문항화(`sessions.filter(is_public===true)`), 제외 건수를 `excluded_private_count`로 응답에 포함(`mapSurvey` 옵셔널 패스스루로 기존 API 계약 불변).
+     - 결함2: `fetchAllPaged` 호출 5곳(poll_options, surveyResponseCount, 설문 목록, results의 poll_responses·poll_response_answers)에 안정 정렬키 `.order('id')` 강제.
+     - 결함3: RFC4180 파서 `parseCsvRows` 신규 추가(따옴표 내 콤마/개행, `""` 이스케이프, BOM 제거, 빈 줄 제외)로 `csvToTable`·`parseCsv`(recipients) 통일.
+     - 결함4: 바디 한도를 라우트별 분기(전역 1mb, `sessions/import`만 8mb) + `normalizePublicAnswers`로 `answer_text` 200자·`answers` 200개 상한 + IP 기반 레이트리밋(분당 20회)을 공개 제출 2개 라우트에 부착. 참고: 서버리스 인메모리 리미터라 완전한 분산 방어는 아님(범위 외).
+   - **재검수(실행 확인, E2E)**: 4건 모두 실효적으로 해결, 새 회귀 없음.
+     - 결함1: 스키마상 `is_public not null default true`라 null 케이스 없음, strict 비교 안전. `mapSurvey` 패스스루로 다른 호출부 API 계약 불변 확인.
+     - 결함2: 호출부 5곳 전부 `.order('id')` 적용 확인, dev Supabase 대상 관련 엔드포인트 3종 모두 200 + 정상 데이터.
+     - 결함3: `parseCsvRows` 단위테스트 8케이스 전부 통과(BOM, 따옴표 내 콤마/개행, `""` 이스케이프, CRLF 등).
+     - 결함4: 실측 — 공개 제출 2MB→413, `sessions/import` 2MB→401(8MB 경로 정상)/9MB→413, 동일 IP 25회 제출 시 21번째부터 429(분당 20회 정확).
+   - **잔여 사항(Low, 미조치)**: XFF 첫 항목 기반 리미터가 직접 노출 배포에서 우회 가능(Vercel 프로덕션은 플랫폼이 XFF 덮어써 실질 위험 낮음, `server.js:52`); `excluded_private_count`가 서버 응답엔 있으나 admin UI 토스트에 미표시(`admin.html:1984`).
 
-### 다음에 할 일 (백로그)
-- [ ] Supabase 프로젝트/DB 스키마(projects·sessions·questions·votes)·`like_question` RPC·RLS 구축
-- [ ] `mockApi` → Supabase 실연동 (사용자 페이지 랜덤 Polling 포함)
-- [ ] 관리자 대시보드 Realtime 구독 + 변경 시 refetch
-- [ ] 세션별/프로젝트별 Q&A 엑셀 다운로드 API + 관리자 토큰 검증
-- [ ] QR 코드 생성, 현장 시나리오 테스트
+## 산출물
+
+| 파일 | 역할 |
+|---|---|
+| `index.html` | 참석자 Live Poll 페이지 (랜딩/세션/Poll/결과/설문, 제출 후 자동 복귀) |
+| `admin.html` | 관리자 대시보드 (프로젝트·세션·트랙·Poll·설문·분석·엑셀) |
+| `server.js` | Supabase 게이트웨이(공개/관리자 API + 엑셀) |
+| `livepoll_schema.sql` | Live Poll 전용 통합 스키마(projects/tracks/sessions + poll/survey + RPC + RLS) |
+| `poll_seed.sql` | 데모 시드(Mendix 행사 + Poll 6개) |
+| `package.json` / `vercel.json` / `.vercelignore` | 배포 설정 |
+
+## 환경
+- Supabase: 전용 프로젝트 `oixdfkwpkmjrbhonzqxt` (`.env.local`). Data API 노출 스키마 `public` 필요.
+- 로컬: `npm start` → http://localhost:8787 (참석자 `/`, 관리자 `/admin`, 토큰 `.env.local`의 ADMIN_CONSOLE_TOKEN).
+
+## 다음 단계 후보 (미요청)
+- [ ] QR 코드 생성(행사/세션/Poll 링크) — PRD 5.3.1
+- [ ] 분석 `consult_count`(상담 희망 집계) 실제 매핑 — 현재 0 placeholder
+- [ ] `?tab=sessions` 등 탭 딥링크 신규진입 시 활성화(현재 클릭은 정상, 일부 딥링크는 기본탭 표시)

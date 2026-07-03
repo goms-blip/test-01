@@ -35,7 +35,41 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 });
 
 const app = express();
-app.use(express.json({ limit: '8mb' })); // 세션 엑셀 업로드(base64) 여유분 포함
+// 바디 한도: 전역은 1mb 유지, 세션 import(엑셀 base64 업로드)만 8mb 허용.
+// 공개 제출 엔드포인트까지 8배 상향되어 스토리지 남용에 악용되는 것을 방지.
+const jsonSmall = express.json({ limit: '1mb' });
+const jsonLarge = express.json({ limit: '8mb' });
+app.use((req, res, next) => {
+  if (req.method === 'POST' && /\/sessions\/import\/?$/.test(req.path)) return jsonLarge(req, res, next);
+  return jsonSmall(req, res, next);
+});
+
+// ---------- 공개 제출 입력 한도 & 간이 IP 레이트리밋 ----------
+const MAX_ANSWER_TEXT = 200;   // answer_text 서버측 강제 길이(문항 메타 max_length 와 일치)
+const MAX_ANSWERS = 200;       // 한 번의 제출에서 허용하는 최대 answers 개수
+const RL_WINDOW_MS = 60 * 1000;
+const RL_MAX = 20;             // IP당 분당 최대 제출 횟수
+const rlHits = new Map();      // ip -> number[] (timestamps)
+function publicSubmitLimiter(req, res, next) {
+  const ip = (req.headers['x-forwarded-for'] || '').toString().split(',')[0].trim()
+    || req.socket?.remoteAddress || 'unknown';
+  const now = Date.now();
+  const arr = (rlHits.get(ip) || []).filter((t) => now - t < RL_WINDOW_MS);
+  if (arr.length >= RL_MAX) return res.status(429).json({ success: false, error: 'rate_limited' });
+  arr.push(now); rlHits.set(ip, arr);
+  if (rlHits.size > 5000) { // 메모리 상한: 만료된 항목 정리
+    for (const [k, v] of rlHits) { if (!v.some((t) => now - t < RL_WINDOW_MS)) rlHits.delete(k); }
+  }
+  next();
+}
+// 익명 answers 정규화 + 서버측 길이/개수 강제
+function normalizePublicAnswers(answers) {
+  const list = Array.isArray(answers) ? answers.slice(0, MAX_ANSWERS) : [];
+  return list.map((a) => ({
+    ...a,
+    answer_text: a.answer_text == null ? null : String(a.answer_text).slice(0, MAX_ANSWER_TEXT),
+  }));
+}
 
 // ============================================================
 // 🗺️ 변환 헬퍼 (DB row → 앱 object)
@@ -264,12 +298,13 @@ app.get('/api/public/polls/:pollCode', wrap(async (req, res) => {
 }));
 
 // 응답 제출 — submit_poll_response RPC 로 원자적 저장 (PRD 8.1)
-app.post('/api/public/polls/:pollCode/responses', wrap(async (req, res) => {
+app.post('/api/public/polls/:pollCode/responses', publicSubmitLimiter, wrap(async (req, res) => {
   const poll = await fetchPollByCode(req.params.pollCode);
   if (!poll) return fail(res, 404, 'poll_not_found');
 
-  const { respondent_key, recipient_token, answers } = req.body || {};
-  if (!Array.isArray(answers) || answers.length === 0) return fail(res, 400, 'answers_required');
+  const { respondent_key, recipient_token } = req.body || {};
+  const answers = normalizePublicAnswers((req.body || {}).answers);
+  if (!answers.length) return fail(res, 400, 'answers_required');
 
   // recipient_token → recipient_id
   let recipientId = null;
@@ -345,7 +380,7 @@ async function fetchSurveyQuestions(surveyId) {
   if (!polls.length) return [];
   const ids = polls.map((p) => p.id);
   // 옵션 일괄 조회 (문항마다 개별 조회하던 N+1 제거)
-  const opts = await fetchAllPaged((sb) => sb.from('poll_options').select('*').in('poll_id', ids).order('sort_order', { ascending: true }));
+  const opts = await fetchAllPaged((sb) => sb.from('poll_options').select('*').in('poll_id', ids).order('sort_order', { ascending: true }).order('id', { ascending: true }));
   const byPoll = {};
   opts.forEach((o) => { (byPoll[o.poll_id] = byPoll[o.poll_id] || []).push(o); });
   return polls.map((p) => ({ ...p, options: byPoll[p.id] || [] }));
@@ -387,13 +422,14 @@ app.get('/api/public/surveys/:surveyCode', wrap(async (req, res) => {
 }));
 
 // 설문 응답 제출 — 문항별로 submit_poll_response RPC 호출(원자적)
-app.post('/api/public/surveys/:surveyCode/responses', wrap(async (req, res) => {
+app.post('/api/public/surveys/:surveyCode/responses', publicSubmitLimiter, wrap(async (req, res) => {
   const survey = await fetchSurveyByCode(req.params.surveyCode);
   if (!survey) return fail(res, 404, 'survey_not_found');
   if (survey.status !== 'live') return fail(res, 400, 'survey_not_live');
 
-  const { respondent_key, recipient_token, answers } = req.body || {};
-  if (!Array.isArray(answers)) return fail(res, 400, 'answers_required');
+  const { respondent_key, recipient_token } = req.body || {};
+  if (!Array.isArray((req.body || {}).answers)) return fail(res, 400, 'answers_required');
+  const answers = normalizePublicAnswers((req.body || {}).answers);
 
   let recipientId = null;
   let source = survey.source_type;
@@ -857,14 +893,14 @@ app.get('/api/admin/projects/:projectId/recipients', wrap(async (req, res) => {
 
 // CSV 파싱 (간단): 첫 줄 헤더 email,name,company,title
 function parseCsv(csv) {
-  const lines = String(csv || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  if (!lines.length) return [];
-  const header = lines[0].toLowerCase().split(',').map((h) => h.trim());
+  const parsed = parseCsvRows(csv); // RFC4180 + BOM 처리 공통 파서
+  if (!parsed.length) return [];
+  const header = parsed[0].map((h) => h.toLowerCase());
   const idx = (k) => header.indexOf(k);
   const iEmail = idx('email'), iName = idx('name'), iCompany = idx('company'), iTitle = idx('title');
   const rows = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cols = lines[i].split(',').map((c) => c.trim());
+  for (let i = 1; i < parsed.length; i++) {
+    const cols = parsed[i];
     const email = iEmail >= 0 ? cols[iEmail] : cols[0];
     if (!email || !email.includes('@')) continue;
     rows.push({
@@ -891,12 +927,37 @@ function cellText(v) {
   return String(v);
 }
 
+// RFC4180 CSV 파서 — 따옴표 필드(내부 콤마/개행/이스케이프된 "") 지원 + 선행 BOM 제거.
+// 반환: string[][] (셀 트림). 빈 줄은 제외.
+function parseCsvRows(csv) {
+  const text = String(csv || '').replace(/^﻿/, ''); // UTF-8 BOM 제거
+  const rows = []; let row = []; let field = ''; let inQuotes = false; let started = false;
+  const pushField = () => { row.push(field.trim()); field = ''; };
+  const pushRow = () => { pushField(); if (row.some((c) => c !== '')) rows.push(row); row = []; };
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; } // 이스케이프된 따옴표
+        else inQuotes = false;
+      } else field += ch;
+      continue;
+    }
+    if (ch === '"') { inQuotes = true; started = true; continue; }
+    if (ch === ',') { pushField(); started = true; continue; }
+    if (ch === '\r') continue;
+    if (ch === '\n') { pushRow(); started = false; continue; }
+    field += ch; started = true;
+  }
+  if (started || field !== '' || row.length) pushRow();
+  return rows;
+}
+
 // CSV 텍스트 → { header, rows } (header 는 소문자)
 function csvToTable(csv) {
-  const lines = String(csv || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
-  if (!lines.length) return { header: [], rows: [] };
-  const split = (l) => l.split(',').map((c) => c.trim());
-  return { header: split(lines[0]).map((h) => h.toLowerCase()), rows: lines.slice(1).map(split) };
+  const rows = parseCsvRows(csv);
+  if (!rows.length) return { header: [], rows: [] };
+  return { header: rows[0].map((h) => h.toLowerCase()), rows: rows.slice(1) };
 }
 
 // 엑셀(.xlsx)/CSV 공통 표 파서 → { header: string[], rows: string[][] }
@@ -996,6 +1057,8 @@ const mapSurvey = (row, extra = {}) => row ? ({
   question_count: extra.question_count ?? 0,
   response_count: extra.response_count ?? 0,
   questions: extra.questions,
+  ...(extra.session_count !== undefined ? { session_count: extra.session_count } : {}),
+  ...(extra.excluded_private_count !== undefined ? { excluded_private_count: extra.excluded_private_count } : {}),
 }) : null;
 
 // 설문 문항(poll)들의 응답자 수(중복 제거) = 설문 응답 수
@@ -1003,7 +1066,7 @@ async function surveyResponseCount(surveyId) {
   const { data: qpolls } = await supabase.from('polls').select('id').eq('survey_id', surveyId);
   const ids = (qpolls || []).map((p) => p.id);
   if (!ids.length) return 0;
-  const resps = await fetchAllPaged((sb) => sb.from('poll_responses').select('id, respondent_key, recipient_id').in('poll_id', ids));
+  const resps = await fetchAllPaged((sb) => sb.from('poll_responses').select('id, respondent_key, recipient_id').in('poll_id', ids).order('id', { ascending: true }));
   const keys = new Set();
   resps.forEach((r) => keys.add(r.recipient_id || r.respondent_key || ('_' + r.id)));
   return keys.size;
@@ -1043,7 +1106,7 @@ app.get('/api/admin/projects/:projectId/surveys', wrap(async (req, res) => {
   const allPollIds = (polls || []).map((p) => p.id);
   // 응답 일괄 → 설문별 distinct 응답자
   const responses = allPollIds.length
-    ? await fetchAllPaged((sb) => sb.from('poll_responses').select('id, poll_id, respondent_key, recipient_id').in('poll_id', allPollIds))
+    ? await fetchAllPaged((sb) => sb.from('poll_responses').select('id, poll_id, respondent_key, recipient_id').in('poll_id', allPollIds).order('id', { ascending: true }))
     : [];
   const respSetBySurvey = {};
   responses.forEach((r) => {
@@ -1101,9 +1164,12 @@ app.post('/api/admin/projects/:projectId/surveys/generate-day', wrap(async (req,
   const { data: tracks } = await supabase.from('tracks').select('id, sort_order').eq('project_id', projectId).order('sort_order');
   const trackOrder = {}; (tracks || []).forEach((t, i) => { trackOrder[t.id] = i; });
 
-  const { data: sessions } = await supabase.from('sessions')
-    .select('id, title, track_id, time_range').eq('project_id', projectId).eq('session_date', date);
-  if (!sessions || !sessions.length) return fail(res, 400, 'no_sessions_for_date');
+  // 공개(is_public=true) 세션만 설문 문항으로 노출 — 비공개 세션 제목이 참석자에게 새는 것을 방지
+  const { data: allSessions } = await supabase.from('sessions')
+    .select('id, title, track_id, time_range, is_public').eq('project_id', projectId).eq('session_date', date);
+  const sessions = (allSessions || []).filter((s) => s.is_public === true);
+  const excludedPrivateCount = (allSessions || []).length - sessions.length;
+  if (!sessions.length) return fail(res, 400, 'no_sessions_for_date');
 
   const tKey = (s) => { const m = String(s.time_range || '').match(/(\d{1,2}):(\d{2})/); return m ? (+m[1] * 60 + +m[2]) : 99999; };
   sessions.sort((a, b) => (trackOrder[a.track_id] ?? 999) - (trackOrder[b.track_id] ?? 999) || tKey(a) - tKey(b) || String(a.title).localeCompare(String(b.title), 'ko'));
@@ -1129,7 +1195,7 @@ app.post('/api/admin/projects/:projectId/surveys/generate-day', wrap(async (req,
   if (error) return fail(res, 400, error.message);
   await insertSurveyQuestions(survey, questions);
   const qs = await fetchSurveyQuestions(survey.id);
-  ok(res, mapSurvey(survey, { question_count: qs.length, response_count: 0, session_count: sessions.length }));
+  ok(res, mapSurvey(survey, { question_count: qs.length, response_count: 0, session_count: sessions.length, excluded_private_count: excludedPrivateCount }));
 }));
 
 // 설문 수정 (문항 전달 시 전체 교체)
@@ -1198,9 +1264,9 @@ app.get('/api/admin/surveys/:surveyId/results', wrap(async (req, res) => {
   // 응답 헤더 + 답변 상세를 병렬로 (Vercel→Supabase 왕복 최소화)
   const [responses, answers] = await Promise.all([
     fetchAllPaged((sb) => sb.from('poll_responses')
-      .select('id, poll_id, submitted_at, respondent_key, recipient_id').in('poll_id', pollIds)),
+      .select('id, poll_id, submitted_at, respondent_key, recipient_id').in('poll_id', pollIds).order('id', { ascending: true })),
     fetchAllPaged((sb) => sb.from('poll_response_answers')
-      .select('option_id, answer_text, answer_number, poll_responses!inner(poll_id, submitted_at)').in('poll_responses.poll_id', pollIds)),
+      .select('id, option_id, answer_text, answer_number, poll_responses!inner(poll_id, submitted_at)').in('poll_responses.poll_id', pollIds).order('id', { ascending: true })),
   ]);
   const totalByPoll = {}; const respondentSet = new Set();
   responses.forEach((r) => {
