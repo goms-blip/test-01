@@ -32,6 +32,7 @@
   <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
   <style>
     html { -webkit-tap-highlight-color: transparent; }
     body, body * { transition-property: background-color, border-color, color, fill, stroke; transition-duration: 200ms; transition-timing-function: ease; }
@@ -183,6 +184,8 @@
       updateSession: (sessionId, body) => request(`/admin/sessions/${sessionId}`, { method: 'PATCH', body }),
       deleteSession: (sessionId) => request(`/admin/sessions/${sessionId}`, { method: 'DELETE' }),
       createTrack: (projectId, body) => request(`/admin/projects/${projectId}/tracks`, { method: 'POST', body }),
+      importSessions: (projectId, body) => request(`/admin/projects/${projectId}/sessions/import`, { method: 'POST', body }),
+      downloadSessionTemplate: (projectId) => download(`/admin/projects/${projectId}/sessions/import-template`, 'sessions-template.xlsx'),
       updateTrack: (trackId, body) => request(`/admin/tracks/${trackId}`, { method: 'PATCH', body }),
       deleteTrack: (trackId) => request(`/admin/tracks/${trackId}`, { method: 'DELETE' }),
 
@@ -190,6 +193,7 @@
       getSurveys: (projectId) => request(`/admin/projects/${projectId}/surveys`),
       getSurvey: (id) => request(`/admin/surveys/${id}`),
       createSurvey: (projectId, body) => request(`/admin/projects/${projectId}/surveys`, { method: 'POST', body }),
+      generateDaySurvey: (projectId, date) => request(`/admin/projects/${projectId}/surveys/generate-day`, { method: 'POST', body: { date } }),
       updateSurvey: (id, body) => request(`/admin/surveys/${id}`, { method: 'PATCH', body }),
       deleteSurvey: (id) => request(`/admin/surveys/${id}`, { method: 'DELETE' }),
       startSurvey: (id) => request(`/admin/surveys/${id}/start`, { method: 'POST' }),
@@ -620,8 +624,7 @@
                 <Card key={p.id} className="p-5 flex flex-col fade-up hover:ring-accent-200 dark:hover:ring-accent-800 transition">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <div className="text-xs font-mono text-ink-400 dark:text-ink-500">{p.code}</div>
-                      <h2 className="font-bold text-ink-800 dark:text-ink-100 leading-snug mt-0.5 truncate">{p.name}</h2>
+                      <h2 className="font-bold text-ink-800 dark:text-ink-100 leading-snug truncate">{p.name}</h2>
                       <p className="text-sm text-ink-500 dark:text-ink-400 mt-0.5 truncate">{p.client || '클라이언트 미지정'}</p>
                     </div>
                     <Badge tone={statusTone[p.status] || 'slate'}>{statusLabel[p.status] || p.status}</Badge>
@@ -695,11 +698,75 @@
     }
 
     // ========================================
+    // 🔳 QR 코드 (실시간 생성 — qrcode-generator, 클라이언트에서 즉시 그림)
+    // ========================================
+    function makeQR(text) {
+      try {
+        const qr = qrcode(0, 'M'); // 자동 크기, 오류정정 M
+        qr.addData(String(text || ''));
+        qr.make();
+        return qr.createDataURL(8, 2); // cellSize 8px, margin 2모듈
+      } catch (e) { return ''; }
+    }
+    function QRModal({ url, title, onClose }) {
+      const toast = useToast();
+      const dataUrl = useMemo(() => makeQR(url), [url]);
+      const download = () => { if (!dataUrl) return; const a = document.createElement('a'); a.href = dataUrl; a.download = `qr-${(title || 'link').replace(/[^\w가-힣-]+/g, '_').slice(0, 40)}.gif`; document.body.appendChild(a); a.click(); a.remove(); };
+      return (
+        <Modal isOpen onClose={onClose} size="sm" title="QR 코드">
+          <div className="flex flex-col items-center gap-4 py-1">
+            {title && <div className="text-sm font-semibold text-ink-700 dark:text-ink-200 text-center break-keep">{title}</div>}
+            {dataUrl
+              ? <img src={dataUrl} alt="QR" className="w-56 h-56 sm:w-64 sm:h-64 rounded-xl border border-ink-100 dark:border-ink-800 bg-white p-2" />
+              : <div className="w-56 h-56 flex items-center justify-center text-sm text-ink-400 border border-ink-100 dark:border-ink-800 rounded-xl">QR 생성 실패</div>}
+            <div className="text-xs text-ink-500 dark:text-ink-400 break-all text-center px-2">{url}</div>
+            <div className="flex gap-2 w-full">
+              <Button className="flex-1" onClick={() => { navigator.clipboard?.writeText(url).then(() => toast.success('링크를 복사했습니다.'), () => toast.error('복사 실패')); }}>링크 복사</Button>
+              <Button variant="secondary" className="flex-1" onClick={download}>QR 저장</Button>
+            </div>
+          </div>
+        </Modal>
+      );
+    }
+    // 어디서나 드롭 가능한 QR 버튼 (자체 모달 상태 포함)
+    function QRButton({ url, title, size = 'sm', variant = 'subtle', label = 'QR' }) {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <Button size={size} variant={variant} onClick={() => setOpen(true)} aria-label="QR 코드"><span className="font-mono">▦</span>{label}</Button>
+          {open && <QRModal url={url} title={title} onClose={() => setOpen(false)} />}
+        </>
+      );
+    }
+
+    // ========================================
+    // 🔢 세션 스케줄 정렬 (날짜 → 시간)  ── "8월 20일" / "11:30~12:20" 자유 텍스트 파싱
+    // ========================================
+    function sessionSortKey(s) {
+      const d = String(s.session_date || '');
+      const md = d.match(/(\d+)\s*월\s*(\d+)\s*일/);
+      let dateKey = Number.MAX_SAFE_INTEGER;
+      if (md) dateKey = parseInt(md[1], 10) * 100 + parseInt(md[2], 10);
+      else if (d) { const t = Date.parse(d); if (!isNaN(t)) dateKey = t; }
+      const tm = String(s.time_range || '').match(/(\d{1,2}):(\d{2})/);
+      const timeKey = tm ? parseInt(tm[1], 10) * 60 + parseInt(tm[2], 10) : 99999;
+      return { dateKey, timeKey };
+    }
+    function sortSessionsBySchedule(list) {
+      return [...(list || [])].sort((a, b) => {
+        const ka = sessionSortKey(a), kb = sessionSortKey(b);
+        return ka.dateKey - kb.dateKey || ka.timeKey - kb.timeKey
+          || String(a.name || a.title || '').localeCompare(String(b.name || b.title || ''), 'ko');
+      });
+    }
+
+    // ========================================
     // 📄 SESSIONS TAB  (세션 / 트랙 관리)
     //   getProject 로 받은 { tracks, sessions } 를 그대로 사용하고,
     //   변경 후 onChanged() 로 상위에서 getProject refetch.
     // ========================================
-    function SessionsTab({ projectId, tracks, sessions, onChanged }) {
+    const TRACKLESS = '__none__';
+    function SessionsTab({ projectId, projectCode, tracks, sessions, onChanged }) {
       const toast = useToast();
       const [editSession, setEditSession] = useState(null); // session | {__new:true}
       const [confirmSession, setConfirmSession] = useState(null);
@@ -710,6 +777,9 @@
       const [trackName, setTrackName] = useState('');
       const [savingTrack, setSavingTrack] = useState(false);
       const trackInputRef = useRef(null);
+      const [importing, setImporting] = useState(false);
+      const sessionFileRef = useRef(null);
+      const [togglingId, setTogglingId] = useState(null);
 
       const reload = () => onChanged && onChanged();
       const trackById = useMemo(() => {
@@ -717,6 +787,18 @@
         (tracks || []).forEach(t => { m[t.id] = t; });
         return m;
       }, [tracks]);
+      // 트랙별 대표 룸 (그 트랙 세션들에서 가장 많이 쓰인 룸을 파생)
+      const trackRoom = useMemo(() => {
+        const acc = {};
+        (sessions || []).forEach(s => {
+          if (!s.track_id || !s.room) return;
+          (acc[s.track_id] = acc[s.track_id] || {});
+          acc[s.track_id][s.room] = (acc[s.track_id][s.room] || 0) + 1;
+        });
+        const out = {};
+        Object.entries(acc).forEach(([tid, rooms]) => { out[tid] = Object.entries(rooms).sort((a, b) => b[1] - a[1])[0][0]; });
+        return out;
+      }, [sessions]);
 
       useEffect(() => { if (addingTrack && trackInputRef.current) trackInputRef.current.focus(); }, [addingTrack]);
 
@@ -744,6 +826,43 @@
         finally { setDeletingTrack(false); }
       };
 
+      // 엑셀/CSV 업로드 → 세션 자동 생성
+      const onSessionFile = async (e) => {
+        const f = e.target.files?.[0];
+        if (!f) return;
+        setImporting(true);
+        try {
+          const isCsv = /\.csv$/i.test(f.name) || f.type === 'text/csv';
+          let payload;
+          if (isCsv) {
+            payload = { csv: await f.text(), filename: f.name };
+          } else {
+            const bytes = new Uint8Array(await f.arrayBuffer());
+            let bin = ''; const CH = 0x8000;
+            for (let i = 0; i < bytes.length; i += CH) bin += String.fromCharCode.apply(null, bytes.subarray(i, i + CH));
+            payload = { fileBase64: btoa(bin), filename: f.name };
+          }
+          const r = await api.importSessions(projectId, payload);
+          if (!r.imported) { toast.error('가져올 세션이 없습니다. 첫 행에 헤더(세션명 등)가 있는지 확인해주세요.'); return; }
+          const extra = r.tracksCreated?.length ? ` · 트랙 ${r.tracksCreated.length}개 자동 생성` : '';
+          const skip = r.skipped ? ` (빈 행 ${r.skipped}개 제외)` : '';
+          toast.success(`세션 ${r.imported}개를 만들었습니다${extra}.${skip}`);
+          reload();
+        } catch (err) { toast.error(err.message); }
+        finally { setImporting(false); if (sessionFileRef.current) sessionFileRef.current.value = ''; }
+      };
+
+      // 공개/비공개 즉시 토글
+      const togglePublic = async (s) => {
+        setTogglingId(s.id);
+        try {
+          await api.updateSession(s.id, { is_public: !s.is_public });
+          toast.success(!s.is_public ? `"${s.name}" 공개로 전환` : `"${s.name}" 비공개로 전환`);
+          reload();
+        } catch (e) { toast.error(e.message); }
+        finally { setTogglingId(null); }
+      };
+
       const doDeleteSession = async () => {
         setDeletingSession(true);
         try {
@@ -756,6 +875,33 @@
       };
 
       const list = sessions || [];
+      const [selectedDate, setSelectedDate] = useState(null);     // null = 전체 날짜
+      const [selectedTrackId, setSelectedTrackId] = useState(null); // null = 전체 트랙
+
+      // 존재하는 날짜 목록 (날짜순 정렬)
+      const dates = useMemo(() => {
+        const seen = new Map();
+        list.forEach(s => { if (s.session_date && !seen.has(s.session_date)) seen.set(s.session_date, sessionSortKey(s).dateKey); });
+        return [...seen.entries()].sort((a, b) => a[1] - b[1]).map(e => e[0]);
+      }, [list]);
+
+      // 선택 날짜로 필터 → 트랙별 그룹 (트랙 순서 유지) + 그룹 내 시간 정렬. 빈 그룹 제외.
+      const groups = useMemo(() => {
+        const src = selectedDate ? list.filter(s => s.session_date === selectedDate) : list;
+        const byTrack = new Map();
+        (tracks || []).forEach(t => byTrack.set(t.id, { id: t.id, name: t.name, items: [] }));
+        const none = { id: TRACKLESS, name: '트랙 없음', items: [] };
+        src.forEach(s => {
+          const g = (s.track_id && byTrack.has(s.track_id)) ? byTrack.get(s.track_id) : none;
+          g.items.push(s);
+        });
+        const arr = [...byTrack.values()];
+        if (none.items.length) arr.push(none);
+        arr.forEach(g => { g.items = sortSessionsBySchedule(g.items); });
+        return arr.filter(g => g.items.length > 0);
+      }, [list, tracks, selectedDate]);
+      const totalInView = groups.reduce((n, g) => n + g.items.length, 0);
+      const visibleGroups = selectedTrackId ? groups.filter(g => g.id === selectedTrackId) : groups;
 
       return (
         <div className="space-y-5">
@@ -772,6 +918,7 @@
               {(tracks || []).map(t => (
                 <span key={t.id} className="inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 rounded-full bg-ink-100 dark:bg-ink-800 text-ink-700 dark:text-ink-200 text-sm font-semibold">
                   {t.name}
+                  {trackRoom[t.id] && <span className="inline-flex items-center gap-1 text-xs font-medium text-ink-400 dark:text-ink-500">· 📍 {trackRoom[t.id]}</span>}
                   <button type="button" aria-label={`${t.name} 트랙 삭제`} onClick={() => setConfirmTrack(t)}
                     className="w-5 h-5 rounded-full flex items-center justify-center text-ink-400 dark:text-ink-500 hover:bg-rose-100 dark:hover:bg-rose-950/50 hover:text-rose-500 dark:hover:text-rose-300 transition">
                     <Icon name="trash" className="w-3.5 h-3.5" />
@@ -795,6 +942,24 @@
             </div>
           </Card>
 
+          {/* 엑셀/CSV 세션 일괄 업로드 */}
+          <Card className="p-5">
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <div className="flex items-center gap-2">
+                <span className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-300 flex items-center justify-center"><Icon name="inbox" className="w-4 h-4" /></span>
+                <h3 className="font-bold text-ink-800 dark:text-ink-100 text-sm">엑셀로 세션 일괄 등록</h3>
+              </div>
+              <Button size="sm" variant="ghost" onClick={() => api.downloadSessionTemplate(projectId)}>템플릿 다운로드</Button>
+            </div>
+            <p className="text-xs text-ink-400 dark:text-ink-500 mb-3">
+              컬럼: <code className="bg-ink-100 dark:bg-ink-800 px-1 rounded">세션명, 연사, 트랙, 설명, 공개여부</code>
+              <span className="block mt-0.5">· <code className="bg-ink-100 dark:bg-ink-800 px-1 rounded">세션명</code>만 필수 · 없는 트랙은 자동 생성 · <code>.xlsx</code>/<code>.csv</code> 지원</span>
+            </p>
+            <input ref={sessionFileRef} type="file" accept=".xlsx,.xls,.csv" disabled={importing} onChange={onSessionFile}
+              className="block w-full text-xs text-ink-500 dark:text-ink-400 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-emerald-50 dark:file:bg-emerald-950/50 file:text-emerald-700 dark:file:text-emerald-300 file:font-semibold file:text-xs hover:file:bg-emerald-100 dark:hover:file:bg-emerald-900/50 disabled:opacity-50" />
+            {importing && <div className="flex items-center gap-2 mt-2 text-xs text-ink-500 dark:text-ink-400"><Spinner className="w-4 h-4" />업로드 중…</div>}
+          </Card>
+
           {/* 세션 목록 */}
           <div>
             <div className="flex items-center justify-between gap-2 mb-3">
@@ -811,35 +976,105 @@
                 action={<Button onClick={() => setEditSession({ __new: true })}><Icon name="plus" className="w-4 h-4" />세션 만들기</Button>} />
               </Card>
             ) : (
-              <div className="space-y-2.5">
-                {list.map(s => {
-                  const track = s.track_id ? trackById[s.track_id] : null;
-                  return (
+              <>
+                {/* 날짜 필터 */}
+                {dates.length > 0 && (
+                  <div className="mb-3">
+                    <div className="text-xs font-semibold text-ink-400 dark:text-ink-500 mb-1.5">날짜</div>
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" onClick={() => { setSelectedDate(null); setSelectedTrackId(null); }}
+                        className={`px-3.5 py-2 rounded-lg text-sm font-bold transition ${!selectedDate ? 'bg-accent-600 text-white shadow-sm' : 'bg-ink-100 dark:bg-ink-800 text-ink-600 dark:text-ink-300 hover:bg-ink-200 dark:hover:bg-ink-700'}`}>
+                        전체 날짜
+                      </button>
+                      {dates.map(d => (
+                        <button key={d} type="button" onClick={() => { setSelectedDate(d); setSelectedTrackId(null); }}
+                          className={`px-3.5 py-2 rounded-lg text-sm font-bold transition ${selectedDate === d ? 'bg-accent-600 text-white shadow-sm' : 'bg-ink-100 dark:bg-ink-800 text-ink-600 dark:text-ink-300 hover:bg-ink-200 dark:hover:bg-ink-700'}`}>
+                          📅 {d}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* 트랙 필터 */}
+                <div className="mb-4">
+                  <div className="text-xs font-semibold text-ink-400 dark:text-ink-500 mb-1.5">트랙</div>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => setSelectedTrackId(null)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${!selectedTrackId ? 'bg-accent-600 text-white' : 'bg-ink-100 dark:bg-ink-800 text-ink-600 dark:text-ink-300 hover:bg-ink-200 dark:hover:bg-ink-700'}`}>
+                      전체 {totalInView}
+                    </button>
+                    {groups.map(g => (
+                      <button key={g.id} type="button" onClick={() => setSelectedTrackId(g.id)}
+                        className={`px-3 py-1.5 rounded-full text-xs font-semibold transition ${selectedTrackId === g.id ? 'bg-accent-600 text-white' : 'bg-ink-100 dark:bg-ink-800 text-ink-600 dark:text-ink-300 hover:bg-ink-200 dark:hover:bg-ink-700'}`}>
+                        {g.name} {g.items.length}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 트랙별 그룹 · 그룹 내 날짜→시간 정렬 */}
+                <div className="space-y-6">
+                  {visibleGroups.map(g => (
+                    <div key={g.id}>
+                      <div className="flex flex-wrap items-center gap-2 mb-2.5">
+                        <Icon name="layers" className="w-4 h-4 text-accent-500 dark:text-accent-400" />
+                        <h4 className="font-bold text-ink-700 dark:text-ink-200 text-sm">{g.name}</h4>
+                        {trackRoom[g.id] && <span className="text-xs font-semibold text-ink-500 dark:text-ink-400">📍 {trackRoom[g.id]}</span>}
+                        <Badge tone="slate">{g.items.length}</Badge>
+                        {g.id !== TRACKLESS && projectCode && (
+                          <QRButton
+                            variant="secondary"
+                            label={`QR 생성${selectedDate ? ` (${selectedDate})` : ''}`}
+                            url={`${window.location.origin}/#/e/${projectCode}?track=${g.id}${selectedDate ? `&date=${encodeURIComponent(selectedDate)}` : ''}`}
+                            title={`${g.name}${trackRoom[g.id] ? ` · 📍 ${trackRoom[g.id]}` : ''}${selectedDate ? ` · ${selectedDate}` : ' · 전체 날짜'}`}
+                          />
+                        )}
+                      </div>
+                      <div className="space-y-2.5">
+                        {g.items.map(s => {
+                          return (
                     <div key={s.id} className="border border-ink-100 dark:border-ink-800 rounded-xl p-4 hover:border-ink-200 dark:hover:border-ink-700 transition bg-white dark:bg-ink-900 fade-up">
                       <div className="flex flex-col sm:flex-row sm:items-center gap-3">
                         <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-2 mb-1">
-                            {track && <Badge tone="indigo"><Icon name="layers" className="w-3 h-3" />{track.name}</Badge>}
-                            {s.is_public === false && <Badge tone="slate">비공개</Badge>}
-                            {s.is_public === true && <Badge tone="green">공개</Badge>}
-                            {s.code && <span className="text-xs font-mono text-ink-400 dark:text-ink-500">{s.code}</span>}
-                          </div>
+                          {s.room && s.room !== trackRoom[s.track_id] && (
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
+                              <Badge tone="slate">📍 {s.room}</Badge>
+                            </div>
+                          )}
                           <div className="font-semibold text-ink-800 dark:text-ink-100 truncate">{s.name}</div>
                           <div className="text-sm text-ink-500 dark:text-ink-400 truncate flex items-center gap-1.5">
                             {s.speaker
                               ? <><Icon name="mic" className="w-3.5 h-3.5 shrink-0" />{s.speaker}</>
                               : <span className="text-ink-400 dark:text-ink-500">강연자 미지정</span>}
                           </div>
+                          {(s.session_date || s.time_range) && (
+                            <div className="text-xs text-ink-400 dark:text-ink-500 mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                              {s.session_date && <span>📅 {s.session_date}</span>}
+                              {s.time_range && <span>🕐 {s.time_range}</span>}
+                            </div>
+                          )}
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
+                          <button type="button" onClick={() => togglePublic(s)} disabled={togglingId === s.id}
+                            title="클릭하여 공개/비공개 전환"
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition disabled:opacity-50 ${s.is_public ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50' : 'bg-ink-100 dark:bg-ink-800 text-ink-500 dark:text-ink-400 hover:bg-ink-200 dark:hover:bg-ink-700'}`}>
+                            {togglingId === s.id ? <Spinner className="w-3.5 h-3.5" /> : <span className={`w-2 h-2 rounded-full ${s.is_public ? 'bg-emerald-500' : 'bg-ink-400'}`} />}
+                            {s.is_public ? '공개' : '비공개'}
+                          </button>
+                          <QRButton url={`${window.location.origin}/#/s/${s.code}`} title={s.name} />
                           <Button size="sm" variant="subtle" onClick={() => setEditSession(s)}><Icon name="edit" className="w-3.5 h-3.5" />수정</Button>
                           <Button size="sm" variant="danger" onClick={() => setConfirmSession(s)}><Icon name="trash" className="w-3.5 h-3.5" />삭제</Button>
                         </div>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
 
@@ -876,6 +1111,9 @@
         name: session?.name || '',
         speaker: session?.speaker || '',
         track_id: session?.track_id || '',
+        session_date: session?.session_date || '',
+        time_range: session?.time_range || '',
+        room: session?.room || '',
         is_public: session?.is_public !== undefined ? session.is_public : true,
       });
       const [errors, setErrors] = useState({});
@@ -889,6 +1127,9 @@
           name: form.name.trim(),
           speaker: form.speaker.trim(),
           track_id: form.track_id || null,
+          session_date: form.session_date.trim(),
+          time_range: form.time_range.trim(),
+          room: form.room.trim(),
           is_public: form.is_public,
         };
         try {
@@ -912,6 +1153,17 @@
             </Field>
             <Field label="강연자">
               <Input value={form.speaker} placeholder="예: 김민수" onChange={e => set('speaker', e.target.value)} />
+            </Field>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="날짜">
+                <Input value={form.session_date} placeholder="예: 8월 20일" onChange={e => set('session_date', e.target.value)} />
+              </Field>
+              <Field label="시간">
+                <Input value={form.time_range} placeholder="예: 11:30~12:20" onChange={e => set('time_range', e.target.value)} />
+              </Field>
+            </div>
+            <Field label="세션룸">
+              <Input value={form.room} placeholder="예: Harmony Ballroom 1" onChange={e => set('room', e.target.value)} />
             </Field>
             <Field label="트랙" hint="이 프로젝트의 트랙 중에서 선택하거나 '없음'으로 둘 수 있습니다.">
               <Select value={form.track_id} onChange={e => set('track_id', e.target.value)}>
@@ -948,7 +1200,6 @@
                 <StatusBadge status={poll.status} />
                 {poll.is_public === false && <Badge tone="slate">비공개</Badge>}
                 {poll.show_results ? <Badge tone="accent">결과 공개</Badge> : <Badge tone="slate">결과 비공개</Badge>}
-                <span className="text-xs font-mono text-ink-400 dark:text-ink-500">{poll.code}</span>
               </div>
               <div className="font-semibold text-ink-800 dark:text-ink-100 truncate">{poll.title}</div>
               <div className="text-sm text-ink-500 dark:text-ink-400 truncate">{poll.question}</div>
@@ -962,6 +1213,7 @@
           </div>
           <div className="flex flex-wrap gap-1.5 mt-3 pt-3 border-t border-ink-50 dark:border-ink-800">
             <Button size="sm" variant="secondary" onClick={() => onResults(poll)}>결과보기</Button>
+            <QRButton url={`${window.location.origin}/#/poll/${poll.code}`} title={poll.title} variant="secondary" label="참여 QR" />
             {isLive
               ? <Btn act="close" variant="danger">종료</Btn>
               : <Btn act="start" variant="success">{isClosed ? '재시작' : '시작'}</Btn>}
@@ -971,6 +1223,126 @@
             <Btn act="export">엑셀</Btn>
             <Btn act="delete" variant="danger">삭제</Btn>
           </div>
+        </div>
+      );
+    }
+
+    // ========================================
+    // 📄 SESSION-POLLS TAB  (세션 중심 Poll 관리)
+    //   모든 세션을 날짜/트랙별로 보여주고, 각 세션에 문제(Poll)를 추가.
+    // ========================================
+    function SessionPollsTab({ sessions, tracks, livePolls, onNewForSession, onNewProject, onAction, onResults, rowBusyKey }) {
+      const [selectedDate, setSelectedDate] = useState(null);
+      const [selectedTrackId, setSelectedTrackId] = useState(null);
+
+      const pollsBySession = useMemo(() => {
+        const m = {};
+        (livePolls || []).forEach(p => { const k = p.session_id || '__none'; (m[k] = m[k] || []).push(p); });
+        return m;
+      }, [livePolls]);
+      const trackRoom = useMemo(() => {
+        const acc = {};
+        (sessions || []).forEach(s => { if (!s.track_id || !s.room) return; (acc[s.track_id] = acc[s.track_id] || {}); acc[s.track_id][s.room] = (acc[s.track_id][s.room] || 0) + 1; });
+        const out = {}; Object.entries(acc).forEach(([tid, r]) => { out[tid] = Object.entries(r).sort((a, b) => b[1] - a[1])[0][0]; });
+        return out;
+      }, [sessions]);
+      const dates = useMemo(() => {
+        const seen = new Map();
+        (sessions || []).forEach(s => { if (s.session_date && !seen.has(s.session_date)) seen.set(s.session_date, sessionSortKey(s).dateKey); });
+        return [...seen.entries()].sort((a, b) => a[1] - b[1]).map(e => e[0]);
+      }, [sessions]);
+      const groups = useMemo(() => {
+        const src = selectedDate ? (sessions || []).filter(s => s.session_date === selectedDate) : (sessions || []);
+        const byTrack = new Map();
+        (tracks || []).forEach(t => byTrack.set(t.id, { id: t.id, name: t.name, items: [] }));
+        const none = { id: '__none', name: '트랙 없음', items: [] };
+        src.forEach(s => { const g = (s.track_id && byTrack.has(s.track_id)) ? byTrack.get(s.track_id) : none; g.items.push(s); });
+        const arr = [...byTrack.values()]; if (none.items.length) arr.push(none);
+        arr.forEach(g => { g.items = sortSessionsBySchedule(g.items); });
+        return arr.filter(g => g.items.length > 0);
+      }, [sessions, tracks, selectedDate]);
+      const totalInView = groups.reduce((n, g) => n + g.items.length, 0);
+      const visibleGroups = selectedTrackId ? groups.filter(g => g.id === selectedTrackId) : groups;
+      const noneList = pollsBySession['__none'] || [];
+
+      const pillCls = (active) => `px-3 py-1.5 rounded-full text-xs font-semibold transition ${active ? 'bg-accent-600 text-white' : 'bg-ink-100 dark:bg-ink-800 text-ink-600 dark:text-ink-300 hover:bg-ink-200 dark:hover:bg-ink-700'}`;
+      const datePillCls = (active) => `px-3.5 py-2 rounded-lg text-sm font-bold transition ${active ? 'bg-accent-600 text-white shadow-sm' : 'bg-ink-100 dark:bg-ink-800 text-ink-600 dark:text-ink-300 hover:bg-ink-200 dark:hover:bg-ink-700'}`;
+
+      if (!sessions || sessions.length === 0) {
+        return <Card><EmptyState icon="mic" title="먼저 세션을 만들어주세요" desc="세션 탭에서 세션을 만들거나 엑셀로 업로드하면, 여기에서 각 세션에 문제(Poll)를 추가할 수 있습니다." /></Card>;
+      }
+
+      return (
+        <div className="space-y-5">
+          {/* 날짜 필터 */}
+          {dates.length > 0 && (
+            <div>
+              <div className="text-xs font-semibold text-ink-400 dark:text-ink-500 mb-1.5">날짜</div>
+              <div className="flex flex-wrap gap-2">
+                <button type="button" onClick={() => { setSelectedDate(null); setSelectedTrackId(null); }} className={datePillCls(!selectedDate)}>전체 날짜</button>
+                {dates.map(d => <button key={d} type="button" onClick={() => { setSelectedDate(d); setSelectedTrackId(null); }} className={datePillCls(selectedDate === d)}>📅 {d}</button>)}
+              </div>
+            </div>
+          )}
+          {/* 트랙 필터 */}
+          <div>
+            <div className="text-xs font-semibold text-ink-400 dark:text-ink-500 mb-1.5">트랙</div>
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={() => setSelectedTrackId(null)} className={pillCls(!selectedTrackId)}>전체 {totalInView}</button>
+              {groups.map(g => <button key={g.id} type="button" onClick={() => setSelectedTrackId(g.id)} className={pillCls(selectedTrackId === g.id)}>{g.name} {g.items.length}</button>)}
+            </div>
+          </div>
+
+          {/* 트랙별 → 세션별 → 문제 */}
+          <div className="space-y-6">
+            {visibleGroups.map(g => (
+              <div key={g.id}>
+                <div className="flex flex-wrap items-center gap-2 mb-2.5">
+                  <Icon name="layers" className="w-4 h-4 text-accent-500 dark:text-accent-400" />
+                  <h4 className="font-bold text-ink-700 dark:text-ink-200 text-sm">{g.name}</h4>
+                  {trackRoom[g.id] && <span className="text-xs font-semibold text-ink-500 dark:text-ink-400">📍 {trackRoom[g.id]}</span>}
+                </div>
+                <div className="space-y-3">
+                  {g.items.map(s => {
+                    const sp = pollsBySession[s.id] || [];
+                    return (
+                      <div key={s.id} className="border border-ink-100 dark:border-ink-800 rounded-xl p-4 bg-white dark:bg-ink-900">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="min-w-0 flex items-center gap-2">
+                            {s.time_range && <span className="text-xs font-semibold text-ink-400 dark:text-ink-500 tabular-nums shrink-0">🕐 {s.time_range}</span>}
+                            <span className="font-semibold text-ink-800 dark:text-ink-100 truncate">{s.name}</span>
+                            {s.speaker && <span className="text-xs text-ink-400 dark:text-ink-500 truncate">· {s.speaker}</span>}
+                            <Badge tone={sp.length ? 'accent' : 'slate'}>{sp.length}</Badge>
+                          </div>
+                          <Button size="sm" variant="secondary" onClick={() => onNewForSession(s.id)}><Icon name="plus" className="w-3.5 h-3.5" />문제 만들기</Button>
+                        </div>
+                        {sp.length > 0 ? (
+                          <div className="space-y-2.5 mt-3 pl-3 border-l-2 border-ink-100 dark:border-ink-800">
+                            {sp.map(p => <PollRow key={p.id} poll={p} onAction={onAction} onResults={onResults} busyAction={rowBusyKey(p)} />)}
+                          </div>
+                        ) : (
+                          <div className="text-xs text-ink-400 dark:text-ink-500 mt-2 pl-1">아직 문제가 없습니다. “문제 만들기”로 추가하세요.</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* 세션 미지정 Poll */}
+          {noneList.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2.5">
+                <h4 className="font-bold text-ink-700 dark:text-ink-200 text-sm">세션 미지정</h4>
+                <Badge tone="slate">{noneList.length}</Badge>
+              </div>
+              <div className="space-y-2.5">
+                {noneList.map(p => <PollRow key={p.id} poll={p} onAction={onAction} onResults={onResults} busyAction={rowBusyKey(p)} />)}
+              </div>
+            </div>
+          )}
         </div>
       );
     }
@@ -1038,7 +1410,7 @@
         finally { setBusyAction(null); }
       };
 
-      const openNew = (source) => { setEditSource(source); setEditPoll({ __new: true }); };
+      const openNew = (source, sessionId) => { setEditSource(source); setEditPoll({ __new: true, session_id: sessionId || '' }); };
 
       const onSaved = () => { setEditPoll(null); reloadPolls(); };
 
@@ -1047,20 +1419,6 @@
       const newsletterPolls = allPolls.filter(p => p.source_type === 'newsletter');
 
       // 세션별 그룹핑 (live_event)
-      const sessionsMap = useMemo(() => {
-        const m = {};
-        (proj.data?.sessions || []).forEach(s => { m[s.id] = s; });
-        return m;
-      }, [proj.data]);
-      const groupedLive = useMemo(() => {
-        const groups = {};
-        livePolls.forEach(p => {
-          const key = p.session_id || '__none';
-          if (!groups[key]) groups[key] = [];
-          groups[key].push(p);
-        });
-        return groups;
-      }, [polls.data]);
 
       const crumbs = [
         { label: '프로젝트', to: '/' },
@@ -1077,12 +1435,13 @@
                   <h1 className="text-xl font-bold text-ink-800 dark:text-ink-100">{proj.data.name}</h1>
                   <StatusBadge status={proj.data.status === 'active' ? 'live' : proj.data.status} />
                 </div>
-                <p className="text-sm text-ink-500 dark:text-ink-400 mt-0.5">{proj.data.client} · <span className="font-mono text-ink-400 dark:text-ink-500">{proj.data.code}</span></p>
+                {proj.data.client && <p className="text-sm text-ink-500 dark:text-ink-400 mt-0.5">{proj.data.client}</p>}
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {tab === 'live' && <Button onClick={() => openNew('live_event')}><Icon name="plus" className="w-4 h-4" />Poll 만들기</Button>}
                 {tab === 'newsletter' && <Button onClick={() => openNew('newsletter')}><Icon name="plus" className="w-4 h-4" />뉴스레터 Poll 만들기</Button>}
                 {tab === 'survey' && <Button onClick={() => setNewSurvey(true)}><Icon name="plus" className="w-4 h-4" />설문 만들기</Button>}
+                <QRButton url={`${window.location.origin}/#/e/${proj.data.code}`} title={`${proj.data.name} 참석자 페이지`} variant="secondary" size="md" label="행사 QR" />
                 <Button variant="ghost" size="md" onClick={() => setEditProject(true)} aria-label="프로젝트 수정"><Icon name="edit" className="w-4 h-4" />수정</Button>
                 <Button variant="danger" size="md" onClick={() => setDeleteProjectOpen(true)} aria-label="프로젝트 삭제"><Icon name="trash" className="w-4 h-4" />삭제</Button>
               </div>
@@ -1103,7 +1462,7 @@
           {tab === 'sessions' && (
             proj.loading ? <LoadingBlock /> :
             proj.error ? <ErrorBanner error={proj.error} onRetry={proj.refetch} /> :
-            proj.data ? <SessionsTab projectId={projectId} tracks={proj.data.tracks || []} sessions={proj.data.sessions || []} onChanged={() => proj.refetch().catch(() => {})} /> : null
+            proj.data ? <SessionsTab projectId={projectId} projectCode={proj.data.code} tracks={proj.data.tracks || []} sessions={proj.data.sessions || []} onChanged={() => proj.refetch().catch(() => {})} /> : null
           )}
 
           {tab === 'live' && (
@@ -1113,30 +1472,17 @@
               </div>
               {polls.loading && <LoadingBlock />}
               {polls.error && <ErrorBanner error={polls.error} onRetry={reloadPolls} />}
-              {polls.data && livePolls.length === 0 && <Card><EmptyState icon="clipboard-list" title="등록된 Poll이 없습니다" desc="세션에 연결된 실시간 Poll을 만들어보세요." action={<Button onClick={() => openNew('live_event')}>+ Poll 만들기</Button>} /></Card>}
-              {polls.data && livePolls.length > 0 && (
-                <div className="space-y-5">
-                  {Object.entries(groupedLive).map(([sid, list]) => {
-                    const sess = sessionsMap[sid];
-                    return (
-                      <div key={sid}>
-                        <div className="flex items-center justify-between gap-2 mb-2 px-1">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-sm font-bold text-ink-700 dark:text-ink-200 truncate">
-                              {sess ? sess.name : (sid === '__none' ? '프로젝트 전체 (세션 미지정)' : '세션')}
-                            </span>
-                            {sess?.speaker && <span className="text-xs text-ink-400 dark:text-ink-500">· {sess.speaker}</span>}
-                            <Badge tone="slate">{list.length}</Badge>
-                          </div>
-                          {sess && <Button variant="ghost" size="sm" onClick={async () => { try { await api.exportSessionPolls(sess.id); toast.success('세션 Poll 엑셀 다운로드를 시작합니다.'); } catch (e) { toast.error(e.message); } }}>세션 엑셀</Button>}
-                        </div>
-                        <div className="space-y-2.5">
-                          {list.map(p => <PollRow key={p.id} poll={p} onAction={rowAction} onResults={setResultsPoll} busyAction={rowBusyKey(p)} />)}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+              {polls.data && proj.data && (
+                <SessionPollsTab
+                  sessions={proj.data.sessions || []}
+                  tracks={proj.data.tracks || []}
+                  livePolls={livePolls}
+                  onNewForSession={(sid) => openNew('live_event', sid)}
+                  onNewProject={() => openNew('live_event')}
+                  onAction={rowAction}
+                  onResults={setResultsPoll}
+                  rowBusyKey={rowBusyKey}
+                />
               )}
             </div>
           )}
@@ -1148,10 +1494,10 @@
           )}
 
           {tab === 'survey' && (
-            <SurveyTab projectId={projectId} newSurvey={newSurvey} onCloseNew={() => setNewSurvey(false)} />
+            <SurveyTab projectId={projectId} sessions={proj.data?.sessions || []} newSurvey={newSurvey} onCloseNew={() => setNewSurvey(false)} />
           )}
 
-          {tab === 'analysis' && <AnalysisTab projectId={projectId} />}
+          {tab === 'analysis' && <AnalysisTab projectId={projectId} polls={allPolls} sessions={proj.data?.sessions || []} />}
 
           {/* 프로젝트 수정 모달 */}
           {editProject && proj.data && (
@@ -1169,6 +1515,7 @@
           {editPoll && (
             <PollFormModal projectId={projectId} sessions={proj.data?.sessions || []}
               source={editSource} poll={editPoll.__new ? null : editPoll}
+              initialSessionId={editPoll.__new ? (editPoll.session_id || '') : ''}
               onClose={() => setEditPoll(null)} onSaved={onSaved} />
           )}
 
@@ -1236,7 +1583,7 @@
               <div key={p.id}>
                 <PollRow poll={p} onAction={onAction} onResults={onResults} busyAction={rowBusyKey(p)} />
                 <div className="flex justify-end mt-1 pr-1">
-                  <button onClick={() => copyShare(p.code)} className="text-xs text-accent-600 dark:text-accent-300 font-medium hover:underline">공유 링크 복사 (/poll/{p.code})</button>
+                  <button onClick={() => copyShare(p.code)} className="text-xs text-accent-600 dark:text-accent-300 font-medium hover:underline">공유 링크 복사</button>
                 </div>
               </div>
             ))}
@@ -1291,9 +1638,24 @@
     // ========================================
     // 📄 ANALYSIS TAB  (PRD 5.6.3)
     // ========================================
-    function AnalysisTab({ projectId }) {
+    function AnalysisTab({ projectId, polls, sessions }) {
       const toast = useToast();
       const { data, loading, error, refetch } = useAsync(() => api.getAnalysis(projectId), [projectId]);
+      // 세션별 집계 (문제 수 / 응답 수 / 진행중) — polls 기준. 세션 스케줄 순서 유지.
+      const sessionRows = useMemo(() => {
+        const stat = {};
+        (polls || []).forEach(p => {
+          const k = p.session_id || '__none';
+          const st = stat[k] || (stat[k] = { name: p.session_name || '', polls: 0, responses: 0, live: 0 });
+          st.polls++; st.responses += (p.response_count || 0); if (p.status === 'live') st.live++;
+        });
+        const sorted = sortSessionsBySchedule(sessions || []);
+        const rows = sorted.filter(s => stat[s.id]).map(s => ({
+          name: s.name, date: s.session_date, time: s.time_range, room: s.room, ...stat[s.id],
+        }));
+        if (stat['__none']) rows.push({ name: '세션 미지정', ...stat['__none'] });
+        return rows;
+      }, [polls, sessions]);
       if (loading) return <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">{Array.from({ length: 6 }).map((_, i) => <div key={i} className="sk h-28 rounded-2xl bg-ink-200 dark:bg-ink-800" />)}</div>;
       if (error) return <ErrorBanner error={error} onRetry={refetch} />;
       if (!data) return null;
@@ -1334,6 +1696,41 @@
               <span className="w-12 h-12 rounded-2xl bg-accent-50 dark:bg-accent-950/50 text-accent-600 dark:text-accent-300 flex items-center justify-center"><Icon name="award" className="w-6 h-6" /></span>
             </div>
           </Card>
+
+          {/* 세션별 분석 */}
+          <Card className="p-5 mt-4 fade-up">
+            <h3 className="font-bold text-ink-800 dark:text-ink-100 text-sm mb-3">세션별 분석</h3>
+            {sessionRows.length === 0 ? (
+              <p className="text-xs text-ink-400 dark:text-ink-500 text-center py-4">아직 문제(Poll)가 연결된 세션이 없습니다.</p>
+            ) : (
+              <div className="overflow-x-auto scrollbar-thin -mx-1">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-ink-400 dark:text-ink-500 text-left border-b border-ink-100 dark:border-ink-800">
+                      <th className="font-semibold py-2 px-2">세션</th>
+                      <th className="font-semibold py-2 px-2 text-right tabular-nums">문제</th>
+                      <th className="font-semibold py-2 px-2 text-right tabular-nums">응답</th>
+                      <th className="font-semibold py-2 px-2 text-right">진행중</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sessionRows.map((r, i) => (
+                      <tr key={i} className="border-b border-ink-50 dark:border-ink-800/50 last:border-0">
+                        <td className="py-2 px-2">
+                          <div className="font-semibold text-ink-800 dark:text-ink-100">{r.name || '이름 없음'}</div>
+                          {(r.date || r.time || r.room) && <div className="text-xs text-ink-400 dark:text-ink-500">{[r.date, r.time, r.room].filter(Boolean).join(' · ')}</div>}
+                        </td>
+                        <td className="py-2 px-2 text-right tabular-nums text-ink-700 dark:text-ink-200">{r.polls}</td>
+                        <td className="py-2 px-2 text-right tabular-nums font-bold text-ink-800 dark:text-ink-100">{r.responses}</td>
+                        <td className="py-2 px-2 text-right">{r.live > 0 ? <Badge tone="green">진행중 {r.live}</Badge> : <span className="text-xs text-ink-300 dark:text-ink-600">-</span>}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </Card>
+
           <div className="flex flex-wrap gap-2 mt-5">
             <Button onClick={async () => { try { await api.exportProjectPolls(projectId); toast.success('프로젝트 전체 엑셀 다운로드를 시작합니다.'); } catch (e) { toast.error(e.message); } }}>프로젝트 전체 엑셀</Button>
             <Button variant="secondary" onClick={async () => { try { await api.exportProjectSummary(projectId); toast.success('분석 요약 엑셀 다운로드를 시작합니다.'); } catch (e) { toast.error(e.message); } }}>분석 요약 엑셀</Button>
@@ -1352,7 +1749,7 @@
       { value: 'short_text', label: '주관식 (서술형)' },
     ];
 
-    function PollFormModal({ projectId, sessions, source, poll, onClose, onSaved }) {
+    function PollFormModal({ projectId, sessions, source, poll, initialSessionId, onClose, onSaved }) {
       const toast = useToast();
       const editing = !!poll;
       const isNewsletter = source === 'newsletter';
@@ -1361,7 +1758,7 @@
         title: init.title || '',
         question: init.question || '',
         poll_type: init.poll_type || 'single_choice',
-        session_id: init.session_id || '',
+        session_id: init.session_id || initialSessionId || '',
         is_public: init.is_public !== undefined ? init.is_public : true,
         show_results: init.show_results !== undefined ? init.show_results : true,
         allow_multiple_answers: init.allow_multiple_answers || false,
@@ -1561,15 +1958,34 @@
     // ========================================
     // 📄 SURVEY TAB  (묶음 설문 목록 — PRD 10.x)
     // ========================================
-    function SurveyTab({ projectId, newSurvey, onCloseNew }) {
+    function SurveyTab({ projectId, sessions, newSurvey, onCloseNew }) {
       const toast = useToast();
       const { data, loading, error, refetch } = useAsync(() => api.getSurveys(projectId), [projectId]);
       const [busyAction, setBusyAction] = useState(null); // 'act:id'
       const [editSurvey, setEditSurvey] = useState(null); // survey row (full fetch handled in modal)
       const [resultsSurvey, setResultsSurvey] = useState(null);
       const [confirm, setConfirm] = useState(null); // survey to delete
+      const [genDate, setGenDate] = useState(null); // 생성 중인 날짜
 
       const reload = () => refetch().catch(() => {});
+
+      // 세션 날짜 목록 (날짜순) — 기본폼 생성 버튼용
+      const dates = useMemo(() => {
+        const seen = new Map();
+        (sessions || []).forEach(s => { if (s.session_date && !seen.has(s.session_date)) seen.set(s.session_date, sessionSortKey(s).dateKey); });
+        return [...seen.entries()].sort((a, b) => a[1] - b[1]).map(e => e[0]);
+      }, [sessions]);
+      const sessionCountByDate = (d) => (sessions || []).filter(s => s.session_date === d).length;
+
+      const generateDay = async (date) => {
+        setGenDate(date);
+        try {
+          const r = await api.generateDaySurvey(projectId, date);
+          toast.success(`${date} 기본 설문을 만들었습니다. (문항 ${r.question_count ?? ''}개)`);
+          reload();
+        } catch (e) { toast.error(e.message); }
+        finally { setGenDate(null); }
+      };
 
       const handleAction = async (act, s) => {
         if (act === 'edit') { setEditSurvey(s); return; }
@@ -1603,6 +2019,27 @@
 
       return (
         <div>
+          {/* 세션 기반 기본 설문 폼 자동 생성 (날짜별) */}
+          {dates.length > 0 && (
+            <Card className="p-5 mb-5">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-8 h-8 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-300 flex items-center justify-center"><Icon name="inbox" className="w-4 h-4" /></span>
+                <h3 className="font-bold text-ink-800 dark:text-ink-100 text-sm">세션 평가 설문 기본폼 생성</h3>
+              </div>
+              <p className="text-xs text-ink-400 dark:text-ink-500 mb-3">
+                날짜를 고르면 그날 전체 세션의 <b>난이도·만족도(1~5)</b> 문항 + <b>이름·이메일·연락처</b> 입력란이 있는 설문이 자동 생성됩니다. 생성 후 문항은 자유롭게 수정할 수 있어요.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {dates.map((d, i) => (
+                  <Button key={d} variant="secondary" disabled={genDate === d} onClick={() => generateDay(d)}>
+                    {genDate === d ? <Spinner className="w-4 h-4" /> : <Icon name="plus" className="w-4 h-4" />}
+                    {i + 1}일차 · {d} 기본폼 생성 ({sessionCountByDate(d)}세션)
+                  </Button>
+                ))}
+              </div>
+            </Card>
+          )}
+
           {loading && <LoadingBlock />}
           {error && <ErrorBanner error={error} onRetry={reload} />}
           {data && surveys.length === 0 && (
@@ -1669,7 +2106,6 @@
                 <StatusBadge status={survey.status} />
                 {survey.source_type === 'newsletter' ? <Badge tone="amber">뉴스레터</Badge> : <Badge tone="indigo">행사 현장</Badge>}
                 {survey.show_results ? <Badge tone="accent">결과 공개</Badge> : <Badge tone="slate">결과 비공개</Badge>}
-                <span className="text-xs font-mono text-ink-400 dark:text-ink-500">{survey.code}</span>
               </div>
               <div className="font-semibold text-ink-800 dark:text-ink-100 truncate">{survey.title}</div>
               {survey.intro && <div className="text-sm text-ink-500 dark:text-ink-400 truncate">{survey.intro}</div>}
@@ -1990,10 +2426,12 @@
     function SurveyQuestionResult({ question, index }) {
       const q = question;
       const isChoice = q.poll_type === 'single_choice' || q.poll_type === 'multiple_choice';
-      // rating 분포: distribution = { 1:n,...,5:n } 또는 배열 가정
+      // rating 분포: [{score,count,percent}] 객체배열 / [count,...] 숫자배열 / {1:n,...} 맵 모두 대응
       const distEntries = useMemo(() => {
         if (!q.distribution) return [];
-        if (Array.isArray(q.distribution)) return q.distribution.map((c, i) => [i + 1, c]);
+        if (Array.isArray(q.distribution)) {
+          return q.distribution.map((c, i) => (c && typeof c === 'object') ? [c.score ?? (i + 1), c.count ?? 0] : [i + 1, c]);
+        }
         return [1, 2, 3, 4, 5].map(k => [k, q.distribution[k] ?? q.distribution[String(k)] ?? 0]);
       }, [q.distribution]);
       const maxDist = Math.max(1, ...distEntries.map(([, c]) => c));

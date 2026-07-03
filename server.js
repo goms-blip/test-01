@@ -35,7 +35,7 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 });
 
 const app = express();
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '8mb' })); // 세션 엑셀 업로드(base64) 여유분 포함
 
 // ============================================================
 // 🗺️ 변환 헬퍼 (DB row → 앱 object)
@@ -176,7 +176,7 @@ app.get('/api/public/projects/:projectCode', wrap(async (req, res) => {
   (tracks || []).forEach((t) => { trackName[t.id] = t.name; });
 
   const { data: sessions } = await supabase.from('sessions')
-    .select('id, code, title, speaker, track_id').eq('project_id', project.id).eq('is_public', true)
+    .select('id, code, title, speaker, track_id, session_date, time_range, room').eq('project_id', project.id).eq('is_public', true)
     .order('created_at', { ascending: true });
   const sessionName = {};
   (sessions || []).forEach((s) => { sessionName[s.id] = s.title; });
@@ -196,6 +196,7 @@ app.get('/api/public/projects/:projectCode', wrap(async (req, res) => {
     sessions: (sessions || []).map((s) => ({
       id: s.id, code: s.code, name: s.title, speaker: s.speaker || '',
       track_id: s.track_id, track_name: s.track_id ? (trackName[s.track_id] || '') : '',
+      session_date: s.session_date || '', time_range: s.time_range || '', room: s.room || '',
     })),
     livePolls,
   });
@@ -222,6 +223,7 @@ app.get('/api/public/sessions/:sessionCode', wrap(async (req, res) => {
     name: session.title,
     speaker: session.speaker || '',
     track_name: trackName,
+    session_date: session.session_date || '', time_range: session.time_range || '', room: session.room || '',
     project_id: session.project_id,
     livePolls: (polls || []).map((p) => mapPoll(p, [], { session_name: session.title })),
   });
@@ -322,15 +324,31 @@ async function fetchSurveyByCode(code) {
 }
 
 // 설문의 문항(poll) 목록을 정렬해서 가져옴 (+ 각 문항 옵션)
+// Supabase 1000행 제한 회피용 페이지네이션 (build: (sb) => 필터까지 적용된 쿼리빌더)
+async function fetchAllPaged(build) {
+  const out = []; const PAGE = 1000; let from = 0;
+  for (;;) {
+    const { data, error } = await build(supabase).range(from, from + PAGE - 1);
+    if (error) throw new Error(error.message);
+    const rows = data || [];
+    out.push(...rows);
+    if (rows.length < PAGE) break;
+    from += PAGE;
+  }
+  return out;
+}
+
 async function fetchSurveyQuestions(surveyId) {
   const { data: qpolls } = await supabase.from('polls')
     .select('*').eq('survey_id', surveyId).order('sort_order', { ascending: true });
-  const out = [];
-  for (const p of qpolls || []) {
-    const options = await fetchOptions(p.id);
-    out.push({ ...p, options });
-  }
-  return out;
+  const polls = qpolls || [];
+  if (!polls.length) return [];
+  const ids = polls.map((p) => p.id);
+  // 옵션 일괄 조회 (문항마다 개별 조회하던 N+1 제거)
+  const opts = await fetchAllPaged((sb) => sb.from('poll_options').select('*').in('poll_id', ids).order('sort_order', { ascending: true }));
+  const byPoll = {};
+  opts.forEach((o) => { (byPoll[o.poll_id] = byPoll[o.poll_id] || []).push(o); });
+  return polls.map((p) => ({ ...p, options: byPoll[p.id] || [] }));
 }
 
 // 설문 조회 (참여 화면) — bundle 형태로 반환
@@ -361,7 +379,8 @@ app.get('/api/public/surveys/:surveyCode', wrap(async (req, res) => {
     recipient,
     questions: questions.map((q) => ({
       id: q.id, poll_type: q.poll_type, question: q.question,
-      required: true, max_length: 200,
+      // rating(세션 난이도/만족도)은 참석한 세션만 평가하므로 선택 응답, 나머지(이름·이메일·연락처 등)는 필수
+      required: q.poll_type !== 'rating', max_length: 200,
       options: (q.options || []).map(mapOption),
     })),
   });
@@ -460,11 +479,14 @@ app.get('/api/admin/projects/:projectId', wrap(async (req, res) => {
   const { data: tracks } = await supabase.from('tracks')
     .select('id, name, sort_order').eq('project_id', p.id).order('sort_order');
   const { data: sessions } = await supabase.from('sessions')
-    .select('id, code, title, speaker, track_id, is_public').eq('project_id', p.id).order('created_at', { ascending: true });
+    .select('id, code, title, speaker, track_id, is_public, session_date, time_range, room').eq('project_id', p.id).order('created_at', { ascending: true });
   ok(res, {
     id: p.id, code: p.code, name: p.title, client: p.client_name || '', status: p.status,
     tracks: (tracks || []).map((t) => ({ id: t.id, name: t.name })),
-    sessions: (sessions || []).map((s) => ({ id: s.id, code: s.code, name: s.title, speaker: s.speaker || '', track_id: s.track_id, is_public: s.is_public })),
+    sessions: (sessions || []).map((s) => ({
+      id: s.id, code: s.code, name: s.title, speaker: s.speaker || '', track_id: s.track_id, is_public: s.is_public,
+      session_date: s.session_date || '', time_range: s.time_range || '', room: s.room || '',
+    })),
   });
 }));
 
@@ -544,6 +566,7 @@ app.delete('/api/admin/tracks/:trackId', wrap(async (req, res) => {
 const mapSessionRow = (s) => ({
   id: s.id, code: s.code, name: s.title, speaker: s.speaker || '',
   track_id: s.track_id, is_public: s.is_public, description: s.description || '',
+  session_date: s.session_date || '', time_range: s.time_range || '', room: s.room || '',
 });
 
 app.post('/api/admin/projects/:projectId/sessions', wrap(async (req, res) => {
@@ -556,6 +579,9 @@ app.post('/api/admin/projects/:projectId/sessions', wrap(async (req, res) => {
     description: b.description || null,
     track_id: b.track_id || null,
     is_public: b.is_public !== false,
+    session_date: b.session_date || null,
+    time_range: b.time_range || null,
+    room: b.room || null,
   }).select('*').single();
   if (error) return fail(res, 400, error.message);
   ok(res, mapSessionRow(s));
@@ -568,6 +594,9 @@ app.patch('/api/admin/sessions/:sessionId', wrap(async (req, res) => {
   if (b.description !== undefined) patch.description = b.description || null;
   if (b.track_id !== undefined) patch.track_id = b.track_id || null;
   if (b.is_public !== undefined) patch.is_public = b.is_public;
+  if (b.session_date !== undefined) patch.session_date = b.session_date || null;
+  if (b.time_range !== undefined) patch.time_range = b.time_range || null;
+  if (b.room !== undefined) patch.room = b.room || null;
   const { data: s, error } = await supabase.from('sessions').update(patch).eq('id', req.params.sessionId).select('*').single();
   if (error) return fail(res, 400, error.message);
   ok(res, mapSessionRow(s));
@@ -576,6 +605,103 @@ app.delete('/api/admin/sessions/:sessionId', wrap(async (req, res) => {
   const { error } = await supabase.from('sessions').delete().eq('id', req.params.sessionId);
   if (error) return fail(res, 400, error.message);
   ok(res, { success: true });
+}));
+
+// ---------- 세션 일괄 업로드 (엑셀/CSV → 세션 자동 생성) ----------
+// 컬럼(한/영 유연): 세션명(필수) / 연사 / 설명 / 트랙(없으면 자동 생성) / 공개여부
+const SESSION_IMPORT_COLS = {
+  title:    ['name', 'title', 'session', '세션', '세션명', '세션이름', '세션 이름', '제목'],
+  speaker:  ['speaker', '연사', '발표자', '강연자', '강사'],
+  desc:     ['description', 'desc', '설명', '내용', '비고'],
+  track:    ['track', '트랙', '분야'],
+  isPublic: ['is_public', 'public', '공개', '공개여부', '공개 여부'],
+  date:     ['날짜', 'date', '일자', '일시'],
+  time:     ['시간', 'time', '시간대', '시각'],
+  room:     ['세션룸', '룸', 'room', '장소', '강의실', '홀', 'hall', 'ballroom'],
+};
+const parseBoolPublic = (v) => {
+  const s = String(v ?? '').trim().toLowerCase();
+  return !['false', '0', 'n', 'no', 'x', '비공개', 'private', '숨김'].includes(s); // 기본 공개
+};
+
+app.post('/api/admin/projects/:projectId/sessions/import', wrap(async (req, res) => {
+  const projectId = req.params.projectId;
+  const { header, rows } = await parseSheet(req.body || {});
+  if (!header.length || !rows.length) return fail(res, 400, 'no_valid_rows');
+
+  const findCol = (aliases) => header.findIndex((h) => aliases.includes(h));
+  const iTitle = findCol(SESSION_IMPORT_COLS.title);
+  const iSpeaker = findCol(SESSION_IMPORT_COLS.speaker);
+  const iDesc = findCol(SESSION_IMPORT_COLS.desc);
+  const iTrack = findCol(SESSION_IMPORT_COLS.track);
+  const iPublic = findCol(SESSION_IMPORT_COLS.isPublic);
+  const iDate = findCol(SESSION_IMPORT_COLS.date);
+  const iTime = findCol(SESSION_IMPORT_COLS.time);
+  const iRoom = findCol(SESSION_IMPORT_COLS.room);
+  const titleIdx = iTitle >= 0 ? iTitle : 0; // 헤더 매칭 실패 시 첫 컬럼을 세션명으로
+  const cell = (cols, i) => (i >= 0 ? (String(cols[i] ?? '').trim() || null) : null);
+
+  // 트랙: 기존(name 소문자 → id) + 신규 자동 생성
+  const { data: existingTracks } = await supabase.from('tracks').select('id, name').eq('project_id', projectId);
+  const trackMap = new Map((existingTracks || []).map((t) => [t.name.trim().toLowerCase(), t.id]));
+  const tracksCreated = [];
+
+  const insert = [];
+  let skipped = 0;
+  for (const cols of rows) {
+    const title = String(cols[titleIdx] ?? '').trim();
+    if (!title) { skipped++; continue; }
+    let trackId = null;
+    if (iTrack >= 0) {
+      const tName = String(cols[iTrack] ?? '').trim();
+      if (tName) {
+        const key = tName.toLowerCase();
+        if (trackMap.has(key)) trackId = trackMap.get(key);
+        else {
+          const { data: nt } = await supabase.from('tracks')
+            .insert({ project_id: projectId, name: tName, sort_order: trackMap.size })
+            .select('id, name').single();
+          if (nt) { trackMap.set(key, nt.id); trackId = nt.id; tracksCreated.push(nt.name); }
+        }
+      }
+    }
+    insert.push({
+      project_id: projectId,
+      title,
+      speaker: cell(cols, iSpeaker),
+      description: cell(cols, iDesc),
+      track_id: trackId,
+      is_public: iPublic >= 0 ? parseBoolPublic(cols[iPublic]) : true,
+      session_date: cell(cols, iDate),
+      time_range: cell(cols, iTime),
+      room: cell(cols, iRoom),
+    });
+  }
+  if (!insert.length) return fail(res, 400, 'no_valid_rows');
+
+  const { data, error } = await supabase.from('sessions').insert(insert).select('*');
+  if (error) return fail(res, 400, error.message);
+  ok(res, { imported: (data || []).length, skipped, tracksCreated, sessions: (data || []).map(mapSessionRow) });
+}));
+
+// 세션 업로드용 템플릿(.xlsx) 다운로드
+app.get('/api/admin/projects/:projectId/sessions/import-template', wrap(async (req, res) => {
+  const wb = new ExcelJS.Workbook();
+  const ws = wb.addWorksheet('sessions');
+  ws.columns = [
+    { header: '날짜', key: 'date', width: 12 },
+    { header: '시간', key: 'time', width: 14 },
+    { header: '세션명', key: 'title', width: 40 },
+    { header: '연사', key: 'speaker', width: 20 },
+    { header: '트랙', key: 'track', width: 18 },
+    { header: '세션룸', key: 'room', width: 20 },
+    { header: '공개여부', key: 'is_public', width: 10 },
+  ];
+  ws.getRow(1).font = { bold: true };
+  ws.addRow({ date: '8월 20일', time: '11:30~12:20', title: '오프닝 키노트', speaker: '홍길동', track: 'Main', room: 'Harmony Ballroom 1', is_public: '공개' });
+  ws.addRow({ date: '8월 20일', time: '13:40~14:30', title: '언리얼 엔진 5 심화', speaker: '김에픽', track: 'Tech', room: 'Harmony Ballroom 2', is_public: '공개' });
+  ws.addRow({ date: '8월 20일', time: '16:00~16:50', title: '비공개 스태프 세션', speaker: '', track: 'Staff', room: 'Atlas Hall', is_public: '비공개' });
+  await sendXlsx(res, wb, 'sessions-template');
 }));
 
 // Poll 목록 (프로젝트 단위) — 응답수 포함. 설문(survey) 문항은 제외(survey_id is null).
@@ -751,6 +877,46 @@ function parseCsv(csv) {
   return rows;
 }
 
+// ExcelJS 셀 값 → 문자열 (리치텍스트/수식/하이퍼링크/날짜 대응)
+function cellText(v) {
+  if (v == null) return '';
+  if (v instanceof Date) return v.toISOString();
+  if (typeof v === 'object') {
+    if (Array.isArray(v.richText)) return v.richText.map((t) => t.text || '').join('');
+    if (v.text != null) return String(v.text);
+    if (v.result != null) return String(v.result);
+    if (v.hyperlink != null) return String(v.hyperlink);
+    return '';
+  }
+  return String(v);
+}
+
+// CSV 텍스트 → { header, rows } (header 는 소문자)
+function csvToTable(csv) {
+  const lines = String(csv || '').split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (!lines.length) return { header: [], rows: [] };
+  const split = (l) => l.split(',').map((c) => c.trim());
+  return { header: split(lines[0]).map((h) => h.toLowerCase()), rows: lines.slice(1).map(split) };
+}
+
+// 엑셀(.xlsx)/CSV 공통 표 파서 → { header: string[], rows: string[][] }
+//  - fileBase64(+filename) 우선, 없으면 csv 텍스트.
+async function parseSheet({ csv, fileBase64, filename } = {}) {
+  if (fileBase64) {
+    const buf = Buffer.from(fileBase64, 'base64');
+    if ((filename || '').toLowerCase().endsWith('.csv')) return csvToTable(buf.toString('utf8'));
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buf);
+    const ws = wb.worksheets[0];
+    if (!ws) return { header: [], rows: [] };
+    const table = [];
+    ws.eachRow((row) => { table.push((row.values || []).slice(1).map(cellText)); });
+    if (!table.length) return { header: [], rows: [] };
+    return { header: table[0].map((h) => String(h || '').trim().toLowerCase()), rows: table.slice(1) };
+  }
+  return csvToTable(csv);
+}
+
 app.post('/api/admin/projects/:projectId/recipients/import', wrap(async (req, res) => {
   const rows = parseCsv(req.body?.csv);
   if (!rows.length) return fail(res, 400, 'no_valid_rows');
@@ -837,10 +1003,9 @@ async function surveyResponseCount(surveyId) {
   const { data: qpolls } = await supabase.from('polls').select('id').eq('survey_id', surveyId);
   const ids = (qpolls || []).map((p) => p.id);
   if (!ids.length) return 0;
-  const { data: resps } = await supabase.from('poll_responses')
-    .select('respondent_key, recipient_id').in('poll_id', ids);
+  const resps = await fetchAllPaged((sb) => sb.from('poll_responses').select('id, respondent_key, recipient_id').in('poll_id', ids));
   const keys = new Set();
-  (resps || []).forEach((r) => keys.add(r.recipient_id || r.respondent_key || Math.random()));
+  resps.forEach((r) => keys.add(r.recipient_id || r.respondent_key || ('_' + r.id)));
   return keys.size;
 }
 
@@ -868,13 +1033,27 @@ async function insertSurveyQuestions(survey, questions) {
 app.get('/api/admin/projects/:projectId/surveys', wrap(async (req, res) => {
   const { data: surveys } = await supabase.from('surveys')
     .select('*').eq('project_id', req.params.projectId).order('created_at', { ascending: false });
-  const out = [];
-  for (const s of surveys || []) {
-    const { count: qc } = await supabase.from('polls')
-      .select('id', { count: 'exact', head: true }).eq('survey_id', s.id);
-    out.push(mapSurvey(s, { question_count: qc || 0, response_count: await surveyResponseCount(s.id) }));
-  }
-  ok(res, out);
+  const list = surveys || [];
+  if (!list.length) return ok(res, []);
+  const surveyIds = list.map((s) => s.id);
+  // 문항 poll 일괄 (설문마다 개별 count 하던 N+1 제거)
+  const { data: polls } = await supabase.from('polls').select('id, survey_id').in('survey_id', surveyIds);
+  const qCountBySurvey = {}; const pollToSurvey = {};
+  (polls || []).forEach((p) => { qCountBySurvey[p.survey_id] = (qCountBySurvey[p.survey_id] || 0) + 1; pollToSurvey[p.id] = p.survey_id; });
+  const allPollIds = (polls || []).map((p) => p.id);
+  // 응답 일괄 → 설문별 distinct 응답자
+  const responses = allPollIds.length
+    ? await fetchAllPaged((sb) => sb.from('poll_responses').select('id, poll_id, respondent_key, recipient_id').in('poll_id', allPollIds))
+    : [];
+  const respSetBySurvey = {};
+  responses.forEach((r) => {
+    const sid = pollToSurvey[r.poll_id]; if (!sid) return;
+    (respSetBySurvey[sid] = respSetBySurvey[sid] || new Set()).add(r.recipient_id || r.respondent_key || ('_' + r.id));
+  });
+  ok(res, list.map((s) => mapSurvey(s, {
+    question_count: qCountBySurvey[s.id] || 0,
+    response_count: (respSetBySurvey[s.id] || new Set()).size,
+  })));
 }));
 
 // 설문 상세 (문항 포함)
@@ -908,6 +1087,49 @@ app.post('/api/admin/projects/:projectId/surveys', wrap(async (req, res) => {
   await insertSurveyQuestions(survey, b.questions);
   const questions = await fetchSurveyQuestions(survey.id);
   ok(res, mapSurvey(survey, { question_count: questions.length, response_count: 0 }));
+}));
+
+// 세션 기반 기본 설문 폼 자동 생성 (날짜별) — 이름/이메일/연락처 + 그날 전체 세션의 난이도·만족도(1-5)
+app.post('/api/admin/projects/:projectId/surveys/generate-day', wrap(async (req, res) => {
+  const projectId = req.params.projectId;
+  const date = String((req.body || {}).date || '').trim();
+  if (!date) return fail(res, 400, 'date_required');
+
+  const { data: proj } = await supabase.from('projects').select('title').eq('id', projectId).maybeSingle();
+  if (!proj) return fail(res, 404, 'project_not_found');
+
+  const { data: tracks } = await supabase.from('tracks').select('id, sort_order').eq('project_id', projectId).order('sort_order');
+  const trackOrder = {}; (tracks || []).forEach((t, i) => { trackOrder[t.id] = i; });
+
+  const { data: sessions } = await supabase.from('sessions')
+    .select('id, title, track_id, time_range').eq('project_id', projectId).eq('session_date', date);
+  if (!sessions || !sessions.length) return fail(res, 400, 'no_sessions_for_date');
+
+  const tKey = (s) => { const m = String(s.time_range || '').match(/(\d{1,2}):(\d{2})/); return m ? (+m[1] * 60 + +m[2]) : 99999; };
+  sessions.sort((a, b) => (trackOrder[a.track_id] ?? 999) - (trackOrder[b.track_id] ?? 999) || tKey(a) - tKey(b) || String(a.title).localeCompare(String(b.title), 'ko'));
+
+  // 문항: 개인정보(필수 단답) → 세션별 난이도/만족도(1-5 척도)
+  const SCALE = '(1 매우 낮음 ~ 5 매우 높음)';
+  const questions = [
+    { question: '이름', poll_type: 'short_text' },
+    { question: '이메일', poll_type: 'short_text' },
+    { question: '연락처(휴대폰 번호)', poll_type: 'short_text' },
+  ];
+  for (const s of sessions) {
+    questions.push({ question: `${s.title} — 난이도 ${SCALE}`, poll_type: 'rating' });
+    questions.push({ question: `${s.title} — 만족도 ${SCALE}`, poll_type: 'rating' });
+  }
+
+  const { data: survey, error } = await supabase.from('surveys').insert({
+    project_id: projectId,
+    title: `${proj.title} · ${date} 세션 평가`,
+    intro: `${date} 세션에 대한 난이도·만족도 설문입니다. 참석하신 세션만 1~5점으로 평가해주세요. ${SCALE} 이름·이메일·연락처는 필수 입력입니다.`,
+    status: 'draft', source_type: 'live_event', is_public: true, show_results: false,
+  }).select('*').single();
+  if (error) return fail(res, 400, error.message);
+  await insertSurveyQuestions(survey, questions);
+  const qs = await fetchSurveyQuestions(survey.id);
+  ok(res, mapSurvey(survey, { question_count: qs.length, response_count: 0, session_count: sessions.length }));
 }));
 
 // 설문 수정 (문항 전달 시 전체 교체)
@@ -961,23 +1183,73 @@ app.post('/api/admin/surveys/:surveyId/close', wrap(async (req, res) => {
   ok(res, mapSurvey(s, { response_count: await surveyResponseCount(s.id) }));
 }));
 
-// 설문 결과 (문항별 집계)
+// 설문 결과 (문항별 집계) — 대량 배치 쿼리로 집계(문항 수와 무관하게 쿼리 ~5회).
 app.get('/api/admin/surveys/:surveyId/results', wrap(async (req, res) => {
-  const { data: s } = await supabase.from('surveys').select('*').eq('id', req.params.surveyId).maybeSingle();
+  // 설문 헤더 + 문항(옵션 포함)을 병렬로
+  const [surveyRes, qpolls] = await Promise.all([
+    supabase.from('surveys').select('*').eq('id', req.params.surveyId).maybeSingle(),
+    fetchSurveyQuestions(req.params.surveyId),
+  ]);
+  const s = surveyRes.data;
   if (!s) return fail(res, 404, 'survey_not_found');
-  const qpolls = await fetchSurveyQuestions(s.id);
-  const questions = [];
-  for (const q of qpolls) {
-    const r = await computeResults(q);
-    questions.push({
-      id: q.id, question: q.question, poll_type: q.poll_type,
-      total_responses: r.total_responses, options: r.options,
-      average_score: r.average_score, distribution: r.distribution, text_answers: r.text_answers,
+  const pollIds = qpolls.map((q) => q.id);
+  if (!pollIds.length) return ok(res, { survey: mapSurvey(s, { question_count: 0 }), total_responses: 0, questions: [] });
+
+  // 응답 헤더 + 답변 상세를 병렬로 (Vercel→Supabase 왕복 최소화)
+  const [responses, answers] = await Promise.all([
+    fetchAllPaged((sb) => sb.from('poll_responses')
+      .select('id, poll_id, submitted_at, respondent_key, recipient_id').in('poll_id', pollIds)),
+    fetchAllPaged((sb) => sb.from('poll_response_answers')
+      .select('option_id, answer_text, answer_number, poll_responses!inner(poll_id, submitted_at)').in('poll_responses.poll_id', pollIds)),
+  ]);
+  const totalByPoll = {}; const respondentSet = new Set();
+  responses.forEach((r) => {
+    totalByPoll[r.poll_id] = (totalByPoll[r.poll_id] || 0) + 1;
+    respondentSet.add(r.recipient_id || r.respondent_key || ('_' + r.id));
+  });
+  const ansByPoll = {};
+  answers.forEach((a) => {
+    const pid = a.poll_responses && a.poll_responses.poll_id; if (!pid) return;
+    (ansByPoll[pid] = ansByPoll[pid] || []).push({
+      option_id: a.option_id, answer_text: a.answer_text, answer_number: a.answer_number,
+      submitted_at: a.poll_responses && a.poll_responses.submitted_at,
     });
-  }
+  });
+
+  const questions = qpolls.map((q) => {
+    const opts = q.options || [];
+    const ans = ansByPoll[q.id] || [];
+    const total = totalByPoll[q.id] || 0;
+    // 객관식
+    const counts = {}; opts.forEach((o) => { counts[o.id] = 0; });
+    ans.forEach((a) => { if (a.option_id && counts[a.option_id] !== undefined) counts[a.option_id] += 1; });
+    const totalSel = Object.values(counts).reduce((n2, n) => n2 + n, 0) || 0;
+    const options = opts.map((o) => ({
+      option_id: o.id, label: o.label, value: o.value, count: counts[o.id] || 0,
+      percent: totalSel ? Math.round((counts[o.id] / totalSel) * 1000) / 10 : 0,
+    }));
+    // 척도형
+    let average_score = null, distribution = null;
+    if (q.poll_type === 'rating') {
+      const nums = ans.map((a) => a.answer_number).filter((n) => n !== null && n !== undefined).map(Number);
+      if (nums.length) average_score = Math.round((nums.reduce((n2, n) => n2 + n, 0) / nums.length) * 100) / 100;
+      const b = [0, 0, 0, 0, 0]; nums.forEach((n) => { if (n >= 1 && n <= 5) b[Math.round(n) - 1] += 1; });
+      const rt = nums.length || 0;
+      distribution = b.map((c, i) => ({ score: i + 1, count: c, percent: rt ? Math.round((c / rt) * 100) : 0 }));
+    }
+    // 주관식
+    let text_answers = [];
+    if (q.poll_type === 'short_text') {
+      text_answers = ans.filter((a) => a.answer_text)
+        .map((a) => ({ text: a.answer_text, submitted_at: a.submitted_at || null }))
+        .sort((x, y) => new Date(y.submitted_at || 0) - new Date(x.submitted_at || 0));
+    }
+    return { id: q.id, question: q.question, poll_type: q.poll_type, total_responses: total, options, average_score, distribution, text_answers };
+  });
+
   ok(res, {
     survey: mapSurvey(s, { question_count: qpolls.length }),
-    total_responses: await surveyResponseCount(s.id),
+    total_responses: respondentSet.size,
     questions,
   });
 }));

@@ -166,6 +166,8 @@
           code: d.code,
           sessions: (d.sessions || []).map(s => ({
             code: s.code, title: s.name, speaker: s.speaker || '', track: s.track_name || '',
+            track_id: s.track_id || null,
+            session_date: s.session_date || '', time_range: s.time_range || '', room: s.room || '',
           })),
           livePolls: (d.livePolls || []).map(summarizePoll),
         };
@@ -176,6 +178,7 @@
           title: d.name,
           speaker: d.speaker || '',
           track: d.track_name || '',
+          session_date: d.session_date || '', time_range: d.time_range || '', room: d.room || '',
           code: d.code,
           livePolls: (d.livePolls || []).map(summarizePoll),
         };
@@ -606,7 +609,7 @@
 
     function RatingInput({ value, onChange }) {
       const [hover, setHover] = useState(0);
-      const labels = ['매우 불만족', '불만족', '보통', '만족', '매우 만족'];
+      const labels = ['매우 낮음', '낮음', '보통', '높음', '매우 높음'];
       return (
         <div>
           <div className="flex justify-center gap-2">
@@ -669,13 +672,64 @@
     // 📄 PAGES
     // ========================================
 
+    // --- 세션 스케줄 정렬 (날짜 → 시간): "8월 20일" / "11:30~12:20" 자유 텍스트 파싱 ---
+    function sessionSortKey(s) {
+      const d = String(s.session_date || '');
+      const md = d.match(/(\d+)\s*월\s*(\d+)\s*일/);
+      let dateKey = Number.MAX_SAFE_INTEGER;
+      if (md) dateKey = parseInt(md[1], 10) * 100 + parseInt(md[2], 10);
+      else if (d) { const t = Date.parse(d); if (!isNaN(t)) dateKey = t; }
+      const tm = String(s.time_range || '').match(/(\d{1,2}):(\d{2})/);
+      const timeKey = tm ? parseInt(tm[1], 10) * 60 + parseInt(tm[2], 10) : 99999;
+      return { dateKey, timeKey };
+    }
+    function sortSessionsBySchedule(list) {
+      return [...(list || [])].sort((a, b) => {
+        const ka = sessionSortKey(a), kb = sessionSortKey(b);
+        return ka.dateKey - kb.dateKey || ka.timeKey - kb.timeKey
+          || String(a.title || '').localeCompare(String(b.title || ''), 'ko');
+      });
+    }
+
     // --- 프로젝트 랜딩 #/e/:projectCode ---
     function ProjectLanding({ projectCode }) {
-      const { navigate } = useRouter();
+      const { navigate, query } = useRouter();
       const { data, loading, error, refetch } = useAsync(() => api.getProject(projectCode), [projectCode]);
+      // QR 딥링크: ?track={track_id}&date={날짜} 로 초기 필터 프리셋
+      const [selectedDate, setSelectedDate] = useState(query.date || null);
+      const [selectedTrack, setSelectedTrack] = useState(query.track || null);
+      // 존재하는 날짜 목록 (날짜순 정렬)
+      const dates = useMemo(() => {
+        const seen = new Map();
+        (data?.sessions || []).forEach(s => { if (s.session_date && !seen.has(s.session_date)) seen.set(s.session_date, sessionSortKey(s).dateKey); });
+        return [...seen.entries()].sort((a, b) => a[1] - b[1]).map(e => e[0]);
+      }, [data]);
+      // 선택 날짜로 필터 → 트랙별 그룹 (첫 등장 순서 유지) + 그룹 내 시간 정렬
+      const groups = useMemo(() => {
+        const src = (data?.sessions || []).filter(s => !selectedDate || s.session_date === selectedDate);
+        const order = [], map = new Map();
+        src.forEach(s => {
+          const key = s.track_id || s.track || '__none__';
+          if (!map.has(key)) { map.set(key, { key, name: s.track || '기타', items: [] }); order.push(key); }
+          map.get(key).items.push(s);
+        });
+        const arr = order.map(k => map.get(k));
+        arr.forEach(g => {
+          g.items = sortSessionsBySchedule(g.items);
+          const rc = {};
+          g.items.forEach(s => { if (s.room) rc[s.room] = (rc[s.room] || 0) + 1; });
+          const top = Object.entries(rc).sort((a, b) => b[1] - a[1])[0];
+          g.room = top ? top[0] : '';
+        });
+        return arr;
+      }, [data, selectedDate]);
       if (loading) return <Skeleton />;
       if (error) return <Page header={<EventHeader title="오류" />}><CenterState icon={<Icons.AlertTriangle className="w-8 h-8" />} tone="red" title="행사 정보를 불러오지 못했습니다" action={<Button variant="secondary" onClick={refetch}>다시 시도</Button>} /></Page>;
       const live = (data.livePolls || []).filter(p => p.status === 'live');
+      const visibleGroups = selectedTrack ? groups.filter(g => g.key === selectedTrack) : groups;
+      const totalInView = groups.reduce((n, g) => n + g.items.length, 0);
+      const pill = (active) => `px-3 py-1.5 rounded-full text-xs font-semibold transition whitespace-nowrap ${active ? 'bg-accent-600 text-white' : 'bg-ink-100 dark:bg-ink-800 text-ink-600 dark:text-ink-300'}`;
+      const datePill = (active) => `px-3.5 py-2 rounded-lg text-sm font-bold transition whitespace-nowrap ${active ? 'bg-accent-600 text-white shadow-sm' : 'bg-ink-100 dark:bg-ink-800 text-ink-600 dark:text-ink-300'}`;
       return (
         <Page header={<EventHeader title={data.title} subtitle={data.subtitle} />}>
           <SectionTitle main="진행 중인 투표" sub={`${live.length}개`} />
@@ -686,16 +740,55 @@
           {data.sessions && data.sessions.length > 0 && (
             <>
               <SectionTitle main="세션" className="mt-8" />
-              <div className="space-y-3">
-                {data.sessions.map(s => (
-                  <Card key={s.code} className="p-4 flex items-center justify-between active:scale-[.99] transition cursor-pointer" onClick={() => navigate(`/s/${s.code}`)}>
-                    <div className="min-w-0">
-                      <div className="text-xs font-semibold text-accent-600 dark:text-accent-400">{s.track}</div>
-                      <div className="font-semibold text-ink-800 dark:text-ink-100 truncate">{s.title}</div>
-                      <div className="text-sm text-ink-500 dark:text-ink-400">{s.speaker}</div>
+              {/* 날짜 필터 */}
+              {dates.length > 0 && (
+                <div className="mb-3">
+                  <div className="text-xs font-semibold text-ink-400 dark:text-ink-500 mb-1.5">날짜</div>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => { setSelectedDate(null); setSelectedTrack(null); }} className={datePill(!selectedDate)}>전체 날짜</button>
+                    {dates.map(d => (
+                      <button key={d} type="button" onClick={() => { setSelectedDate(d); setSelectedTrack(null); }} className={datePill(selectedDate === d)}>📅 {d}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {/* 트랙 필터 */}
+              <div className="mb-4">
+                <div className="text-xs font-semibold text-ink-400 dark:text-ink-500 mb-1.5">트랙</div>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" onClick={() => setSelectedTrack(null)} className={pill(!selectedTrack)}>전체 {totalInView}</button>
+                  {groups.map(g => (
+                    <button key={g.key} type="button" onClick={() => setSelectedTrack(g.key)} className={pill(selectedTrack === g.key)}>{g.name} {g.items.length}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-6">
+                {visibleGroups.map(g => (
+                  <div key={g.key}>
+                    <div className="mb-2 px-1 flex flex-wrap items-center gap-x-2">
+                      <span className="text-xs font-bold text-accent-600 dark:text-accent-400">{g.name}</span>
+                      {g.room && <span className="text-xs font-semibold text-ink-500 dark:text-ink-400">📍 {g.room}</span>}
+                      <span className="text-xs text-ink-400 dark:text-ink-500">· {g.items.length}개 세션</span>
                     </div>
-                    <Chevron />
-                  </Card>
+                    <div className="space-y-3">
+                      {g.items.map(s => (
+                        <Card key={s.code} className="p-4 flex items-center justify-between active:scale-[.99] transition cursor-pointer" onClick={() => navigate(`/s/${s.code}`)}>
+                          <div className="min-w-0">
+                            {(s.session_date || s.time_range || (s.room && s.room !== g.room)) && (
+                              <div className="text-xs text-ink-400 dark:text-ink-500 mb-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                                {s.session_date && <span>📅 {s.session_date}</span>}
+                                {s.time_range && <span>🕐 {s.time_range}</span>}
+                                {s.room && s.room !== g.room && <span>📍 {s.room}</span>}
+                              </div>
+                            )}
+                            <div className="font-semibold text-ink-800 dark:text-ink-100 truncate">{s.title}</div>
+                            <div className="text-sm text-ink-500 dark:text-ink-400">{s.speaker}</div>
+                          </div>
+                          <Chevron />
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
             </>
@@ -713,6 +806,13 @@
       const live = (data.livePolls || []).filter(p => p.status === 'live');
       return (
         <Page header={<EventHeader title={data.title} subtitle={`${data.track} · ${data.speaker}`} />}>
+          {(data.session_date || data.time_range || data.room) && (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-500 dark:text-ink-400 mb-4 -mt-1">
+              {data.session_date && <span>📅 {data.session_date}</span>}
+              {data.time_range && <span>🕐 {data.time_range}</span>}
+              {data.room && <span>📍 {data.room}</span>}
+            </div>
+          )}
           <SectionTitle main="이 세션의 투표" sub={`${live.length}개`} />
           {live.length === 0
             ? <Card className="p-2"><CenterState icon={<Icons.Clock className="w-8 h-8" />} title="현재 진행 중인 투표가 없습니다" desc="강연자가 투표를 시작하면 표시됩니다." /></Card>
@@ -1097,7 +1197,7 @@
                 <span className="w-9 h-9 shrink-0 rounded-xl bg-ink-100 dark:bg-ink-800 text-ink-500 dark:text-ink-400 flex items-center justify-center">
                   <LinkIcon className="w-4 h-4" />
                 </span>
-                <div className="min-w-0 flex-1"><div className="font-semibold text-ink-800 dark:text-ink-100">{t}</div><div className="text-xs text-ink-400 mt-0.5">{d} · <span className="font-mono">#{to}</span></div></div>
+                <div className="min-w-0 flex-1"><div className="font-semibold text-ink-800 dark:text-ink-100">{t}</div><div className="text-xs text-ink-400 mt-0.5">{d}</div></div>
                 <Chevron />
               </Card>
             ))}

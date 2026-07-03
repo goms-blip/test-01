@@ -37,6 +37,9 @@ create table if not exists sessions (
   speaker varchar(100),
   track_id uuid references tracks(id) on delete set null,
   is_public boolean not null default true,
+  session_date text,   -- 날짜 (예: 8월 20일)
+  time_range   text,   -- 시간 (예: 11:30~12:20)
+  room         text,   -- 세션룸 (예: Harmony Ballroom 1)
   created_at timestamptz default now()
 );
 
