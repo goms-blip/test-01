@@ -97,6 +97,15 @@ PRD: `live_poll_prd.md` 기반. 기존 Q&A 솔루션(projects/sessions/tracks + 
      - 결함4: 실측 — 공개 제출 2MB→413, `sessions/import` 2MB→401(8MB 경로 정상)/9MB→413, 동일 IP 25회 제출 시 21번째부터 429(분당 20회 정확).
    - **잔여 사항(Low, 미조치)**: XFF 첫 항목 기반 리미터가 직접 노출 배포에서 우회 가능(Vercel 프로덕션은 플랫폼이 XFF 덮어써 실질 위험 낮음, `server.js:52`); `excluded_private_count`가 서버 응답엔 있으나 admin UI 토스트에 미표시(`admin.html:1984`).
 
+2. **고길동 Low 3건 후속 정리**: 직전 사이클의 Low 3건(L1 세션 일괄 업로드 비원자성, L2 required 전역적용 회귀, L3 SRI 없는 CDN) 수정.
+   - **수정(opus/max)**: 3건 모두 적용·검증 완료.
+     - L1: 행 수/셀 길이 상한 도입(`IMPORT_MAX_ROWS`/`TITLE`/`SPEAKER`), 트랙 생성 전 전 행 사전검증, 세션 insert 실패 시 신규 트랙 롤백(`rollbackTracks`)으로 원자성 확보 — `server.js`.
+     - L2: `polls.required` 컬럼 추가 마이그레이션 신설, generate-day만 명시 기록(이름/이메일/연락처 필수, rating 선택), 공개 API는 NULL/컬럼부재 시 필수로 폴백(회귀 방지), 컬럼 부재 시 무손상 재시도 — `server.js`, `migrations/2026-07-03_polls_required_col.sql`(신규, **프로덕션 Supabase `oixdfkwpkmjrbhonzqxt`에 수동 적용 필요**).
+     - L3: SRI 해시 추측 대신 `qrcode-generator@1.4.4`를 `vendor/qrcode.js`로 vendoring, admin.html이 동일 오리진에서 로드하도록 교체, server.js에 전용 라우트(catch-all보다 앞) 추가, `vercel.json` includeFiles 반영 — `vendor/qrcode.js`(신규), `admin.html`, `server.js`, `vercel.json`.
+   - **검증**: `node --check server.js` 통과, `vercel.json` 유효, vendored qrcode.js 로드 및 QR 매트릭스 생성 확인, `/vendor/qrcode.js` 라우트가 catch-all보다 먼저 등록됨, admin.html에 CDN qrcode 참조 잔존 없음.
+   - **잔여 사항(Low, 미조치)**: 관리자 콘솔에서 generate-day 설문 편집 시 관리자 상세 응답/저장 payload에 `required`가 왕복되지 않아 rating의 `required=false`가 유실되고 전부 필수로 회귀(`server.js:1184`, `admin.html:2235`).
+   - 커밋 안 함(워킹트리만).
+
 ## 산출물
 
 | 파일 | 역할 |
