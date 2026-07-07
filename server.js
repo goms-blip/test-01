@@ -38,7 +38,8 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
 });
 
 const app = express();
-app.use(express.json());
+// 엑셀 일괄 업로드는 파일을 base64 로 JSON body 에 실어 보내므로 한도를 넉넉히.
+app.use(express.json({ limit: '15mb' }));
 
 // 같은 오리진에서 프론트(index.html)와 API 를 함께 제공 → CORS 불필요
 // ⚠️ 보안: 디렉토리 전체 정적 서빙 금지(.env.local/*.sql 등 노출 방지).
@@ -68,6 +69,46 @@ const buildDuration = (startsAt, endsAt) => {
   const e = fmtTime(endsAt);
   if (s && e) return `${s} ~ ${e}`;
   return s || e || '';
+};
+
+// timestamptz → 'YYYY-MM-DD' (Asia/Seoul 기준). 멀티데이 날짜별 그룹핑/정렬용.
+const fmtDate = (iso) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  // en-CA 로케일은 YYYY-MM-DD 형식으로 포맷.
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    year: 'numeric', month: '2-digit', day: '2-digit', timeZone: 'Asia/Seoul',
+  }).formatToParts(d);
+  const y = parts.find((p) => p.type === 'year')?.value;
+  const m = parts.find((p) => p.type === 'month')?.value;
+  const da = parts.find((p) => p.type === 'day')?.value;
+  return (y && m && da) ? `${y}-${m}-${da}` : '';
+};
+
+// '8월 20일'(또는 'YYYY-MM-DD','MM/DD') + '11:30~12:20' (+연도) → { starts_at, ends_at }
+//  parseDuration 과 달리 실제 날짜를 보존한다(멀티데이 정렬을 위해). 파싱 실패 값은 null.
+const parseKoreanDateTime = (dateStr, timeStr, year) => {
+  const out = { starts_at: null, ends_at: null };
+  const ds = (dateStr || '').toString();
+  let mo = null, da = null, yr = year;
+  const kr = /(\d{1,2})\s*월\s*(\d{1,2})\s*일/.exec(ds);
+  const iso = /(\d{4})[-.\/](\d{1,2})[-.\/](\d{1,2})/.exec(ds);
+  const md = /(\d{1,2})[-.\/](\d{1,2})/.exec(ds);
+  if (kr) { mo = parseInt(kr[1], 10); da = parseInt(kr[2], 10); }
+  else if (iso) { yr = parseInt(iso[1], 10); mo = parseInt(iso[2], 10); da = parseInt(iso[3], 10); }
+  else if (md) { mo = parseInt(md[1], 10); da = parseInt(md[2], 10); }
+  if (!mo || !da) return out; // 날짜 없으면 timestamp 미생성
+  const y = yr || new Date().getFullYear();
+  const toIso = (hhmm) => {
+    const m = /(\d{1,2}):(\d{2})/.exec((hhmm || '').toString());
+    if (!m) return null;
+    return `${y}-${pad2(mo)}-${pad2(da)}T${pad2(parseInt(m[1], 10))}:${pad2(parseInt(m[2], 10))}:00+09:00`;
+  };
+  const parts = (timeStr || '').toString().split(/[~\-–—]/);
+  out.starts_at = toIso(parts[0] || '');
+  if (parts.length >= 2) out.ends_at = toIso(parts[1] || '');
+  return out;
 };
 
 // 'HH:MM ~ HH:MM' (또는 단일 'HH:MM') → { starts_at, ends_at } (timestamptz, KST 기준)
@@ -120,6 +161,7 @@ const mapSessionRow = (row) => row ? ({
   track_id: row.track_id || null,           // 소속 트랙 (없으면 null)
   track_name: row.track_name || '',         // 조인/조회로 채워질 수 있음
   duration: buildDuration(row.starts_at, row.ends_at),
+  session_date: fmtDate(row.starts_at),      // 'YYYY-MM-DD' (KST) — 멀티데이 그룹핑용
   is_public: !!row.is_public,
   admin_token: row.admin_token,
   created_at: row.created_at,
@@ -683,6 +725,158 @@ app.post('/api/admin/projects/:projectId/sessions', requireConsole, wrap(async (
   res.status(201).json({ success: true, data: mapSessionRow({ ...data, track_name: nameMap[data && data.track_id] || '' }) });
 }));
 
+// POST /api/admin/projects/:projectId/sessions/import — 엑셀 일괄 업로드 [콘솔]
+//   body: { fileBase64, mode='replace', year }
+//   컬럼(헤더 기준·유연 매칭): 날짜 / 시간 / 세션명 / 연사 / 세션룸 / 공개여부  ('트랙' 컬럼은 무시)
+//    - '세션룸' → 트랙(룸)으로 매핑하고 세션을 해당 트랙에 배정.
+//    - mode=replace: 대상 프로젝트의 기존 세션(+질문 cascade)·트랙을 지우고 새로 구성.
+app.post('/api/admin/projects/:projectId/sessions/import', requireConsole, wrap(async (req, res) => {
+  const project = await resolveProject(req.params.projectId, 'id, start_date');
+  if (!project) return res.status(404).json({ success: false, message: '프로젝트를 찾을 수 없습니다.' });
+
+  const b = req.body || {};
+  const b64 = (b.fileBase64 || '').toString();
+  if (!b64) return res.status(400).json({ success: false, message: '엑셀 파일이 필요합니다.' });
+  const mode = (b.mode || 'replace').toString();
+
+  // 연도: body.year → 프로젝트 start_date 의 연도 → 현재 연도 순으로 결정.
+  let year = parseInt(b.year, 10);
+  if (!year && project.start_date) { const m = /(\d{4})/.exec(project.start_date); if (m) year = parseInt(m[1], 10); }
+  if (!year) year = new Date().getFullYear();
+
+  // base64(data URL 접두 허용) → 워크북
+  let wb;
+  try {
+    const buf = Buffer.from(b64.replace(/^data:[^,]*,/, ''), 'base64');
+    wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buf);
+  } catch (e) {
+    return res.status(400).json({ success: false, message: '엑셀 파일을 읽을 수 없습니다. (.xlsx 형식인지 확인해 주세요)' });
+  }
+  const ws = wb.worksheets.find((s) => /session|세션/i.test(s.name)) || wb.worksheets[0];
+  if (!ws) return res.status(400).json({ success: false, message: '시트를 찾을 수 없습니다.' });
+
+  // 셀 텍스트 추출(리치텍스트/하이퍼링크/수식 대응)
+  const cellText = (cell) => {
+    let v = cell && cell.value;
+    if (v == null) return '';
+    if (typeof v === 'object') {
+      if (Array.isArray(v.richText)) v = v.richText.map((r) => r.text).join('');
+      else if (v.text != null) v = v.text;
+      else if (v.result != null) v = v.result;
+      else if (v.hyperlink != null) v = v.text || v.hyperlink;
+      else v = '';
+    }
+    return v.toString().trim();
+  };
+
+  // 헤더(1행) → 컬럼 인덱스 매핑(공백 제거 후 alias 포함매칭)
+  const header = ws.getRow(1);
+  const colOf = (aliases) => {
+    for (let c = 1; c <= ws.columnCount; c++) {
+      const h = cellText(header.getCell(c)).replace(/\s+/g, '');
+      if (h && aliases.some((a) => h === a || h.includes(a))) return c;
+    }
+    return 0;
+  };
+  const cName = colOf(['세션명', '세션', '제목', 'title', 'name']);
+  if (!cName) return res.status(400).json({ success: false, message: "헤더에서 '세션명' 컬럼을 찾지 못했습니다. 첫 행에 컬럼명이 있는지 확인해 주세요." });
+  const cDate = colOf(['날짜', '일자', 'date']);
+  const cTime = colOf(['시간', 'time']);
+  const cSpeaker = colOf(['연사', '강연자', 'speaker']);
+  const cRoom = colOf(['세션룸', '룸', 'room', '장소', '홀']);
+  const cPublic = colOf(['공개여부', '공개', 'public', '노출']);
+
+  // 데이터 행 파싱(빈 구분행/세션명 없는 행 스킵)
+  const rows = [];
+  const roomOrder = [];
+  for (let r = 2; r <= ws.rowCount; r++) {
+    const row = ws.getRow(r);
+    const g = (c) => (c ? cellText(row.getCell(c)) : '');
+    const name = g(cName);
+    const room = g(cRoom);
+    const dateStr = g(cDate);
+    if (!name && !room && !dateStr) continue; // 빈 구분행
+    if (!name) continue;                       // 세션명 없으면 스킵
+    const publicText = g(cPublic);
+    // '비공개' 는 '공개' 를 부분포함하므로 명시적으로 배제.
+    const is_public = /공개/.test(publicText) && !/비공개/.test(publicText);
+    rows.push({ name, room, speaker: g(cSpeaker), dateStr, timeStr: g(cTime), is_public });
+    if (room && !roomOrder.includes(room)) roomOrder.push(room);
+  }
+  if (!rows.length) return res.status(400).json({ success: false, message: '등록할 세션 데이터가 없습니다.' });
+
+  // replace: 기존 세션(질문 cascade)·트랙 삭제
+  if (mode === 'replace') {
+    const delS = await supabase.from('sessions').delete().eq('project_id', project.id);
+    if (delS.error) throw delS.error;
+    const delT = await supabase.from('tracks').delete().eq('project_id', project.id);
+    if (delT.error && !isSchemaMissing(delT.error)) throw delT.error;
+  }
+
+  // 룸 → 트랙 생성(등장 순서대로 sort_order). tracks 스키마 미적용이면 트랙 없이 진행.
+  const roomToTrack = {};
+  let tracksApplied = true;
+  for (let i = 0; i < roomOrder.length; i++) {
+    const { data, error } = await supabase.from('tracks')
+      .insert({ project_id: project.id, name: roomOrder[i], sort_order: i + 1 })
+      .select('id').single();
+    if (error) {
+      if (isSchemaMissing(error)) { tracksApplied = false; break; }
+      throw error;
+    }
+    roomToTrack[roomOrder[i]] = data.id;
+  }
+
+  // 세션 삽입 — 배치 내 코드 충돌 방지용 로컬 Set.
+  const usedCodes = new Set();
+  const nextCode = async () => {
+    for (let i = 0; i < 10; i++) {
+      const code = await generateUniqueCode('sessions');
+      if (code === null) return null;               // code 컬럼 없음(SQL 미적용)
+      if (!usedCodes.has(code)) { usedCodes.add(code); return code; }
+    }
+    return null;
+  };
+
+  let created = 0; const failed = [];
+  const byDate = {}, byRoom = {};
+  for (const e of rows) {
+    const { starts_at, ends_at } = parseKoreanDateTime(e.dateStr, e.timeStr, year);
+    const insert = {
+      project_id: project.id,
+      title: e.name,
+      description: null,
+      speaker: e.speaker || null,
+      is_public: e.is_public,
+      starts_at, ends_at,
+    };
+    if (tracksApplied && e.room && roomToTrack[e.room]) insert.track_id = roomToTrack[e.room];
+    const code = await nextCode();
+    if (code) insert.code = code;
+
+    let { error } = await supabase.from('sessions').insert(insert);
+    if (error && isSchemaMissing(error)) {
+      const { track_id, speaker, code: _c, ...fb } = insert;
+      ({ error } = await supabase.from('sessions').insert(fb));
+    }
+    if (error) { failed.push({ name: e.name, message: error.message }); continue; }
+    created++;
+    const dkey = fmtDate(starts_at) || '(날짜없음)';
+    byDate[dkey] = (byDate[dkey] || 0) + 1;
+    const rkey = e.room || '(룸없음)';
+    byRoom[rkey] = (byRoom[rkey] || 0) + 1;
+  }
+
+  res.json({ success: true, data: {
+    mode, project_id: project.id, year,
+    created, failedCount: failed.length, failed: failed.slice(0, 10),
+    rooms: roomOrder.map((n) => ({ name: n, count: byRoom[n] || 0 })),
+    dates: Object.keys(byDate).sort().map((d) => ({ date: d, count: byDate[d] })),
+    tracksApplied,
+  } });
+}));
+
 // GET /api/admin/sessions/:sessionId — 세션 단건 조회 [세션admin]
 //   공개/비공개 무관하게 service_role 로 조회 → 앱 객체 형태로 반환.
 //   관리자 대시보드 메타(제목 등) 로드용. (anon RLS 우회)
@@ -811,6 +1005,20 @@ app.post('/api/admin/questions/:id/hide', wrap(async (req, res) => {
   res.json({ success: true, data: mapQuestionRow(data) });
 }));
 
+// DELETE /api/admin/questions/:id — 질문 영구 삭제 (votes 는 FK cascade) [세션admin]
+app.delete('/api/admin/questions/:id', wrap(async (req, res) => {
+  const sessionId = await getQuestionSessionId(req.params.id);
+  if (!sessionId) return res.status(404).json({ success: false, message: '질문을 찾을 수 없습니다.' });
+  const ok = await requireSessionAdmin(req, res, sessionId);
+  if (!ok) return;
+
+  const { data, error } = await supabase
+    .from('questions').delete().eq('id', req.params.id).select('id').maybeSingle();
+  if (error) throw error;
+  if (!data) return res.status(404).json({ success: false, message: '질문을 찾을 수 없습니다.' });
+  res.json({ success: true, data: { id: data.id } });
+}));
+
 // ============================================================
 // 🛣️ 라우트: 금지어 관리 (콘솔)
 // ------------------------------------------------------------
@@ -885,17 +1093,27 @@ const mapPublicSessionRow = (row) => ({
   track_id: row.track_id || null,           // 트랙별 그룹핑용(프론트가 처리)
   starts_at: row.starts_at || null,
   ends_at: row.ends_at || null,
+  session_date: fmtDate(row.starts_at),      // 'YYYY-MM-DD' (KST) — 멀티데이 그룹핑용
 });
 
 // GET /api/public/sessions/:codeOrId — 공개(무인증) 세션 단건
 // ------------------------------------------------------------
 //  사용자 페이지(#/s/:code | #/session/:id)가 세션 메타 + project_code 를 얻기 위해 호출.
 //  공개(is_public=true) 세션만 반환. 비공개/없음 → 404.
+//  단, 비공개 세션이라도 관리자 미리보기 토큰(?pv= 또는 ?token= = 세션 admin_token
+//  또는 콘솔 토큰)이 맞으면 반환 — "사용자 화면 미리보기"가 비공개 세션에서도 동작하도록.
 //  ⚠️ 공개 안전 필드만: admin_token / client_name / status 등 절대 금지.
 app.get('/api/public/sessions/:codeOrId', wrap(async (req, res) => {
-  // 공개 세션만 해석(비공개면 null → 404).
-  const session = await resolveSession(req.params.codeOrId, { publicOnly: true });
-  if (!session) {
+  const session = await resolveSession(req.params.codeOrId);
+  const previewToken = ((req.query.pv || req.query.token) || '').toString().trim();
+  const canView = !!session && (session.is_public === true || (
+    previewToken && (
+      previewToken === session.admin_token ||
+      (ADMIN_CONSOLE_TOKEN && previewToken === ADMIN_CONSOLE_TOKEN)
+    )
+  ));
+  if (!canView) {
+    // 비공개 세션은 존재 여부도 숨김(무토큰/오답 → 동일 404)
     return res.status(404).json({ success: false, message: '세션을 찾을 수 없습니다.' });
   }
   // 소속 행사의 code 도 함께 반환(사용자 페이지 "전체 세션 보기" → 랜딩 이동용).
@@ -919,6 +1137,7 @@ app.get('/api/public/sessions/:codeOrId', wrap(async (req, res) => {
       track_name: nameMap[session.track_id] || '',
       starts_at: session.starts_at || null,
       ends_at: session.ends_at || null,
+      is_public: session.is_public === true, // 미리보기 시 프론트가 '비공개' 배지 표시용
       project_id: session.project_id,
       project_code: projectCode,
     },

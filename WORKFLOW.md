@@ -9,7 +9,159 @@
 
 ---
 
-## 2026-06-11
+## 2026-07-07
+
+### 29-1) 후속 — 콘솔 로그 문의 (수정 없음)
+- **지시:** 콘솔 로그 붙여넣음(Tailwind CDN 경고 / Babel 경고 / React DevTools 안내 / f0c81c 404).
+- **판단:** 404는 **토글 전** 시점의 로그 — 사용자가 29번 토글로 f0c81c 를 직접 공개 전환했고, 현재 프로덕션에서 무토큰 API 200 + `#/s/f0c81c` 사용자 페이지 정상 렌더 확인(is_public: true). 나머지 3건은 단일 index.html(빌드 없는 CDN React+Tailwind+in-browser Babel) 아키텍처의 정상 경고로 동작 무관. 코드 수정 없음.
+
+### 29) 세션 공개/비공개 토글
+- **지시:** "공개, 비공개 토글을 만들어줘."
+- **처리(index.html, ProjectDetailPage):**
+  - 세션 카드의 정적 공개/비공개 Badge → **클릭형 토글 스위치**(role=switch)로 교체. 공개=액센트 필+점, 비공개=회색 필+점, hover 시 테두리 강조 + title 안내.
+  - `handleTogglePublic`: 기존 `PATCH /api/admin/sessions/:id`(is_public) 재사용. **낙관적 갱신**(즉시 UI 반영) + 실패 시 롤백 + 토스트("세션을 공개/비공개로 전환했습니다").
+  - 서버 변경 없음(PATCH가 이미 is_public 지원).
+- **검증(로컬 + Playwright, 뉴코어 f0c81c):** 비공개→공개 클릭: 스위치 [checked]·토스트·공개 API 무토큰 **200** / 다시 클릭(원복): 비공개 표시·무토큰 **404** — 실데이터 원상복구 완료. 콘솔 에러 0.
+- **배포:** `vercel deploy --prod` → event-qna.vercel.app.
+- **효과:** 비공개 세션 공개 전환이 수정 모달 없이 원클릭. 28-1의 "공개 전환 방법"이 더 간단해짐.
+
+### 28-1) 후속 — "#/s/f0c81c 세션을 찾을 수 없다" 문의
+- **지시:** "https://event-qna.vercel.app/#/s/f0c81c 세션을 찾을수 없다고 뜨네."
+- **판단:** 버그 아님 — f0c81c 는 **비공개 세션**이라 토큰 없는 사용자 URL 접근은 의도적으로 404(참가자 차단·존재 은닉, 28번 설계 그대로). 관리자 열람은 "사용자 화면 미리보기" 버튼(?pv= 자동 첨부)을 사용해야 함.
+- **UX 보완:** 관리자 세션 카드의 사용자 URL 라벨을 비공개 세션일 때 "사용자 URL ⚠ 비공개 — 공개 전환 전엔 접속 불가"로 표시 + 복사 토스트에도 동일 안내. 프로덕션 배포.
+- **공개 전환 방법:** 세션 카드 연필(수정) → "공개 세션 (사용자에게 노출)" 체크.
+
+### 28) "사용자 화면이 뜨지 않는" 버그 — 비공개 세션 미리보기 404 수정
+- **지시:** "사용자 화면이 뜨지 않는데. 전체적으로 오류 체크해줘."
+- **전체 오류 체크(프로덕션, Playwright+curl):** 랜딩(#/e/feb8a3·b06a42) OK / 세션 페이지(#/s/72b559·65ede1) OK / 구형 긴 라우트(#/event/:uuid·#/session/:uuid) OK / 관리자 콘솔·프로젝트 상세 OK / 질문 모달 OK. 콘솔 에러 0.
+- **재현된 버그 1건:** 관리자 상세 → **비공개 세션**의 "사용자 화면 미리보기" 클릭 → `/api/public/sessions/:code`가 `publicOnly`라 **404** → "세션을 찾을 수 없습니다" 화면. (언리얼 41세션 중 14개가 비공개라 자주 발생. 첫 재현: f0c81c "뉴코어 게임즈 Or 린반")
+- **수정:**
+  - server.js: 공개 세션 단건 API가 `?pv=`(또는 `?token=`) 미리보기 토큰(해당 세션 admin_token 또는 콘솔 토큰)이 맞으면 비공개 세션도 반환. 무토큰/오답은 기존대로 404(존재 여부 은닉). 응답에 `is_public` 필드 추가.
+  - index.html: `fetchPublicSession(codeOrId, previewToken)`, UserSessionPage 가 `?pv=` 쿼리 전달 + 비공개면 헤더에 **"비공개 · 관리자 미리보기"** 앰버 배지. 관리자 미리보기 버튼이 비공개 세션일 때 `?pv=<admin_token>` 자동 첨부.
+- **검증:** 로컬 API(무토큰 404/오답 404/세션토큰 200/공개세션 무토큰 200) + 브라우저(비공개 미리보기 → 배지+세션정보+질문모달 정상, 콘솔 에러 0) → 프로덕션 배포 후 동일 3케이스 재확인.
+- **참고:** 참가자 입장은 변화 없음(비공개 세션은 여전히 404·랜딩 미노출). 미리보기에서 질문 등록도 가능(관리자 테스트용).
+
+### 27) 관리자 프로젝트 상세 — 날짜/트랙 필터 (스크린샷 피드백)
+- **지시:** "뭔가 잘 안되는거 같은데" + 관리자 트랙 패널 스크린샷 — "위에 날짜를 넣어서 선택을 하게 하고 트랙을 선택하면 아래쪽에 리스트가 뜨면 보는 사람이 편할꺼 같은데."
+- **맥락:** 26번 필터는 공개 랜딩에만 추가했었음. 사용자가 보던 화면은 **관리자 프로젝트 상세** — 여긴 트랙 칩이 삭제 전용이었고 날짜 선택도 없었음.
+- **처리(index.html, ProjectDetailPage):**
+  - 트랙 패널 위에 "날짜" 필터 줄 추가([전체]+날짜별+날짜 미정, 날짜 2개 이상일 때만).
+  - 트랙 칩을 **클릭=필터 선택(재클릭 해제) / 휴지통=삭제**로 이원화. [전체]·[미지정] 칩 추가. 칩 개수는 반대편 필터 반영(패싯). 날짜+트랙 AND 조합.
+  - 세션 카운트 필터 반영, 결과 0건 시 EmptyState. 특정 트랙 선택 시 룸 헤더 없이 평평한 목록(`layout.flat`).
+  - **트랙 삭제에 window.confirm 추가**(칩이 클릭 가능해져 오클릭 위험 ↑, "세션은 미지정으로 이동" 안내). 삭제된 트랙이 현재 필터면 필터 해제.
+- **검증(로컬 + Playwright, 언리얼 41세션):** 날짜 줄(전체41/20/21)+트랙 줄(10×4+미지정1) 렌더 → 8/21 선택(21개, 트랙별 섹션 5·5·5·5·1) → HB2 추가 선택(5개 평평, 날짜 칩 5/5로 갱신) → 휴지통 클릭 시 confirm 표시·취소 시 무변화(stopPropagation 정상). 콘솔 에러 0.
+- **배포:** `vercel deploy --prod` → event-qna.vercel.app 반영 확인.
+
+### 26) 공개 랜딩 날짜별 필터 추가 (트랙과 조합 선택)
+- **지시:** "날짜별 트랙별 선택이 가능한지 체크해주고 안되면 가능하도록 기능을 넣어줘."
+- **체크 결과:** 트랙 필터(25번)만 있고 날짜 선택은 없었음(날짜는 섹션 구분만) → 기능 추가.
+- **처리(index.html, EventLandingPage):**
+  - `dateFilter` 상태(null=전체 / 'nodate'=날짜 미정 / 'YYYY-MM-DD') 추가, 트랙 필터와 **AND 조합**.
+  - 칩 2줄: 날짜 줄([전체 날짜]+날짜별, 날짜 2개 이상일 때만) + 트랙 줄([전체 트랙]+트랙별+기타). 칩 노출은 전체 세션 기준(사라졌다 생겼다 방지), **개수 표시는 반대편 필터 반영(패싯 방식)**. 공용 `renderChip` 헬퍼로 통합.
+  - 필터 결과 0건이면 "조건에 맞는 세션이 없습니다" EmptyState.
+  - 날짜 1개로 좁혀지면 자연히 단일날짜 레이아웃(트랙 전체 선택 시 룸 섹션 유지, 특정 트랙 선택 시 평평).
+- **검증(로컬 + Playwright, feb8a3):** 칩 2줄 렌더 → 8/21 선택(13개, 트랙 칩 3·3·3·4로 갱신) → Atlas 추가 선택(정확히 4개, 시간순, 날짜 칩도 8·4·4로 갱신). 콘솔 에러 0.
+- **배포:** `vercel deploy --prod` → event-qna.vercel.app 반영 확인.
+
+### 25) 공개 랜딩 트랙별 필터 칩
+- **지시:** "트랙이 있는것들은 트랙별로 선택이 가능하도록 해야할듯해."
+- **처리(index.html, EventLandingPage만):**
+  - 트랙 필터 상태(`trackFilter`: null=전체 / 'unassigned'=기타 / track id) 추가.
+  - 세션 목록 위에 가로 스크롤 칩 바: [전체 N] + 공개 세션이 있는 트랙별 칩(개수 표시) + 미배정 세션 있으면 [기타]. **공개 세션이 있는 트랙이 2개 이상일 때만 노출**(트랙 없는 행사(Mendix 등)는 기존 그대로).
+  - 특정 트랙 선택 시: 해당 트랙 세션만 표시하고 룸 섹션 헤더는 생략(1개뿐이라 무의미) — 멀티데이면 날짜 섹션은 유지. "공개 세션 N개" 카운트도 필터 반영.
+- **검증(로컬 + Playwright, 라이브 DB):**
+  - 언리얼 페스트(feb8a3, 룸 4·공개 27): 칩 5개(전체 27/HB1 6/HB2 6/HB3 7/Atlas 8) 렌더 → Atlas 클릭 시 8개만, 날짜(8/20·8/21) 섹션 유지 + 룸 헤더 제거 확인. 콘솔 에러 0.
+  - Mendix(b06a42, 트랙 없음): 칩 미노출, 기존 평평한 목록 그대로.
+- **배포:** `vercel deploy --prod` → event-qna.vercel.app 반영 확인(새 코드 표식 + 랜딩 API 트랙 4).
+- **참고:** 라이브 feb8a3 에는 41개 엑셀 데이터(공개 27, 8/20·8/21)가 이미 업로드되어 있음(사용자가 프로덕션 콘솔에서 교체한 것으로 보임 — 22번의 '남은 결정' 해소됨).
+
+### 24) 관리자 대시보드 질문 삭제 기능
+- **지시:** "관리자쪽에서 질문이 올라온거중에 필요없는거는 삭제하는 기능을 넣어야 할꺼 같아."
+- **처리:**
+  - server.js: `DELETE /api/admin/questions/:id`(requireSessionAdmin — 세션토큰 or 콘솔토큰). 질문 영구 삭제, `votes`는 FK `on delete cascade`로 자동 정리.
+  - index.html: `mockApi.deleteQuestion(id, sessionToken)` 추가. `AdminQuestionCard` 액션줄 우측에 빨간 "삭제" 버튼(TrashIcon, `ml-auto`). 클릭 → 확인 모달(질문 제목·작성자·좋아요 요약 + "되돌릴 수 없습니다" 경고 + 취소/삭제) → 삭제 성공 시 목록 즉시 제거 + 토스트.
+- **검증(로컬 서버, 라이브 DB — 테스트 질문 생성 후 그걸 삭제하는 방식으로 실데이터 무손상):**
+  - API: 무토큰 401 / 오답토큰 403 / 없는 질문 404 / 콘솔토큰 삭제 200.
+  - 브라우저(Playwright): 대시보드에 삭제 버튼 렌더 → 모달 표시 → 확인 → 카운트 1→0, "질문을 삭제했어요" 토스트, 콘솔 에러 0.
+  - DB: 질문 row·votes row 모두 삭제 확인(service_role 직조회).
+- **배포:** `vercel deploy --prod` → event-qna.vercel.app aliased, 프로덕션에서 라우트 존재 확인.
+- **참고:** questions insert 시 본문 컬럼은 `body`가 아니라 `content`(테스트 중 재확인).
+
+### 23) 행사 사이트 URL → 세션 자동 추출·등록 (MendixConnect)
+- **지시:** "사이트 주소를 주면 자동으로 이벤트 시간이랑 세션명 생성이 가능한가?" → `https://www.mendixconnect.com/#how-it-works` 전달 → "라이브 Mendix Webinar에 등록" 선택.
+- **처리:**
+  - 사이트가 정적 HTML이라 curl + 텍스트 추출로 아젠다 원문 파싱(웨비나 2026-07-21 화 14:00, 온라인, 세션 4개: 오프닝&웰컴 / Intelligence Center X 와 Mendix 11 소개 / Maia 기반 Agent Coding 데모 / 사례 및 웨비나 이벤트 공유. 연사: 박준상 본부장·비써르 마우리츠 · 지멘스).
+  - 프로덕션 프로젝트 확인: Mendix Webinar(b06a42, id 36ff23d1…)는 start_date 2026-07-21에 **기존 세션 0개** → replace 무해 확인 후 진행.
+  - 스크래치 스크립트(`mendix_import.js`)로 import 형식 xlsx(시트 sessions, 날짜·시간·세션명·연사·세션룸·공개여부) 생성 → `POST /api/admin/projects/:id/sessions/import` (mode=replace, year=2026) 호출.
+- **결과:** created 4 / failed 0, 날짜 2026-07-21 단일, 룸 없음(온라인이라 세션룸 빈칸 = 평평한 목록).
+- **검증(라이브):** 공개 랜딩 `#/e/b06a42` — "Mendix Webinar" 제목 + 공개 세션 4개, KST 시간 14:00~15:35 정상 표시(DB엔 UTC 저장, 프론트 `toLocaleTimeString('ko-KR')` 변환), 연사 노출, 콘솔 에러 0.
+- **메모:** 일회성 URL→세션 등록은 이 방식(추출→xlsx→import API)으로 재사용 가능. 앱 내장 기능(관리자 콘솔 "URL로 가져오기")은 LLM 파싱 필요라 별도 결정 사항.
+
+## 2026-07-06
+
+### 22) 프로덕션 DB 불일치 해결 (A안: env 교체 + 재배포) ✅
+- **지시:** "a" (21번의 A안 선택 — 프로덕션 env를 우리 DB로 교체).
+- **처리:**
+  - `vercel env rm` × 3 (SUPABASE_URL·ANON·SERVICE_ROLE, production) 후 로컬 `.env.local` 값으로 `vercel env add` × 3 → 프로덕션이 `dxnmroyjqklbuughassw`(우리 개발/데이터 DB) 사용하도록 교체. (ADMIN_CONSOLE_TOKEN 은 그대로)
+  - pull 대조로 URL/ANON/SR 3개 모두 로컬과 일치 확인.
+  - `vercel --prod --yes` 재배포(새 env 반영).
+- **검증(라이브):**
+  - 관리자 프로젝트 목록 **500 → 200**: "언리얼 페스트 서울 26"(feb8a3, 세션5) / "Mendix Webinar"(b06a42).
+  - 공개 랜딩 feb8a3: 공개세션 5·트랙 4·날짜 그룹 정상.
+  - 공개 세션 f59b26: 트랙 "Harmonyball Room 3" 노출. (단, `/api/public/sessions/:code` 단건 응답엔 session_date 미포함 — 사용자 단일세션 페이지는 날짜 그룹 불필요라 무영향.)
+- **결과:** event-qna.vercel.app = 우리 최신 Q&A 앱 + 우리 DB/데이터 + 엑셀 업로드 기능으로 **완전 동작**.
+- **참고:** 현재 라이브 feb8a3 는 기존 수동 세션 5건(단일 날짜 2026-06-11, 트랙=Harmonyball Room…). 41개 멀티데이 엑셀 데이터를 라이브에 넣으려면 프로덕션 콘솔에서 해당 xlsx 업로드(교체) 하면 됨(사용자 판단).
+
+### 21) 프로덕션 배포 실행 → 코드 반영 성공, 그러나 DB 불일치 발견 (결정 대기)
+- **지시:** "프로덕션에 배포해줘."
+- **처리:** `vercel --prod --yes` 실행 → 성공. `event-qna.vercel.app` 에 우리 최신 코드 aliased.
+  - 검증: `/` = 우리 index.html(qa_theme 등 표식 4), 관리자 API 무토큰 → 한글 message(우리 코드), import 엔드포인트 401(존재), 공개세션 조회 시 한글 message.
+- **⚠️ 발견 — 프로덕션 Vercel 프로젝트/DB 불일치:**
+  - 링크된 프로젝트(prj_P0qeg, `.vercel/project.json`엔 "event-qna")가 실제로는 **`livepoll-app`으로 개명**됨. alias는 event-qna.vercel.app 유지. (별도 event-qna 프로젝트는 없음)
+  - 이 프로젝트 env(Supabase)가 21일 전 **다른 DB로 교체**돼 있었음:
+    - 프로덕션: `oixdfkwpkmjrbhonzqxt` — **다른 앱(livepoll) 스키마**. `polls` 테이블 존재, 우리 앱 필수 `questions`/`votes`/`banned_words` **없음**(PGRST205). sessions/tracks/projects는 있으나 tracks가 '게임:아트'(주제)로 채워짐, 세션 비어있음. 프로젝트 "언리얼 페스트 서울 26"(code fa089f) 1건.
+    - 로컬(개발): `dxnmroyjqklbuughassw` — Q&A 완전 스키마 + 우리 데이터(트랙=룸, 세션, 업로드 검증).
+  - ADMIN_CONSOLE_TOKEN·ANON 접두는 동일(GooD121930!@ / eyJhbGci…) 이나 URL/DB가 다름.
+  - **결과:** 사이트는 열리나 관리자 목록 API **500**(그 DB에 questions 테이블 없음). 즉 코드는 최신이지만 프로덕션 DB가 우리 앱과 호환 안 됨.
+- **결정 대기(사용자 부재):** env 교체/롤백은 영향 큰 인프라 변경 + livepoll 앱 얽힘 가능성 → 확인 없이 미진행. 3안 제시:
+  - (A·권장) 프로덕션 env 3개(SUPABASE_URL/ANON/SERVICE_ROLE)를 로컬과 동일한 `dxnmroyjqklbuughassw`로 교체 후 재배포 → 프로덕션이 우리 앱+데이터+업로드로 완전 동작.
+  - (B) 프로덕션 DB(oixdf…)에 questions/votes/banned_words + SQL 마이그레이션 적용(데이터 비어있어 업로드로 채움). livepoll과 DB 공유.
+  - (C) 이번 배포 롤백 → 이전 배포본으로 alias 복구.
+- **미결:** 위 A/B/C 중 택1 필요. (A면 `vercel env rm/add` 3건 + `vercel --prod`)
+
+### 20) 세션 엑셀 일괄 업로드 + 날짜/룸별 소트
+- **지시:** "샘플_세션목록1.xlsx 처럼 파일 업로드하면 세션 자동 등록. 날짜 분리 시 분리해서 소트, 룸별 소트도."
+- **결정(clarify):** ① 세션룸만 룸으로 사용('트랙'(주제) 컬럼은 무시) ② 기존 삭제 후 전체 교체(replace) ③ 연도 2026(프로젝트 start_date 우선).
+- **샘플 구조:** 시트 `sessions`, 컬럼 `날짜·시간·세션명·연사·트랙·세션룸·공개여부`. 41행, 날짜 2개(8/20·8/21), 룸 4개(Harmony Ballroom 1~3·Atlas), 빈 줄로 룸 구분.
+- **처리 — server.js:**
+  - `express.json({ limit:'15mb' })`(base64 업로드용).
+  - `fmtDate`(timestamptz→'YYYY-MM-DD' KST) + `parseKoreanDateTime`('8월 20일'+'11:30~12:20'+연도→실제 날짜 보존 starts_at/ends_at). 기존 `parseDuration`은 '오늘' 날짜만 써서 멀티데이 불가 → import는 실제 날짜 저장.
+  - `mapSessionRow`/`mapPublicSessionRow`에 `session_date` 노출(그룹핑용).
+  - 신규 `POST /api/admin/projects/:pid/sessions/import`[콘솔]: base64 xlsx 파싱(exceljs), 헤더 유연 매칭, 세션룸→트랙 생성(등장순 sort_order), replace 시 기존 세션(질문 cascade)·트랙 삭제 후 재구성, 공개여부('공개'=true, '비공개' 부분포함 배제), 세션별 code 발급. 결과 요약(created/날짜별/룸별/실패) 반환. 스키마 미적용 42703 폴백 유지.
+- **처리 — index.html:**
+  - `mockApi.importSessions`, `bufToBase64`(청크), `BulkUploadModal`(파일선택+빨간 교체경고+컬럼 형식 안내→업로드→결과 요약 화면), `UploadIcon`/`CalendarIcon`, `fmtDateLabel`('YYYY-MM-DD'→'8월 20일 (목)'), `sortByTime`.
+  - 프로젝트 상세: 헤더 "세션 업로드" 버튼 + 모달. 세션 렌더를 `layout`으로 재구성 — **날짜 2개 이상이면 날짜 섹션→룸 섹션 2단**, 단일 날짜면 기존 룸 그룹, 트랙 없으면 평평. `renderRoomGroups` 헬퍼.
+  - 공개 랜딩: 동일하게 날짜(멀티데이)→룸 2단 그룹(`renderRooms`), starts_at 정렬.
+- **검증(로컬 서버 + Playwright, 실데이터 무손상):**
+  - 임시 프로젝트에 샘플 import → **41개 생성**, 날짜 20/21 분리, 룸 sort 1~4, 공개 27·비공개 14, 룸없음 1(샘플 R50 세션룸 빈칸=원본 그대로), tracksApplied true. 랜딩 공개세션 27.
+  - 관리자 화면: 날짜 헤더 '8월 20일 (목)'·'8월 21일 (금)'(요일 정확) + 룸 4섹션 + 업로드 버튼 렌더, 콘솔 에러 0.
+  - 공개 랜딩: 동일 2단 그룹 렌더 확인. 임시 프로젝트 2개 모두 삭제 정리 → 실데이터(언리얼 페스트 서울 26/Mendix)만 남김.
+- **미배포:** 로컬만 검증. 프로덕션(event-qna.vercel.app)은 여전히 구버전(19번 참조) → 실사용하려면 재배포 필요.
+- **주의:** replace 는 대상 프로젝트 세션/트랙을 전부 지움(되돌리기 불가). 실제 a1 에 올릴 때 기존 수동 세션 교체됨.
+
+### 19) 트랙/SQL 실제 적용 여부 검증 (+ 프로덕션 코드 불일치 발견)
+- **지시:** "트랙/SQL 실제 적용 여부 검증해줘."
+- **검증 방법:** 라이브 Supabase(`dxnmroyjqklbuughassw`)에 anon/service_role REST 직접 질의(코드 폴백에 가려지지 않도록).
+- **결과 — SQL 2건 모두 적용·실데이터로 채워짐 ✅**
+  - `add_tracks_speaker.sql`: `tracks` 테이블 4행(Harmonyball Room 1~3 / Atlas Hall, project a1) + `sessions.track_id`·`sessions.speaker` 존재·채워짐(심성민·김지교·Ari Arnbjörnsson·강성구·김정욱 등 실강연자).
+  - `add_short_codes.sql`: `sessions.code`(f59b26·6ab014·5d6eb7…)·`projects.code`(feb8a3=언리얼 페스트 서울 26, b06a42=Mendix Webinar) 존재.
+  - 과거 테스트 트랙(Track A·메인홀/Track B·세미나실)은 실데이터로 교체 완료(잔여 없음).
+- **부수 발견 — ⚠️ 프로덕션(event-qna.vercel.app)이 이 repo 코드가 아님:**
+  - 프로덕션 API 404/401 응답이 `{"success":false,"error":"session_not_found"|"unauthorized"}`(영문 slug)인데, 이 repo `server.js`는 `{success:false, message:'세션을 찾을 수 없습니다.'|'토큰이 필요합니다.'}`(한글). `error:` 형태는 repo·git 히스토리 어디에도 없음.
+  - `/api/public/projects/:id/landing` 프로덕션 404(Express 기본) = 배포본에 라우트 없음. `/api/public/sessions/:code`도 공개 코드(f59b26)에 session_not_found = 배포본 resolveSession이 code 조회 미지원.
+  - 프로덕션 `/` = 69,188 bytes인데 repo `index.html` = 150,348 bytes. repo 고유 표식(`qa_theme` 다크모드·`EVENT Q&A CONSOLE`·`LIVE Q&A`)이 프로덕션엔 0건.
+  - **결론:** DB 스키마는 최신(트랙/코드 적용)이나, **event-qna.vercel.app에 서빙 중인 프론트+서버는 트랙/short-code 이전의 다른/구버전**. 최신 HEAD(4e3c533)가 이 alias로 배포되지 않았음(또는 다른 URL로 배포됨). DB는 공유하므로 트랙 데이터는 보이지만 프로덕션 앱은 트랙/단축URL 기능 미노출.
+  - **다음 조치(대기):** `vercel --prod`로 재배포해 alias를 최신 HEAD로 맞추거나, 실제 배포 URL 확인 필요. (미실행 — 사용자 확인 대기)
 
 ### 18) 트랙(Track) + 강연자(speaker)
 - **지시:** 멀티 트랙(최대 4 등) 운영 지원, 사용자도 트랙별로 보기, 세션 폼 '설명'→'강연자'.
