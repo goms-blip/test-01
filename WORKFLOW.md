@@ -9,6 +9,57 @@
 
 ---
 
+## 2026-07-14
+
+### 30) 프로덕션 QA 전수 점검 (수정 없음 — 전부 정상)
+- **지시:** "현재 qa작동이 제대로 이루어지고 있는지 확인해줘."
+- **점검 대상:** 프로덕션 `event-qna.vercel.app` (Vercel 프로젝트 `livepoll-app`, 최신 Production 배포 7일 전 · Ready).
+- **점검 결과 (전 항목 통과):**
+  - 사이트 응답: `/` 200 (~2.1s cold), favicon 200.
+  - 인증: `/api/admin/*` 무토큰·오답 토큰 → 401 정상 차단. `x-admin-token` 헤더로 정상 접근 확인.
+  - 데이터: 프로젝트 2건(Mendix Webinar 7/21 세션 4개, 언리얼 페스트 서울 26 8/20~21 세션 41개) 정상 조회.
+  - 공개 API: 공개 세션(ef792a) 200 / 비공개 세션(65ede1) 404(존재 은닉) / 프로젝트 랜딩 200 — 28~29번 설계대로 동작.
+  - E2E(Playwright, 프로덕션): `#/s/ef792a` 렌더 정상·콘솔 에러 0 → 질문 등록(제목/이름/내용) → 목록 즉시 표시 → 좋아요 1 반영(DB likes=1 확인) → 관리자 questions API에서 동일 데이터 확인.
+  - 엑셀 다운로드: 세션 export 200, 정상 xlsx(7KB) 생성.
+  - 정리: 테스트 질문 DELETE로 삭제 → 프로덕션 데이터 원상복구(질문 0건) 확인.
+- **특이사항:** Vercel 프로젝트명이 `event-qna` → `livepoll-app` 으로 변경되어 있음(도메인 event-qna.vercel.app 은 유지). Vercel CLI 구버전(51.7.0) 업그레이드 권장 안내 있음. 콘솔 warning 2건은 기존과 동일한 CDN 아키텍처 경고로 동작 무관.
+
+### 33) GitHub 에서 AFM/week 연습 폴더 전량 삭제
+- **지시:** "github에 있는 파일들중에 AFM으로 들어간 것들과 week로 들어간 폴더는 모두 삭제하고 싶어. 지워줘"
+- **대상:** origin/main 최상위 13개 폴더 — `AFM-weekend-2th~7th`(6개) + `week-1~7`(7개), **총 976 파일**. (전체 1067 → 잔존 91)
+- **안전 처리:** 로컬(`da74de0`)이 원격(LivePoll, `bf5100a`)과 diverged + 미커밋 1043줄이라, 로컬에서 push 시 강제푸시로 LivePoll 히스토리 소실 위험. → **origin/main 기준 별도 워크트리**(`/tmp/qa-cleanup-wt`)에서 `git rm -r` 후 커밋(`0a40a43`, 부모=bf5100a)해 **fast-forward push**. LivePoll 앱/히스토리 보존.
+- **검증(GitHub 실측):** `AFM-weekend-2th/7th`·`week-1/7` → HTTP **404**(삭제됨), API 최상위에 AFM/week 없음. 앱 파일(index.html·server.js·admin.html·package.json) → **200** 정상 잔존. 워크트리 정리 완료.
+- **참고:** 현재 트리에서만 제거(파일 브라우저에 안 보임). git **히스토리엔 잔존**(레포 용량 그대로) — 완전 말소(용량 축소/시크릿 파기)가 필요하면 `git filter-repo` + force-push 별도 진행 필요. 로컬 작업본은 여전히 diverged 상태(동기화 미실행).
+
+### 32) GitHub(원격 저장소) 데이터 점검
+- **지시:** "github에 있는 데이타들 체크해줘."
+- **원격:** `github.com/goms-blip/test-01` — **public 저장소**(HTTP 200). 여러 주차 과제(week-3~7, AFM-weekend) + 이 앱이 한 레포 루트에 공존하는 대형 모노레포.
+- **로컬↔원격 갈라짐:** 로컬 HEAD `da74de0`(옛 event-qna QA 앱, 1커밋)와 원격 `origin/main bf5100a`(6커밋 앞섬)가 **diverged**. 원격 main 이 실제 프로덕션 배포본 = **LivePoll 앱**(`admin.html`·`livepoll_schema.sql`·`migrations/`·`vendor/`·`poll_seed.sql` 등 로컬에 없는 파일 다수). 원격엔 이미 "Fix QA/security findings from 고길동 review (High+Medium)" 등 보안수정 커밋 존재.
+- **시크릿 노출 점검(원격 히스토리 전체 스캔):**
+  - ✅ `SUPABASE_SERVICE_ROLE_KEY`: 원격 어디에도 없음(role:service_role JWT 미검출). 안전.
+  - ✅ `ADMIN_CONSOLE_TOKEN`(`<<REDACTED>>`): 원격(origin/main) 히스토리·현재 raw 파일 **어디에도 없음**. GitHub 노출 아님.
+  - ⚠️ 단, **로컬 미푸시 커밋 `da74de0` 의 WORKFLOW.md 에 콘솔토큰이 평문**으로 있었음 → 본 점검에서 `<<CONSOLE_TOKEN_REDACTED>>` 로 마스킹함. diverged 라 일반 push 는 거부되나 force/merge 시 GitHub 유출 위험이었음.
+  - ⚪ `SUPABASE_ANON_KEY`: `index.html` 에 커밋(공개 키라 설계상 정상). 단 고길동 CRITICAL(admin_token 유출)의 공격 벡터가 이 키.
+  - ✅ `.env.local`/`.env` gitignore 정상. 추적되는 env 는 `.env.example`(플레이스홀더만, 실제값 없음)뿐.
+  - ✅ 하드코딩 비밀번호/secret 문자열 없음.
+- **결론:** GitHub 원격에 새어나간 시크릿 **없음**. 다만 (1) 로컬 작업본이 프로덕션 배포본과 크게 diverged 되어 있어 감사 대상 정합성 주의 필요, (2) 로컬 WORKFLOW.md 토큰은 마스킹 완료, (3) 저장소가 public 이므로 향후 커밋 시 시크릿 유입 주의.
+
+### 31) 고길동(gogildong-qa-security) QA·보안 감사 — 🔴 CRITICAL 1건 발견 (프로덕션 재현 확정)
+- **지시:** ".claude/gogildong-qa-security.md 를 이용해서 검증해줘."
+- **🔴 CRITICAL: anon 키로 공개 세션 `admin_token` 유출 → 세션 관리 권한 탈취.**
+  - 근본원인: `supabase_schema.sql:114-118` `sessions_public_read` 정책이 **행(row)만** `is_public=true` 로 제한하고 **컬럼 접근을 막지 않음**(Postgres RLS는 컬럼 단위 제어 안 함). anon 이 `sessions` 의 모든 컬럼(admin_token 포함)을 SELECT 가능. `index.html:582-584`/`662` 의 `.select('*')` 가 악화.
+  - **직접 재현(프로덕션):** `GET /rest/v1/sessions?select=id,admin_token&is_public=eq.true` (anon 키, index.html:111 하드코딩) → 전 공개세션 admin_token 평문 반환(예 916c59d8 → `184df301...`). 그 토큰으로 `GET /api/admin/sessions/916c59d8.../questions` → **HTTP 200**(오답 토큰은 403). 유출 토큰이 실제 인가됨 확인.
+  - 영향: 공개 행사 접속자 누구나 각 세션 연사 대시보드 권한 → 숨김질문 열람, 질문 삭제/숨김/답변 토글, 세션 수정·비공개화, Q&A 엑셀(PII) 유출. 라이브 사보타주 가능.
+  - **권장 즉시조치:** `REVOKE SELECT (admin_token) ON sessions FROM anon;` + 노출된 admin_token 전량 로테이션. `index.html` 의 `.select('*')` → 필요한 컬럼만 명시. 근본: admin_token 을 별도 테이블 분리 또는 공개조회를 `/api/public/sessions/:codeOrId` 로 일원화.
+- **🟠 HIGH:** ① 좋아요 `voter_key` 클라이언트 생성 → 매번 새 키로 무한 좋아요(정렬 왜곡). ② 질문 insert 서버측 길이제한 없음(`content text` 무제한) — anon 직접 insert 로 수MB 도배/DoS. ③ questions RLS 가 세션 `is_public` 미검사 → 비공개 세션 질문 read/write 여지.
+- **🟡 MEDIUM:** 엑셀 export 수식 인젝션(`server.js:1249-1264`, `=`/`+`/`-`/`@` 셀 이스케이프 없음), 좋아요 조작.
+- **🟢 LOW:** 토큰을 `?token=` 쿼리로 전달(로그/Referer 잔류), 토큰 `!==` 비교 non-constant-time, `track_id` 교차프로젝트 배정, 잘못된 UUID → 500, 금지어 부분문자열 매칭 우회.
+- **문제없음 확인:** 콘솔 API 인증 게이트 정상(무토큰/오답 401·403), 세션 간 IDOR 차단(토큰-세션 바인딩), service_role/콘솔토큰 클라이언트 미노출, 정적파일(.env.local/*.sql) 미노출(catch-all 이 index.html 반환), XSS 없음(dangerouslySetInnerHTML 미사용), PostgREST 파라미터화(주입 없음), 비공개 세션 공개 API 404 은닉.
+- **정리:** 감사 중 생성한 테스트 질문 삭제·0건 재확인. 프로덕션 데이터 원상복구.
+- **주의:** 라이브 Supabase ref 는 `dxnmroyjqklbuughassw`(index.html:110-111 기준). 아직 코드 수정은 안 함 — CRITICAL 패치는 사용자 확인 후 진행 예정.
+
+---
+
 ## 2026-07-07
 
 ### 29-1) 후속 — 콘솔 로그 문의 (수정 없음)
@@ -121,7 +172,7 @@
   - 이 프로젝트 env(Supabase)가 21일 전 **다른 DB로 교체**돼 있었음:
     - 프로덕션: `oixdfkwpkmjrbhonzqxt` — **다른 앱(livepoll) 스키마**. `polls` 테이블 존재, 우리 앱 필수 `questions`/`votes`/`banned_words` **없음**(PGRST205). sessions/tracks/projects는 있으나 tracks가 '게임:아트'(주제)로 채워짐, 세션 비어있음. 프로젝트 "언리얼 페스트 서울 26"(code fa089f) 1건.
     - 로컬(개발): `dxnmroyjqklbuughassw` — Q&A 완전 스키마 + 우리 데이터(트랙=룸, 세션, 업로드 검증).
-  - ADMIN_CONSOLE_TOKEN·ANON 접두는 동일(GooD121930!@ / eyJhbGci…) 이나 URL/DB가 다름.
+  - ADMIN_CONSOLE_TOKEN·ANON 접두는 동일(`<<CONSOLE_TOKEN_REDACTED>>` / eyJhbGci…) 이나 URL/DB가 다름.
   - **결과:** 사이트는 열리나 관리자 목록 API **500**(그 DB에 questions 테이블 없음). 즉 코드는 최신이지만 프로덕션 DB가 우리 앱과 호환 안 됨.
 - **결정 대기(사용자 부재):** env 교체/롤백은 영향 큰 인프라 변경 + livepoll 앱 얽힘 가능성 → 확인 없이 미진행. 3안 제시:
   - (A·권장) 프로덕션 env 3개(SUPABASE_URL/ANON/SERVICE_ROLE)를 로컬과 동일한 `dxnmroyjqklbuughassw`로 교체 후 재배포 → 프로덕션이 우리 앱+데이터+업로드로 완전 동작.

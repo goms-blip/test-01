@@ -1,9 +1,0 @@
-.env
-.env.local
-node_modules
-WORK_HISTORY.md
-prd.md
-schema.sql
-server.js
-package-lock.json
-.DS_Store
