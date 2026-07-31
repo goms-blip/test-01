@@ -30,7 +30,7 @@
 
 ```bash
 npm install
-# .env.local 을 직접 만든다 (예시 파일은 저장소에 없다 — 키 목록은 3장 참고)
+cp .env.example .env.local         # 템플릿이 없는 사본이라면 3장 키 목록대로 직접 생성
 npm start                          # 기본 8787 포트, PORT 로 변경 가능
 ```
 
